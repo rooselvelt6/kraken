@@ -6143,3 +6143,349 @@ load_session('nonexistent')  # raises FileNotFoundError with no structured error
 **Blocker.** None.
 
 **Source.** Jobdori dogfood sweep 2026-04-22 08:46 KST — inspected `src/session_store.py` public API, confirmed only `save_session` + `load_session` present, no list/delete/exists surface.
+
+---
+
+# 🦀 Claw Code Venezuela - Roadmap Innovador
+
+## Visión 2026: AI Coding Agent con Algoritmos Bio-Inspirados y Machine Learning
+
+Este roadmap presenta una visión innovadora para Claw Code Venezuela, incorporando:
+- Algoritmos inspirados en la naturaleza (PSO, GA, ACO)
+- Machine Learning integrado
+- Seguridad de nivel militar
+- 99% Rust
+
+---
+
+## 🎯 Objetivos Principales
+
+1. **Eficiencia**: Algoritmos bio-inspirados para optimización de decisiones
+2. **Inteligencia**: ML para predicción y clasificación
+3. **Seguridad**: Cifrado, auditoría y sandbox
+4. **Rendimiento**: 99% Rust, binario único
+5. **Accesibilidad**: Modelos gratuitos para Venezuela
+
+---
+
+## 🧬 Fase 1: Algoritmos Bio-Inspirados (Nature-Inspired)
+
+### 1.1 Particle Swarm Optimization (PSO)
+
+**Estado**: ⏳ Por implementar
+
+**Aplicación**: Selección óptima de herramientas/tasks
+
+```rust
+// Problema: ¿Qué tool usar para esta tarea?
+// Solución: Enjambre de partículas evalúa:
+//   - Complejidad del código
+//   - Historial de éxito de cada tool
+//   - Contexto actual
+```
+
+**Implementación propuesta**:
+```rust
+pub struct PSOToolSelector {
+    particles: Vec<Particle>,
+    global_best: Particle,
+    w: f64,  // inertia weight
+    c1: f64, // cognitive coefficient
+    c2: f64, // social coefficient
+}
+```
+
+**Archivos objetivo**:
+- `rust/crates/optimization/src/pso.rs`
+
+### 1.2 Genetic Algorithm (GA)
+
+**Estado**: ⏳ Por implementar
+
+**Aplicación**: Evolución de estrategias de coding
+
+```
+- Población: estrategias de resolución
+- Fitness: tests pasados, código limpio
+- Crossover: combinar estrategias exitosas
+- Mutación: explorar nuevas aproximaciones
+```
+
+### 1.3 Ant Colony Optimization (ACO)
+
+**Estado**: ⏳ Por implementar
+
+**Aplicación**: Descubrimiento de paths de código
+
+```
+- Feromonas: tracks de código exitoso
+- Selección de path: probabilidad basada en historial
+- Optimización de navegación entre archivos
+```
+
+### 1.4 Simulated Annealing
+
+**Estado**: ⏳ Por implementar
+
+**Aplicación**: Escape de óptimos locales en refactoring
+
+```
+- Temperatura: nivel de exploración
+- Cooling schedule: reducir exploración gradualmente
+- Aceptar soluciones sub-óptimas para evitar local minima
+```
+
+---
+
+## 🤖 Fase 2: Machine Learning Integrado
+
+### 2.1 Tool Prediction Model
+
+**Estado**: ⏳ Por implementar
+
+**Input**: Contexto (código, historial, prompt)
+**Output**: Probabilidad de éxito por herramienta
+
+```rust
+// Estructura propuesta
+struct ToolPredictor {
+    model: candle::MLModel,
+    features: Vec<f32>,  // code embeddings
+}
+```
+
+**Dependencias**:
+- `candle`: Deep Learning en Rust
+- `tokenizers`: Tokenización
+
+### 2.2 Error Classification
+
+**Estado**: ⏳ Por implementar
+
+**ML para categorizar errores automáticamente**:
+- Syntax errors
+- Logic errors
+- Type errors
+- Security vulnerabilities
+
+### 2.3 Context Compression
+
+**Estado**: ⏳ Por implementar
+
+**Usar embedding para**:
+- Identificar código relevante
+- Eliminar redundancia
+- Preservar semántica
+
+### 2.4 Reinforcement Learning
+
+**Estado**: ⏳ Por implementar
+
+**Recompensas**:
+- ✅ Test pasa
+- ✅ Código compila
+- ✅ Runtime mejora
+
+---
+
+## 🔐 Fase 3: Seguridad Avanzada
+
+### 3.1 Cifrado de Configuración
+
+**Estado**: ⏳ Por implementar
+
+```rust
+// Crates a usar
+// - aes-gcm: cifrado simétrico
+// - ring: operaciones criptográficas
+// - keyring: integración con OS keychain
+```
+
+**Implementación**:
+```rust
+pub struct SecureConfig {
+    encrypted_data: Vec<u8>,
+    salt: [u8; 32],
+}
+
+impl SecureConfig {
+    pub fn encrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>>;
+    pub fn decrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>>;
+}
+```
+
+### 3.2 Auditoría Inmutable
+
+**Estado**: ✅ Implementado parcialmente (zeroize)
+
+**Pendiente**:
+- Log con hash chain (similar a blockchain)
+- Integridad verificable
+- No-repudio de acciones
+
+```rust
+pub struct AuditLog {
+    entries: Vec<AuditEntry>,
+    previous_hash: [u8; 32],
+}
+
+impl AuditLog {
+    pub fn append(&mut self, entry: AuditEntry) {
+        let hash = self.compute_hash(&entry, self.previous_hash);
+        self.entries.push(entry);
+        self.previous_hash = hash;
+    }
+}
+```
+
+### 3.3 Sandbox de Herramientas
+
+**Estado**: ⏳ Por implementar
+
+```
+- Aislamiento de ejecución
+- Syscalls permitidos whitelist
+- Memory limits por tool
+```
+
+**Dependencias potenciales**:
+- `wasmer`: WebAssembly sandboxing
+- `landice`: Linux seccomp
+
+---
+
+## 🏗️ Fase 4: Arquitectura Rust 99%
+
+### Estructura de Crates Propuesta
+
+```
+rust/
+├── Cargo.toml
+└── crates/
+    ├── core/              # Nucleo del CLI
+    ├── optimization/      # PSO, GA, ACO algorithms
+    │   ├── src/
+    │   │   ├── lib.rs
+    │   │   ├── pso.rs     # Particle Swarm Optimization
+    │   │   ├── ga.rs      # Genetic Algorithm
+    │   │   ├── aco.rs     # Ant Colony Optimization
+    │   │   └── mod.rs
+    │   └── Cargo.toml
+    ├── ml/                # Machine Learning
+    │   ├── src/
+    │   │   ├── lib.rs
+    │   │   ├── predictor.rs
+    │   │   ├── classifier.rs
+    │   │   └── mod.rs
+    │   └── Cargo.toml
+    ├── security/          # Seguridad avanzada
+    │   ├── src/
+    │   │   ├── lib.rs
+    │   │   ├── crypto.rs
+    │   │   ├── audit.rs
+    │   │   └── sandbox.rs
+    │   └── Cargo.toml
+    ├── tools/             # Herramientas de coding
+    ├── runtime/           # Runtime y sesiones
+    ├── api/               # Proveedores de API
+    └── rusty-claude-cli/  # CLI principal
+```
+
+### Dependencias por Crate
+
+| Crate | Dependencias | Propósito |
+|-------|--------------|-----------|
+| optimization | - | PSO, GA, ACO |
+| ml | candle, ort | ML/Deep Learning |
+| security | aes-gcm, ring, keyring | Cifrado, auditoría |
+| api | reqwest, zeroize | APIs externas |
+
+---
+
+## 📊 Progreso Actual
+
+| Feature | Estado |
+|---------|--------|
+| Zeroize (API keys) | ✅ Completado |
+| DeepSeek provider | ✅ Completado |
+| Big Pickle provider | ✅ Completado |
+| Ollama support | ✅ Completado |
+| PSO Tool Selector | ⏳ Por implementar |
+| GA Strategy Evolution | ⏳ Por implementar |
+| ACO Path Discovery | ⏳ Por implementar |
+| ML Tool Predictor | ⏳ Por implementar |
+| Encryption Config | ⏳ Por implementar |
+| Audit Log | ⏳ Por implementar |
+| Sandboxing | ⏳ Por implementar |
+
+---
+
+## 📅 Timeline Sugerido
+
+### Mes 1-2: Fundamentos
+- [ ] Implementar estructura de crates
+- [ ] PSO para selección de tools
+- [ ] Integrar candle para embeddings básicos
+
+### Mes 3-4: ML Integration
+- [ ] Tool predictor model básico
+- [ ] Error classifier
+- [ ] Contexto compression
+
+### Mes 5-6: Algoritmos Evolutivos
+- [ ] GA para evolución de estrategias
+- [ ] ACO para path discovery
+- [ ] Simulated annealing
+
+### Mes 7-8: Seguridad
+- [ ] Cifrado de config
+- [ ] Auditoría con hash chain
+- [ ] Sandbox básico
+
+### Mes 9-10: Optimización
+- [ ] Benchmarking
+- [ ] Performance tuning
+- [ ] Tests de stress
+
+---
+
+## 🎓 Recursos y Referencias
+
+### Algoritmos Bio-Inspirados
+- PSO: Kennedy & Eberhart (1995)
+- GA: Holland (1975)
+- ACO: Dorigo (1992)
+
+### ML en Rust
+- Candle: https://github.com/huggingface/candle
+- ONNX Runtime Rust: https://github.com/nb酚/ort
+
+### Seguridad
+- AES-GCM: https://github.com/RustCrypto/AEADs
+- Ring: https://github.com/briansmith/ring
+
+---
+
+## 🤝 Contribución
+
+Este roadmap es ambicioso y requiere colaboración. Áreas donde necesitamos ayuda:
+
+1. **Algoritmos**: Implementación de PSO, GA, ACO en Rust
+2. **ML**: Integración de modelos con Candle
+3. **Seguridad**: Cifrado y auditoría
+4. **Testing**: Benchmarking de algoritmos
+
+---
+
+## 📝 Notas
+
+- Este roadmap complementa (no reemplaza) el roadmap original de Claw Code
+- Los algoritmos bio-inspirados son opcionales - el CLI funciona sin ellos
+- ML puede funcionar en modo "fallback" si no hay modelo disponible
+- Seguridad es progresiva - cada capa añade protección
+
+---
+
+**Última actualización**: 2026-04-24
+**Versión**: 1.0.0
+**Mantenedor**: rooselvelt6
