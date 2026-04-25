@@ -1,63 +1,48 @@
-# 🦀 Claw Code Venezuela - Enterprise AI Coding Agent
-
-<p align="center">
-  <img src="assets/claw-hero.jpeg" alt="Claw Code Venezuela" width="400" />
-</p>
-
-<p align="center">
-  <a href="https://github.com/rooselvelt6/claw-vzla">
-    <img src="https://img.shields.io/github stars/rooselvelt6/claw-vzla?style=flat&color=blue" alt="GitHub stars" />
-  </a>
-  <a href="https://discord.gg/5TUQKqFWd">
-    <img src="https://img.shields.io/discord/5TUQKqFWd?style=flat&color=blue" alt="Discord" />
-  </a>
-  <img src="https://img.shields.io/badge/rust-100%25-blue" alt="Rust" />
-  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
-</p>
+# 🦀 Claw Code Venezuela - Agente de Código IA Enterprise
 
 ---
 
-## 🇻🇪 Description
+## 🇻🇪 Descripción
 
-**Claw Code Venezuela** is an enterprise-grade fork of Claw Code optimized for Venezuelan users and the Latin American market. Built with 100% Rust for maximum performance, security, and cost-effectiveness.
+**Claw Code Venezuela** es un fork de nivel enterprise del agente de código Claw Code, optimizado para usuarios venezolanos y el mercado latinoamericano. Construido 100% en Rust para máximo rendimiento, seguridad y rentabilidad.
 
-### Why Venezuela?
+### ¿Por qué Venezuela?
 
-- **No USD dependency** - Free models that work without international payment
-- **Optimized for LATAM** - Models available without restrictions
-- **Enterprise-ready** - Production features built-in
+- **Sin dependencia USD** - Modelos gratuitos sin tarjeta internacional
+- **Optimizado para LATAM** - Modelos disponibles sin restricciones
+- **Nivel enterprise** - Características de producción incluidas
 
 ---
 
-## ✨ Key Features
+## ✨ Características Principales
 
-### Free Models (No API Key Required)
+### Modelos Gratuitos (Sin API Key Requerida)
 
-| Provider | Models | Free Tier |
-|----------|-------|----------|
-| **DeepSeek** | V3, R1, Coder | 5M tokens/month |
-| **Big Pickle** | OpenCode Zen | Unlimited |
-| **Ollama** | qwen2.5-coder, llama3.1 | Local (free) |
+| Proveedor | Modelos | Tier Gratis |
+|----------|-------|------------|
+| **DeepSeek** | V3, R1, Coder | 5M tokens/mes |
+| **Big Pickle** | OpenCode Zen | Ilimitado |
+| **Ollama** | qwen2.5-coder, llama3.1 | Local (gratis) |
 
-### Enterprise Features (Built-in)
+### Características Enterprise (Incluidas)
 
-| Feature | Module | Description |
-|---------|--------|------------|
-| **Retry with Backoff** | `enterprise/retry.rs` | Exponential backoff + jitter |
-| **Circuit Breaker** | `enterprise/circuit_breaker.rs` | Fault tolerance |
-| **Health Checks** | `enterprise/health.rs` | Provider health monitoring |
-| **Graceful Degradation** | `enterprise/graceful_degradation.rs` | Automatic fallback |
-| **Metrics** | `enterprise/metrics.rs` | Per-provider metrics |
-| **Structured Logging** | `enterprise/logging.rs` | JSON format |
-| **Distributed Tracing** | `enterprise/tracing.rs` | Request correlation |
-| **Connection Pooling** | `enterprise/performance.rs` | Connection reuse |
-| **Timed Cache** | `enterprise/performance.rs` | TTL-based caching |
-| **Enterprise Audit** | `enterprise/enterprise_features.rs` | User action audit |
-| **Rate Limiting** | `enterprise/enterprise_features.rs` | Per-user limits |
-| **AES-GCM Encryption** | `security/crypto.rs` | Config encryption |
-| **Audit Log Chain** | `security/audit.rs` | Hash chain integrity |
+| Característica | Módulo | Descripción |
+|---------------|--------|------------|
+| **Retry con Backoff** | `enterprise/retry.rs` | Backoff exponencial + jitter |
+| **Circuit Breaker** | `enterprise/circuit_breaker.rs` | Tolerancia a fallos |
+| **Health Checks** | `enterprise/health.rs` | Monitoreo de salud |
+| **Graceful Degradation** | `enterprise/graceful_degradation.rs` | Fallback automático |
+| **Métricas** | `enterprise/metrics.rs` | Métricas por proveedor |
+| **Logging Estructurado** | `enterprise/logging.rs` | Formato JSON |
+| **Tracing Distribuido** | `enterprise/tracing.rs` | Correlación de requests |
+| **Connection Pooling** | `enterprise/performance.rs` | Reuso de conexiones |
+| **Timed Cache** | `enterprise/performance.rs` | Cache con TTL |
+| **Auditoría Enterprise** | `enterprise/enterprise_features.rs` | Auditoría de acciones |
+| **Rate Limiting** | `enterprise/enterprise_features.rs` | Límites por usuario |
+| **Cifrado AES-GCM** | `security/crypto.rs` | Cifrado de config |
+| **Audit Log Chain** | `security/audit.rs` | Integridad con hash |
 
-### Nature-Inspired Algorithms (Rust 100%)
+### Algoritmos Bio-Inspirados (100% Rust)
 
 ```
 rust/crates/optimization/
@@ -69,106 +54,139 @@ rust/crates/optimization/
 
 ---
 
-## 🚀 Quick Start
+## 🧪 Pruebas y Calidad
 
 ```bash
-# Clone
-git clone https://github.com/rooselvelt6/claw-vzla.git
-cd claw-vzla/rust
+# Ejecutar todas las pruebas
+cd rust && cargo test --workspace
 
-# Build
-cargo build --release
-
-# Run with DeepSeek (free)
-DEEPSEEK_API_KEY=your_key ./target/release/claw run "Hello"
-
-# Or with Ollama (local free)
-./target/release/claw run "Hello" --model ollama/qwen2.5-coder
+# Resultados actuales
+test result: 27 passed (enterprise crate)
+test result: 465+ passed (workspace total)
 ```
+
+### Cobertura de Pruebas
+
+| Crate | Pruebas | Estado |
+|-------|--------|--------|
+| enterprise | 27 | ✅ Passing |
+| optimization | 12 | ✅ Passing |
+| security | 6 | ✅ Passing |
+| sandbox | 2 | ✅ Passing |
+| api | 50+ | ✅ Passing |
 
 ---
 
-## 📊 Architecture
+## 🏗️ Arquitectura
 
 ```
 claw-vzla/
 ├── rust/
+│   ├── Cargo.toml              # Workspace (14 crates)
 │   ├── crates/
-│   │   ├── api/              # Providers (DeepSeek, Big Pickle, Ollama)
-│   │   ├── enterprise/       # Enterprise features (27 tests)
-│   │   ├── optimization/    # Bio-inspired algorithms
-│   │   ├── security/        # Encryption + audit
-│   │   ├── sandbox/         # Tool isolation
-│   │   ├── runtime/         # Core runtime
-│   │   └── rusty-claude-cli/ # Main CLI (~150MB)
-���   └── target/release/claw  # Single binary
-└── docs/
-    └── GRATIS.md           # Free models guide
+│   │   ├── api/              # Proveedores (DeepSeek, Big Pickle, Ollama)
+│   │   ├── commands/         # Comandos CLI
+│   │   ├── compat-harness/  # Testing compatibility
+│   │   ├── enterprise/      # Features enterprise (27 tests)
+│   │   ├── mock-anthropic-service/ # Mock para testing
+│   │   ├── optimization/    # Algoritmos bio-inspirados
+│   │   ├── plugins/        # Lifecycle de plugins
+│   │   ├── runtime/       # Core runtime (sesiones, MCP, permisos)
+│   │   ├── rusty-claude-cli/ # CLI principal (~150MB)
+│   │   ├── sandbox/       # Aislamiento de tools
+│   │   ├── security/      # Cifrado + auditoría
+│   │   ├── telemetry/     # Analytics
+│   │   └── tools/        # Registro de tools
+│   └── target/release/claw  # Binary único
+├── docs/
+│   └── GRATIS.md              # Guía de modelos gratuita
+├── README.md
+├── ROADMAP.md                # Roadmap original
+├── ROADMAP-ENTERPRISE.md    # Roadmap enterprise
+└── LICENSE
 ```
 
 ---
 
-## 🏢 Enterprise Production Ready
+## 💻 Tecnologia y Stack
 
-### Fault Tolerance
+### Lenguaje
 
-```rust
-use enterprise::{CircuitBreaker, RetryConfig, GracefulDegradation};
+| Componente | Lenguaje | Porcentaje |
+|-----------|----------|-----------|
+| **Core CLI** | Rust | 100% |
+| **Referencia upstream** | Python | <1% |
+| **Total proyecto** | Rust | 99% |
 
-let cb = CircuitBreaker::new(5, std::time::Duration::from_secs(30));
-let retry = RetryConfig::default();
-let fallback = GracefulDegradation::with_default();
-```
+### Dependencias Principales
 
-### Observability
+| Crate | Version | Propósito |
+|-------|---------|----------|
+| tokio | 1.x | Async runtime |
+| serde | 1.x | Serialización |
+| reqwest | 0.12 | HTTP client |
+| zeroize | 1.8 | Seguridad de memoria |
+| aes-gcm | 0.10 | Cifrado |
+| chrono | 0.4 | Fechas/tiempo |
+| uuid | 1.x | Identificadores |
+| tracing | 0.1 | Logging |
 
-```rust
-use enterprise::{JsonLogger, Level, TraceContext};
+### Binary Final
 
-let logger = JsonLogger::new(Level::Info);
-logger.info("provider", "DeepSeek request completed");
-
-let trace = TraceContext::new("api_call");
-trace.with_tag("provider", "deepseek");
-```
-
-### Rate Limiting & Audit
-
-```rust
-use enterprise::{RateLimiter, EnterpriseAuditLog};
-
-let limiter = RateLimiter::new(60, 100_000, 10); // 60 req/min, 100k tokens
-let audit = EnterpriseAuditLog::new(10_000);
-```
-
----
-
-## 📈 Comparison
-
-| Feature | Original Claw | Venezuela Fork |
-|---------|--------------|--------------|
-| **Providers** | Anthropic only | DeepSeek + Big Pickle + Ollama |
-| **Free Tier** | ❌ | ✅ 5M+ tokens |
-| **Encryption** | Basic | AES-GCM |
-| **Audit** | ❌ | ✅ Hash chain |
-| **Circuit Breaker** | ❌ | ✅ Built-in |
-| **Rate Limiting** | ❌ | ✅ Per-user |
-| **Language** | EN | ES + EN |
+| Métrica | Valor |
+|--------|-------|
+| **Tamaño** | ~150 MB |
+| **Wrappers** | kraken, claw-vzla, claw-ve |
+| **Tests** | 465+ |
+| ** Crates workspace** | 14 |
 
 ---
 
-## 📝 Documentation
-
-- [Roadmap](./ROADMAP.md) - Original roadmap
-- [Enterprise Roadmap](./ROADMAP-ENTERPRISE.md) - Production features
-- [Free Models Guide](./docs/GRATIS.md) - Modelos gratuitos
-
----
-
-## 🤝 Contributing
+## 🚀 Inicio Rápido
 
 ```bash
-# Build and test
+# Clonar
+git clone https://github.com/rooselvelt6/claw-vzla.git
+cd claw-vzla/rust
+
+# Compilar
+cargo build --release
+
+# Ejecutar con DeepSeek (gratis)
+DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola"
+
+# O con Ollama (local gratis)
+./target/release/claw run "Hola" --model ollama/qwen2.5-coder
+```
+
+---
+
+## 📈 Comparativa
+
+| Característica | Claw Original | Venezuela Fork |
+|---------------|--------------|---------------|
+| **Proveedores** | Anthropic | DeepSeek + Big Pickle + Ollama |
+| **Tier Gratis** | ❌ | ✅ 5M+ tokens |
+| **Cifrado** | Básico | AES-GCM |
+| **Auditoría** | ❌ | ✅ Hash chain |
+| **Circuit Breaker** | ❌ | ✅ Incluido |
+| **Rate Limiting** | ❌ | ✅ Por usuario |
+| **Idioma** | EN | ES + EN |
+
+---
+
+## 📖 Documentación
+
+- [ROADMAP.md](./ROADMAP.md) - Roadmap original
+- [ROADMAP-ENTERPRISE.md](./ROADMAP-ENTERPRISE.md) - Features enterprise
+- [docs/GRATIS.md](./docs/GRATIS.md) - Guía de modelos gratuitos
+
+---
+
+## 🤝 Contribuir
+
+```bash
+# Build y test
 cd rust
 cargo test --workspace
 cargo fmt
@@ -177,11 +195,11 @@ cargo clippy --workspace -- -D warnings
 
 ---
 
-## 📜 License
+## 📜 Licencia
 
-MIT License - See [LICENSE](./LICENSE)
+MIT License - Ver [LICENSE](./LICENSE)
 
 ---
 
-**Built with ❤️ for Venezuela**  
-100% Rust • Enterprise Ready • Free Models
+**Construido con ❤️ para Venezuela**  
+100% Rust • Nivel Enterprise • Modelos Gratuitos
