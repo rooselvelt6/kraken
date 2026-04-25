@@ -9,18 +9,6 @@ publish.workspace = true
 name = "claw"
 path = "src/main.rs"
 
-[[bin]]
-name = "kraken"
-path = "src/main.rs"
-
-[[bin]]
-name = "claw-vzla"
-path = "src/main.rs"
-
-[[bin]]
-name = "claw-ve"
-path = "src/main.rs"
-
 [dependencies]
 api = { path = "../api" }
 commands = { path = "../commands" }
