@@ -10,6 +10,7 @@ use crate::types::{MessageRequest, MessageResponse, StreamEvent};
 pub enum ProviderClient {
     Anthropic(AnthropicClient),
     Xai(OpenAiCompatClient),
+    DeepSeek(OpenAiCompatClient),
     OpenAi(OpenAiCompatClient),
 }
 
@@ -31,13 +32,20 @@ impl ProviderClient {
             ProviderKind::Xai => Ok(Self::Xai(OpenAiCompatClient::from_env(
                 OpenAiCompatConfig::xai(),
             )?)),
+            ProviderKind::DeepSeek => Ok(Self::DeepSeek(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::deepseek(),
+            )?)),
             ProviderKind::OpenAi => {
                 // DashScope models (qwen-*) also return ProviderKind::OpenAi because they
                 // speak the OpenAI wire format, but they need the DashScope config which
                 // reads DASHSCOPE_API_KEY and points at dashscope.aliyuncs.com.
+                // Big Pickle (opencode) also returns OpenAi but needs OpenCode config.
                 let config = match providers::metadata_for_model(&resolved_model) {
                     Some(meta) if meta.auth_env == "DASHSCOPE_API_KEY" => {
                         OpenAiCompatConfig::dashscope()
+                    }
+                    Some(meta) if meta.auth_env == "OPENCODE_API_KEY" => {
+                        OpenAiCompatConfig::opencode()
                     }
                     _ => OpenAiCompatConfig::openai(),
                 };
@@ -51,6 +59,7 @@ impl ProviderClient {
         match self {
             Self::Anthropic(_) => ProviderKind::Anthropic,
             Self::Xai(_) => ProviderKind::Xai,
+            Self::DeepSeek(_) => ProviderKind::DeepSeek,
             Self::OpenAi(_) => ProviderKind::OpenAi,
         }
     }
@@ -67,7 +76,7 @@ impl ProviderClient {
     pub fn prompt_cache_stats(&self) -> Option<PromptCacheStats> {
         match self {
             Self::Anthropic(client) => client.prompt_cache_stats(),
-            Self::Xai(_) | Self::OpenAi(_) => None,
+            Self::Xai(_) | Self::DeepSeek(_) | Self::OpenAi(_) => None,
         }
     }
 
@@ -75,7 +84,7 @@ impl ProviderClient {
     pub fn take_last_prompt_cache_record(&self) -> Option<PromptCacheRecord> {
         match self {
             Self::Anthropic(client) => client.take_last_prompt_cache_record(),
-            Self::Xai(_) | Self::OpenAi(_) => None,
+            Self::Xai(_) | Self::DeepSeek(_) | Self::OpenAi(_) => None,
         }
     }
 
@@ -85,7 +94,9 @@ impl ProviderClient {
     ) -> Result<MessageResponse, ApiError> {
         match self {
             Self::Anthropic(client) => client.send_message(request).await,
-            Self::Xai(client) | Self::OpenAi(client) => client.send_message(request).await,
+            Self::Xai(client) | Self::DeepSeek(client) | Self::OpenAi(client) => {
+                client.send_message(request).await
+            }
         }
     }
 
@@ -98,7 +109,7 @@ impl ProviderClient {
                 .stream_message(request)
                 .await
                 .map(MessageStream::Anthropic),
-            Self::Xai(client) | Self::OpenAi(client) => client
+            Self::Xai(client) | Self::DeepSeek(client) | Self::OpenAi(client) => client
                 .stream_message(request)
                 .await
                 .map(MessageStream::OpenAiCompat),

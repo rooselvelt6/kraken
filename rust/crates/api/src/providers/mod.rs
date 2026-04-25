@@ -33,6 +33,7 @@ pub enum ProviderKind {
     Anthropic,
     Xai,
     OpenAi,
+    DeepSeek,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,6 +132,89 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
             default_base_url: openai_compat::DEFAULT_DASHSCOPE_BASE_URL,
         },
     ),
+    // DeepSeek models - $0.14/M input, $0.28/M output - 5M free tokens for new users
+    (
+        "deepseek",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "deepseek-v3",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "deepseek-chat",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "deepseek-reasoner",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "deepseek-coder",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "r1",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    (
+        "deepseek-r1",
+        ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        },
+    ),
+    // Big Pickle - OpenCode Zen free model (GLM-4.6)
+    (
+        "big-pickle",
+        ProviderMetadata {
+            provider: ProviderKind::OpenAi,
+            auth_env: "OPENCODE_API_KEY",
+            base_url_env: "OPENCODE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENCODE_BASE_URL,
+        },
+    ),
+    (
+        "opencode/big-pickle",
+        ProviderMetadata {
+            provider: ProviderKind::OpenAi,
+            auth_env: "OPENCODE_API_KEY",
+            base_url_env: "OPENCODE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENCODE_BASE_URL,
+        },
+    ),
 ];
 
 #[must_use]
@@ -155,6 +239,14 @@ pub fn resolve_model_alias(model: &str) -> String {
                 },
                 ProviderKind::OpenAi => match *alias {
                     "kimi" => "kimi-k2.5",
+                    "big-pickle" => "big-pickle",
+                    "opencode/big-pickle" => "big-pickle",
+                    _ => trimmed,
+                },
+                ProviderKind::DeepSeek => match *alias {
+                    "deepseek" | "deepseek-v3" | "deepseek-chat" => "deepseek-chat",
+                    "deepseek-reasoner" | "r1" | "deepseek-r1" => "deepseek-reasoner",
+                    "deepseek-coder" => "deepseek-coder",
                     _ => trimmed,
                 },
             })
@@ -216,6 +308,25 @@ pub fn metadata_for_model(model: &str) -> Option<ProviderMetadata> {
             default_base_url: openai_compat::DEFAULT_DASHSCOPE_BASE_URL,
         });
     }
+    // DeepSeek models (deepseek-chat, deepseek-reasoner, deepseek-coder, etc.)
+    // DeepSeek API: $0.14/M input, $0.28/M output - 5M free tokens for new users
+    if canonical.starts_with("deepseek") || canonical.starts_with("r1") {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::DeepSeek,
+            auth_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_DEEPSEEK_BASE_URL,
+        });
+    }
+    // Big Pickle (OpenCode Zen free model)
+    if canonical == "big-pickle" || canonical.starts_with("opencode/") {
+        return Some(ProviderMetadata {
+            provider: ProviderKind::OpenAi,
+            auth_env: "OPENCODE_API_KEY",
+            base_url_env: "OPENCODE_BASE_URL",
+            default_base_url: openai_compat::DEFAULT_OPENCODE_BASE_URL,
+        });
+    }
     None
 }
 
@@ -241,6 +352,9 @@ pub fn detect_provider_kind(model: &str) -> ProviderKind {
     }
     if openai_compat::has_api_key("XAI_API_KEY") {
         return ProviderKind::Xai;
+    }
+    if openai_compat::has_api_key("DEEPSEEK_API_KEY") {
+        return ProviderKind::DeepSeek;
     }
     // Last resort: if OPENAI_BASE_URL is set without OPENAI_API_KEY (some
     // local providers like Ollama don't require auth), still route there.
@@ -294,6 +408,25 @@ pub fn model_token_limit(model: &str) -> Option<ModelTokenLimit> {
         "kimi-k2.5" | "kimi-k1.5" => Some(ModelTokenLimit {
             max_output_tokens: 16_384,
             context_window_tokens: 256_000,
+        }),
+        // DeepSeek models - $0.14/M input, $0.28/M output
+        // 5M free tokens for new users, 128K context window
+        "deepseek-chat" | "deepseek-v3" | "deepseek-v4-flash" => Some(ModelTokenLimit {
+            max_output_tokens: 64_000,
+            context_window_tokens: 128_000,
+        }),
+        "deepseek-reasoner" | "deepseek-r1" => Some(ModelTokenLimit {
+            max_output_tokens: 64_000,
+            context_window_tokens: 128_000,
+        }),
+        "deepseek-coder" => Some(ModelTokenLimit {
+            max_output_tokens: 32_000,
+            context_window_tokens: 64_000,
+        }),
+        // Big Pickle (OpenCode Zen) - free model
+        "big-pickle" => Some(ModelTokenLimit {
+            max_output_tokens: 128_000,
+            context_window_tokens: 200_000,
         }),
         _ => None,
     }
@@ -352,6 +485,11 @@ const FOREIGN_PROVIDER_ENV_VARS: &[(&str, &str, &str)] = &[
         "DASHSCOPE_API_KEY",
         "Alibaba DashScope",
         "prefix your model name with `qwen/` or `qwen-` (e.g. `--model qwen-plus`) so prefix routing selects the DashScope backend",
+    ),
+    (
+        "DEEPSEEK_API_KEY",
+        "DeepSeek",
+        "use a DeepSeek model alias (e.g. `--model deepseek` or `--model r1`) so prefix routing selects the DeepSeek backend. DeepSeek offers 5M free tokens for new users!",
     ),
 ];
 
