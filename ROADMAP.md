@@ -6172,68 +6172,35 @@ Este roadmap presenta una visión innovadora para Claw Code Venezuela, incorpora
 
 ### 1.1 Particle Swarm Optimization (PSO)
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado
 
 **Aplicación**: Selección óptima de herramientas/tasks
 
-```rust
-// Problema: ¿Qué tool usar para esta tarea?
-// Solución: Enjambre de partículas evalúa:
-//   - Complejidad del código
-//   - Historial de éxito de cada tool
-//   - Contexto actual
-```
-
-**Implementación propuesta**:
-```rust
-pub struct PSOToolSelector {
-    particles: Vec<Particle>,
-    global_best: Particle,
-    w: f64,  // inertia weight
-    c1: f64, // cognitive coefficient
-    c2: f64, // social coefficient
-}
-```
-
-**Archivos objetivo**:
-- `rust/crates/optimization/src/pso.rs`
+**Ubicación**: `rust/crates/optimization/src/pso.rs`
 
 ### 1.2 Genetic Algorithm (GA)
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado
 
 **Aplicación**: Evolución de estrategias de coding
 
-```
-- Población: estrategias de resolución
-- Fitness: tests pasados, código limpio
-- Crossover: combinar estrategias exitosas
-- Mutación: explorar nuevas aproximaciones
-```
+**Ubicación**: `rust/crates/optimization/src/ga.rs`
 
 ### 1.3 Ant Colony Optimization (ACO)
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado
 
 **Aplicación**: Descubrimiento de paths de código
 
-```
-- Feromonas: tracks de código exitoso
-- Selección de path: probabilidad basada en historial
-- Optimización de navegación entre archivos
-```
+**Ubicación**: `rust/crates/optimization/src/aco.rs`
 
 ### 1.4 Simulated Annealing
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado
 
 **Aplicación**: Escape de óptimos locales en refactoring
 
-```
-- Temperatura: nivel de exploración
-- Cooling schedule: reducir exploración gradualmente
-- Aceptar soluciones sub-óptimas para evitar local minima
-```
+**Ubicación**: `rust/crates/optimization/src/sa.rs`
 
 ---
 
@@ -6241,26 +6208,13 @@ pub struct PSOToolSelector {
 
 ### 2.1 Tool Prediction Model
 
-**Estado**: ⏳ Por implementar
+**Estado**: ⏳ Pendiente (requiere candle/ort)
 
-**Input**: Contexto (código, historial, prompt)
-**Output**: Probabilidad de éxito por herramienta
-
-```rust
-// Estructura propuesta
-struct ToolPredictor {
-    model: candle::MLModel,
-    features: Vec<f32>,  // code embeddings
-}
-```
-
-**Dependencias**:
-- `candle`: Deep Learning en Rust
-- `tokenizers`: Tokenización
+**Nota**: Esta feature está marcada como pendiente porque requiere dependencias adicionales de ML que 增加 significativamente el tamaño del binary.
 
 ### 2.2 Error Classification
 
-**Estado**: ⏳ Por implementar
+**Estado**: ⏳ Pendiente
 
 **ML para categorizar errores automáticamente**:
 - Syntax errors
@@ -6270,7 +6224,7 @@ struct ToolPredictor {
 
 ### 2.3 Context Compression
 
-**Estado**: ⏳ Por implementar
+**Estado**: ⏳ Pendiente
 
 **Usar embedding para**:
 - Identificar código relevante
@@ -6279,7 +6233,7 @@ struct ToolPredictor {
 
 ### 2.4 Reinforcement Learning
 
-**Estado**: ⏳ Por implementar
+**Estado**: ⏳ Pendiente
 
 **Recompensas**:
 - ✅ Test pasa
@@ -6292,65 +6246,32 @@ struct ToolPredictor {
 
 ### 3.1 Cifrado de Configuración
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado
 
-```rust
-// Crates a usar
-// - aes-gcm: cifrado simétrico
-// - ring: operaciones criptográficas
-// - keyring: integración con OS keychain
-```
+**Implementación**: aes-gcm para cifrado simétrico
 
-**Implementación**:
-```rust
-pub struct SecureConfig {
-    encrypted_data: Vec<u8>,
-    salt: [u8; 32],
-}
-
-impl SecureConfig {
-    pub fn encrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>>;
-    pub fn decrypt(&self, data: &[u8], key: &Key) -> Result<Vec<u8>>;
-}
-```
+**Ubicación**: `rust/crates/security/src/crypto.rs`
 
 ### 3.2 Auditoría Inmutable
 
-**Estado**: ✅ Implementado parcialmente (zeroize)
+**Estado**: ✅ Completado
 
-**Pendiente**:
-- Log con hash chain (similar a blockchain)
-- Integridad verificable
-- No-repudio de acciones
+**Implementación**: Hash chain con SHA-256 para integridad verificable
 
-```rust
-pub struct AuditLog {
-    entries: Vec<AuditEntry>,
-    previous_hash: [u8; 32],
-}
-
-impl AuditLog {
-    pub fn append(&mut self, entry: AuditEntry) {
-        let hash = self.compute_hash(&entry, self.previous_hash);
-        self.entries.push(entry);
-        self.previous_hash = hash;
-    }
-}
-```
+**Ubicación**: `rust/crates/security/src/audit.rs`
 
 ### 3.3 Sandbox de Herramientas
 
-**Estado**: ⏳ Por implementar
+**Estado**: ✅ Completado (base)
 
-```
-- Aislamiento de ejecución
-- Syscalls permitidos whitelist
-- Memory limits por tool
-```
+**Features implementados**:
+- Configuración de límites de memoria
+- Límites de CPU
+- Directorio de trabajo
 
-**Dependencias potenciales**:
-- `wasmer`: WebAssembly sandboxing
-- `landice`: Linux seccomp
+**Ubicación**: `rust/crates/sandbox/src/lib.rs`
+
+**Nota**: Full sandboxing (seccomp) requiere soporte de kernel y es específico por plataforma.
 
 ---
 
@@ -6404,46 +6325,58 @@ rust/
 
 ## 📊 Progreso Actual
 
-| Feature | Estado |
-|---------|--------|
-| Zeroize (API keys) | ✅ Completado |
-| DeepSeek provider | ✅ Completado |
-| Big Pickle provider | ✅ Completado |
-| Ollama support | ✅ Completado |
-| PSO Tool Selector | ⏳ Por implementar |
-| GA Strategy Evolution | ⏳ Por implementar |
-| ACO Path Discovery | ⏳ Por implementar |
-| ML Tool Predictor | ⏳ Por implementar |
-| Encryption Config | ⏳ Por implementar |
-| Audit Log | ⏳ Por implementar |
-| Sandboxing | ⏳ Por implementar |
+| Feature | Estado | Ubicación |
+|---------|--------|-----------|
+| Zeroize (API keys) | ✅ Completado | `rust/crates/api/src/security.rs` |
+| DeepSeek provider | ✅ Completado | `rust/crates/api/src/providers/deepseek.rs` |
+| Big Pickle provider | ✅ Completado | `rust/crates/api/src/providers/bigpickle.rs` |
+| Ollama support | ✅ Completado | OpenAI compatible |
+| PSO Tool Selector | ✅ Completado | `rust/crates/optimization/src/pso.rs` |
+| GA Strategy Evolution | ✅ Completado | `rust/crates/optimization/src/ga.rs` |
+| ACO Path Discovery | ✅ Completado | `rust/crates/optimization/src/aco.rs` |
+| Simulated Annealing | ✅ Completado | `rust/crates/optimization/src/sa.rs` |
+| Encryption Config | ✅ Completado | `rust/crates/security/src/crypto.rs` |
+| SecureConfig | ✅ Completado | `rust/crates/security/src/config.rs` |
+| Audit Log | ✅ Completado | `rust/crates/security/src/audit.rs` |
+| Sandbox | ✅ Completado | `rust/crates/sandbox/src/lib.rs` |
+| Single Binary | ✅ Completado | `rust/target/release/claw` |
+| Wrapper Script | ✅ Completado | `rust/scripts/wrapper.sh` |
+| ML Tool Predictor | ⏳ Pendiente | Requiere candle/ort |
+| Full Sandboxing | ⏳ Pendiente | Requiere seccomp kernel |
+| Single Binary | ✅ Completado | `rust/target/release/claw` |
+| Wrapper Script | ✅ Completado | `rust/scripts/wrapper.sh` |
 
 ---
 
 ## 📅 Timeline Sugerido
 
 ### Mes 1-2: Fundamentos
-- [ ] Implementar estructura de crates
-- [ ] PSO para selección de tools
-- [ ] Integrar candle para embeddings básicos
+- [x] Implementar estructura de crates
+- [x] PSO para selección de tools
+- [x] DeepSeek, Big Pickle, Ollama providers
+- [x] Single binary + wrappers
+- [x] Simulated annealing
+- [x] Cifrado de config
+- [x] Audit log
 
 ### Mes 3-4: ML Integration
 - [ ] Tool predictor model básico
 - [ ] Error classifier
 - [ ] Contexto compression
+- [ ] Integrar candle para embeddings básicos
 
 ### Mes 5-6: Algoritmos Evolutivos
-- [ ] GA para evolución de estrategias
-- [ ] ACO para path discovery
-- [ ] Simulated annealing
+- [x] GA para evolución de estrategias
+- [x] ACO para path discovery
+- [x] Simulated annealing
 
 ### Mes 7-8: Seguridad
-- [ ] Cifrado de config
-- [ ] Auditoría con hash chain
-- [ ] Sandbox básico
+- [x] Cifrado de config
+- [x] Auditoría con hash chain
+- [ ] Sandbox básico (pendiente kernel support)
 
 ### Mes 9-10: Optimización
-- [ ] Benchmarking
+- [x] Benchmarking (YA!)
 - [ ] Performance tuning
 - [ ] Tests de stress
 

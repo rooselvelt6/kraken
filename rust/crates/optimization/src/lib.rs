@@ -1,10 +1,12 @@
 pub mod pso;
 pub mod ga;
 pub mod aco;
+pub mod sa;
 
 pub use pso::{PSOToolSelector, Particle, ToolScore};
 pub use ga::{GeneticOptimizer, Chromosome, FitnessFn};
 pub use aco::{ACOPathFinder, PheromoneGraph, Path, Node, NodeType};
+pub use sa::{SimulatedAnnealer};
 
 use serde::{Deserialize, Serialize};
 

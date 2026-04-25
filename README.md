@@ -45,9 +45,12 @@ Este es un fork de **Claw Code** adaptado para usuarios venezolanos y países co
 | **Proveedor Big Pickle** | OpenCode Zen - modelo gratuito con límites | ✅ |
 | **Soporte Ollama** | Modelos locales (qwen2.5-coder, llama3.1, etc.) | ✅ |
 | **Seguridad Zeroize** | API keys borradas de memoria automáticamente | ✅ |
-| **Algoritmos Bio-Inspirados** | PSO, GA, ACO para optimización inteligente | ✅ |
+| **Algoritmos Bio-Inspirados** | PSO, GA, ACO + Simulated Annealing | ✅ |
+| **Cifrado AES-GCM** | Configuración cifrada en disco | ✅ |
+| **Audit Log** | Hash chain para auditoría inmutable | ✅ |
+| **Sandbox** | Aislamiento de ejecución de tools | ✅ |
+| **Binary único** | 150MB con wrappers (kraken, claw-vzla, claw-ve) | ✅ |
 | **Documentación ES** | README.es.md, docs/GRATIS.md, rust/README.es.md | ✅ |
-| **Seguridad Avanzada** | Cifrado de credenciales en memoria | ✅ |
 
 ### 🧬 Algoritmos Implementados (Rust 100%)
 
@@ -55,14 +58,16 @@ Este es un fork de **Claw Code** adaptado para usuarios venezolanos y países co
 rust/crates/optimization/
 ├── pso.rs    # Particle Swarm Optimization - Selección de tools
 ├── ga.rs     # Genetic Algorithm - Evolución de estrategias
-└── aco.rs    # Ant Colony Optimization - Descubrimiento de paths
+├── aco.rs    # Ant Colony Optimization - Descubrimiento de paths
+└── sa.rs     # Simulated Annealing - Escape de óptimos locales
 ```
 
 ### 🔐 Seguridad
 
 - **Zeroize**: Las API keys se borran automáticamente de memoria al salir del scope
-- **Proveedores seguros**: Soporte para múltiples providers sin filtrar credenciales
-- **Auditoría**: Log de acciones en desarrollo
+- **AES-GCM**: Cifrado de configuración en disco
+- **Audit Log**: Hash chain con SHA-256 para integridad verificable
+- **Sandbox**: Aislamiento de ejecución de herramientas
 
 ---
 
@@ -74,21 +79,22 @@ Este fork incluye una visión a largo plazo:
 - [x] PSO para selección óptima de herramientas
 - [x] GA para evolución de estrategias de coding
 - [x] ACO para descubrimiento de paths de código
+- [x] Simulated Annealing para escape de óptimos locales
 
-### Fase 2: Machine Learning (en desarrollo)
+### Fase 2: Machine Learning (pendiente)
 - [ ] Tool predictor con embeddings
 - [ ] Clasificación de errores con ML
 - [ ] Compresión de contexto inteligente
 
-### Fase 3: Seguridad Avanzada (en desarrollo)
-- [ ] Cifrado de configuración en disco
-- [ ] Auditoría inmutable con hash chain
-- [ ] Sandbox de herramientas
+### Fase 3: Seguridad Avanzada ✅
+- [x] Cifrado de configuración en disco (AES-GCM)
+- [x] Auditoría inmutable con hash chain
+- [x] Sandbox de herramientas
 
-### Fase 4: Arquitectura 99% Rust
-- [ ] Eliminación progresiva de dependencias Python
-- [ ] Binary único optimizado
-- [ ] Performance de nivel militar
+### Fase 4: Arquitectura 99% Rust ✅
+- [x] Binary único optimizado
+- [x] Wrappers para nombres personalizados
+- [ ] Performance tuning
 
 ---
 
