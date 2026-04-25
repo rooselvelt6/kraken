@@ -1,7 +1,7 @@
-# Claw Code
+# 🦞 Claw Code Venezuela
 
 <p align="center">
-  <a href="https://github.com/ultraworkers/claw-code">ultraworkers/claw-code</a>
+  <a href="https://github.com/rooselvelt6/claw-vzla">rooselvelt6/claw-vzla</a>
   ·
   <a href="./USAGE.md">Usage</a>
   ·
@@ -11,200 +11,259 @@
   ·
   <a href="./ROADMAP.md">Roadmap</a>
   ·
-  <a href="https://discord.gg/5TUQKqFWd">UltraWorkers Discord</a>
+  <a href="./docs/GRATIS.md">Modelos Gratuitos</a>
+  ·
+  <a href="https://discord.gg/5TUQKqFWd">Discord</a>
 </p>
 
 <p align="center">
-  <a href="https://star-history.com/#ultraworkers/claw-code&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date&theme=dark" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date" />
-      <img alt="Star history for ultraworkers/claw-code" src="https://api.star-history.com/svg?repos=ultraworkers/claw-code&type=Date" width="600" />
-    </picture>
-  </a>
+  <img src="assets/claw-hero.jpeg" alt="Claw Code Venezuela" width="300" />
 </p>
 
-<p align="center">
-  <img src="assets/claw-hero.jpeg" alt="Claw Code" width="300" />
-</p>
+## 🇻🇪 Para Venezuela
 
-Claw Code is the public Rust implementation of the `claw` CLI agent harness.
-The canonical implementation lives in [`rust/`](./rust), and the current source of truth for this repository is **ultraworkers/claw-code**.
+Este es un fork de **Claw Code** adaptado para usuarios venezolanos y países con restricciones.
 
-> [!IMPORTANT]
-> Start with [`USAGE.md`](./USAGE.md) for build, auth, CLI, session, and parity-harness workflows. Make `claw doctor` your first health check after building, use [`rust/README.md`](./rust/README.md) for crate-level details, read [`PARITY.md`](./PARITY.md) for the current Rust-port checkpoint, and see [`docs/container.md`](./docs/container.md) for the container-first workflow.
->
-> **ACP / Zed status:** `claw-code` does not ship an ACP/Zed daemon entrypoint yet. Run `claw acp` (or `claw --acp`) for the current status instead of guessing from source layout; `claw acp serve` is currently a discoverability alias only, and real ACP support remains tracked separately in `ROADMAP.md`.
+### ✨ Características especiales para Venezuela
 
-## Current repository shape
+| Característica | Descripción |
+|----------------|-------------|
+| **Modelos gratuitos** | DeepSeek (5M tokens gratis), Big Pickle, Ollama local |
+| **Sin dependencia USD** | Modelos económicos que no requieren dólares |
+| **Adaptado para LATAM** | Documentación en español, proveedores chinos |
+| **100% compatible** | Mantiene compatibilidad con el upstream |
 
-- **`rust/`** — canonical Rust workspace and the `claw` CLI binary
-- **`USAGE.md`** — task-oriented usage guide for the current product surface
-- **`PARITY.md`** — Rust-port parity status and migration notes
-- **`ROADMAP.md`** — active roadmap and cleanup backlog
-- **`PHILOSOPHY.md`** — project intent and system-design framing
-- **`src/` + `tests/`** — companion Python/reference workspace and audit helpers; not the primary runtime surface
+---
 
-## Quick start
+## Modelos Soportados
 
-> [!NOTE]
-> [!WARNING]
-> **`cargo install claw-code` installs the wrong thing.** The `claw-code` crate on crates.io is a deprecated stub that places `claw-code-deprecated.exe` — not `claw`. Running it only prints `"claw-code has been renamed to agent-code"`. **Do not use `cargo install claw-code`.** Either build from source (this repo) or install the upstream binary:
-> ```bash
-> cargo install agent-code   # upstream binary — installs 'agent.exe' (Windows) / 'agent' (Unix), NOT 'agent-code'
-> ```
-> This repo (`ultraworkers/claw-code`) is **build-from-source only** — follow the steps below.
+### Modelos Gratuitos/Económicos
+
+| Modelo | Costo | Contexto | Uso recomendado |
+|--------|-------|----------|-----------------|
+| **DeepSeek V3** | 5M gratis, luego $0.14/M | 128K | Chat general |
+| **DeepSeek R1** | 5M gratis, luego $0.55/M | 128K | Razonamiento |
+| **DeepSeek Coder** | $0.28/M input | 64K | Programación |
+| **Big Pickle** | Gratis* | 200K | Coding |
+| **Ollama local** | Gratis | Variable | Offline |
+
+### Modelos Originales
+
+| Modelo | Proveedor | Costo |
+|--------|-----------|-------|
+| Claude (opus/sonnet/haiku) | Anthropic | Pago |
+| Grok (grok-3) | xAI | Pago |
+| Qwen (qwen-max) | DashScope | Pago |
+| Kimi (kimi-k2.5) | DashScope | Pago |
+
+---
+
+## Inicio Rápido
+
+### Opción 1: DeepSeek (Recomendado)
 
 ```bash
-# 1. Clone and build
-git clone https://github.com/ultraworkers/claw-code
-cd claw-code/rust
+# 1. Clonar y construir
+git clone https://github.com/rooselvelt6/claw-vzla
+cd claw-vzla/rust
 cargo build --workspace
 
-# 2. Set your API key (Anthropic API key — not a Claude subscription)
-export ANTHROPIC_API_KEY="sk-ant-..."
+# 2. Configurar DeepSeek (5M tokens gratis)
+# Regístrate en https://platform.deepseek.com
+export DEEPSEEK_API_KEY="sk-tu-api-key"
 
-# 3. Verify everything is wired correctly
+# 3. Usar DeepSeek
+./target/debug/claw --model deepseek prompt "hola"
+
+# O usar R1 para razonamiento
+./target/debug/claw --model r1 prompt "resuelve esto"
+```
+
+### Opción 2: Big Pickle (Gratis)
+
+```bash
+# Configurar OpenCode Zen
+export OPENCODE_API_KEY="tu-api-key"  # Obténla en https://opencode.ai/zen
+
+./target/debug/claw --model big-pickle prompt "crea un API REST"
+```
+
+### Opción 3: Ollama Local
+
+```bash
+# Instalar Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Descargar modelos
+ollama pull qwen2.5-coder:7b
+ollama pull deepseek-coder:6.7b
+
+# Configurar
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+export OPENAI_API_KEY="ollama"
+
+# Usar modelo local
+./target/debug/claw --model qwen2.5-coder:7b prompt "hola"
+```
+
+---
+
+## Configuración de Variables de Entorno
+
+### Modelos DeepSeek
+```bash
+export DEEPSEEK_API_KEY="sk-..."
+export DEEPSEEK_BASE_URL="https://api.deepseek.com/v1"  # opcional
+```
+
+### Modelos OpenCode (Big Pickle)
+```bash
+export OPENCODE_API_KEY="tu-api-key"
+export OPENCODE_BASE_URL="https://opencode.ai/zen/v1"  # opcional
+```
+
+### Ollama / OpenAI Compatible
+```bash
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+export OPENAI_API_KEY="ollama"  # o tu API key
+```
+
+### Modelos Originales (Anthropic)
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+---
+
+## Alias de Modelos Disponibles
+
+```bash
+# DeepSeek
+claw --model deepseek        # deepseek-chat
+claw --model r1              # deepseek-reasoner
+claw --model deepseek-r1     # deepseek-reasoner
+claw --model deepseek-coder  # deepseek-coder
+
+# OpenCode
+claw --model big-pickle      # Big Pickle (GLM-4.6)
+
+# Anthropic
+claw --model opus            # claude-opus-4-6
+claw --model sonnet          # claude-sonnet-4-6
+claw --model haiku           # claude-haiku-4-5-20251213
+
+# xAI
+claw --model grok            # grok-3
+claw --model grok-mini       # grok-3-mini
+
+# DashScope (Qwen/Kimi)
+claw --model qwen-max        # Qwen max
+claw --model kimi            # Kimi k2.5
+```
+
+---
+
+## Comandos Útiles
+
+```bash
+# Verificar configuración
 ./target/debug/claw doctor
 
-# 4. Run a prompt
-./target/debug/claw prompt "say hello"
+# Estado del sistema
+./target/debug/claw status
+
+# Usar modelo específico
+./target/debug/claw --model deepseek prompt "tu prompt aquí"
+
+# Salida JSON para scripting
+./target/debug/claw --output-format json status
 ```
 
-> [!NOTE]
-> **Windows (PowerShell):** the binary is `claw.exe`, not `claw`. Use `.\target\debug\claw.exe` or run `cargo run -- prompt "say hello"` to skip the path lookup.
+---
 
-### Windows setup
+## Documentación
 
-**PowerShell is a supported Windows path.** Use whichever shell works for you. The common onboarding issues on Windows are:
+| Archivo | Descripción |
+|---------|-------------|
+| [`USAGE.md`](./USAGE.md) | Guía de uso completa |
+| [`docs/GRATIS.md`](./docs/GRATIS.md) | Guía de modelos gratuitos para Venezuela |
+| [`rust/README.md`](./rust/README.md) | Documentación técnica |
+| [`PARITY.md`](./PARITY.md) | Estado del puerto a Rust |
+| [`ROADMAP.md`](./ROADMAP.md) | Hoja de ruta del proyecto |
 
-1. **Install Rust first** — download from <https://rustup.rs/> and run the installer. Close and reopen your terminal when it finishes.
-2. **Verify Rust is on PATH:**
-   ```powershell
-   cargo --version
-   ```
-   If this fails, reopen your terminal or run the PATH setup from the Rust installer output, then retry.
-3. **Clone and build** (works in PowerShell, Git Bash, or WSL):
-   ```powershell
-   git clone https://github.com/ultraworkers/claw-code
-   cd claw-code/rust
-   cargo build --workspace
-   ```
-4. **Run** (PowerShell — note `.exe` and backslash):
-   ```powershell
-   $env:ANTHROPIC_API_KEY = "sk-ant-..."
-   .\target\debug\claw.exe prompt "say hello"
-   ```
+---
 
-**Git Bash / WSL** are optional alternatives, not requirements. If you prefer bash-style paths (`/c/Users/you/...` instead of `C:\Users\you\...`), Git Bash (ships with Git for Windows) works well. In Git Bash, the `MINGW64` prompt is expected and normal — not a broken install.
+## Diferencias con el Original
 
-## Post-build: locate the binary and verify
+Este fork incluye:
 
-After running `cargo build --workspace`, the `claw` binary is built but **not** automatically installed to your system. Here's where to find it and how to verify the build succeeded.
+1. ✅ **Proveedor DeepSeek** - Modelos económicos (5M tokens gratis)
+2. ✅ **Proveedor OpenCode Zen** - Big Pickle gratuito
+3. ✅ **Soporte Ollama** - Modelos locales gratis
+4. ✅ **Documentación en español** - README.es.md, docs/GRATIS.md
+5. ✅ **Alias de modelos** - deepseek, r1, big-pickle, etc.
 
-### Binary location
+---
 
-After `cargo build --workspace` in `claw-code/rust/`:
+## Requisitos
 
-**Debug build (default, faster compile):**
-- **macOS/Linux:** `rust/target/debug/claw`
-- **Windows:** `rust/target/debug/claw.exe`
+- **Rust** (1.70+): https://rustup.rs/
+- **Git**
+- **API Key** del proveedor elegido
 
-**Release build (optimized, slower compile):**
-- **macOS/Linux:** `rust/target/release/claw`
-- **Windows:** `rust/target/release/claw.exe`
+---
 
-If you ran `cargo build` without `--release`, the binary is in the `debug/` folder.
+## Solución de Problemas
 
-### Verify the build succeeded
-
-Test the binary directly using its path:
-
+### "Missing API key"
+Asegúrate de tener la variable correcta:
 ```bash
-# macOS/Linux (debug build)
-./rust/target/debug/claw --help
-./rust/target/debug/claw doctor
-
-# Windows PowerShell (debug build)
-.\rust\target\debug\claw.exe --help
-.\rust\target\debug\claw.exe doctor
+# Verifica que está configurada
+echo $DEEPSEEK_API_KEY
 ```
 
-If these commands succeed, the build is working. `claw doctor` is your first health check — it validates your API key, model access, and tool configuration.
-
-### Optional: Add to PATH
-
-If you want to run `claw` from any directory without the full path, choose one of these approaches:
-
-**Option 1: Symlink (macOS/Linux)**
+### "Connection refused" (Ollama)
 ```bash
-ln -s $(pwd)/rust/target/debug/claw /usr/local/bin/claw
-```
-Then reload your shell and test:
-```bash
-claw --help
+# Inicia Ollama primero
+ollama serve
 ```
 
-**Option 2: Use `cargo install` (all platforms)**
+### Necesitas VPN?
+Algunos proveedores pueden requerir VPN desde Venezuela. DeepSeek generalmente funciona sin VPN.
 
-Build and install to Cargo's default location (`~/.cargo/bin/`, which is usually on PATH):
-```bash
-# From the claw-code/rust/ directory
-cargo install --path . --force
+---
 
-# Then from anywhere
-claw --help
-```
+## Comparativa de Precios (USD)
 
-**Option 3: Update shell profile (bash/zsh)**
+| Modelo | Input/M | Output/M | Notas |
+|--------|---------|----------|-------|
+| Claude 4 Opus | $15.00 | $75.00 | Premium |
+| GPT-4o | $2.50 | $10.00 | Pago |
+| **DeepSeek V3** | **$0.14** | **$0.28** | 5M gratis |
+| **DeepSeek R1** | **$0.55** | **$2.19** | 5M gratis |
+| **DeepSeek Coder** | **$0.28** | **$0.56** | Económico |
+| **Big Pickle** | **Gratis** | **Gratis** | Límites |
 
-Add this line to `~/.bashrc` or `~/.zshrc`:
-```bash
-export PATH="$(pwd)/rust/target/debug:$PATH"
-```
+---
 
-Reload your shell:
-```bash
-source ~/.bashrc  # or source ~/.zshrc
-claw --help
-```
+## Enlaces Útiles
 
-### Troubleshooting
+- [DeepSeek API](https://platform.deepseek.com) - 5M tokens gratis
+- [OpenCode Zen](https://opencode.ai/zen) - Big Pickle gratis
+- [Ollama](https://ollama.com) - Modelos locales
+- [DashScope](https://dashscope.console.aliyun.com) - Qwen/Kimi
+- [Rust](https://rustup.rs/) - Instalar Rust
 
-- **"command not found: claw"** — The binary is in `rust/target/debug/claw`, but it's not on your PATH. Use the full path `./rust/target/debug/claw` or symlink/install as above.
-- **"permission denied"** — On macOS/Linux, you may need `chmod +x rust/target/debug/claw` if the executable bit isn't set (rare).
-- **Debug vs. release** — If the build is slow, you're in debug mode (default). Add `--release` to `cargo build` for faster runtime, but the build itself will take 5–10 minutes.
+---
 
-> [!NOTE]
-> **Auth:** claw requires an **API key** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc.) — Claude subscription login is not a supported auth path.
+## Licencia
 
-Run the workspace test suite after verifying the binary works:
+Ver repositorio original: [ultraworkers/claw-code](https://github.com/ultraworkers/claw-code)
 
-```bash
-cd rust
-cargo test --workspace
-```
+---
 
-## Documentation map
+## Notas
 
-- [`USAGE.md`](./USAGE.md) — quick commands, auth, sessions, config, parity harness
-- [`rust/README.md`](./rust/README.md) — crate map, CLI surface, features, workspace layout
-- [`PARITY.md`](./PARITY.md) — parity status for the Rust port
-- [`rust/MOCK_PARITY_HARNESS.md`](./rust/MOCK_PARITY_HARNESS.md) — deterministic mock-service harness details
-- [`ROADMAP.md`](./ROADMAP.md) — active roadmap and open cleanup work
-- [`PHILOSOPHY.md`](./PHILOSOPHY.md) — why the project exists and how it is operated
-
-## Ecosystem
-
-Claw Code is built in the open alongside the broader UltraWorkers toolchain:
-
-- [clawhip](https://github.com/Yeachan-Heo/clawhip)
-- [oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)
-- [oh-my-claudecode](https://github.com/Yeachan-Heo/oh-my-claudecode)
-- [oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex)
-- [UltraWorkers Discord](https://discord.gg/5TUQKqFWd)
-
-## Ownership / affiliation disclaimer
-
-- This repository does **not** claim ownership of the original Claude Code source material.
-- This repository is **not affiliated with, endorsed by, or maintained by Anthropic**.
+- Este es un fork mantenido por la comunidad venezolana
+- Compatible con el upstream ultraworkers/claw-code
+- Para contribuciones, issues y PRs, usar GitHub
