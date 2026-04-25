@@ -35,6 +35,76 @@ Este es un fork de **Claw Code** adaptado para usuarios venezolanos y países co
 
 ---
 
+## 🚀 Avances y Logros
+
+### ✅ Completados en este fork
+
+| Avance | Descripción | Estado |
+|--------|-------------|--------|
+| **Proveedor DeepSeek** | Modelos V3, R1, Coder con 5M tokens gratis | ✅ |
+| **Proveedor Big Pickle** | OpenCode Zen - modelo gratuito con límites | ✅ |
+| **Soporte Ollama** | Modelos locales (qwen2.5-coder, llama3.1, etc.) | ✅ |
+| **Seguridad Zeroize** | API keys borradas de memoria automáticamente | ✅ |
+| **Algoritmos Bio-Inspirados** | PSO, GA, ACO para optimización inteligente | ✅ |
+| **Documentación ES** | README.es.md, docs/GRATIS.md, rust/README.es.md | ✅ |
+| **Seguridad Avanzada** | Cifrado de credenciales en memoria | ✅ |
+
+### 🧬 Algoritmos Implementados (Rust 100%)
+
+```
+rust/crates/optimization/
+├── pso.rs    # Particle Swarm Optimization - Selección de tools
+├── ga.rs     # Genetic Algorithm - Evolución de estrategias
+└── aco.rs    # Ant Colony Optimization - Descubrimiento de paths
+```
+
+### 🔐 Seguridad
+
+- **Zeroize**: Las API keys se borran automáticamente de memoria al salir del scope
+- **Proveedores seguros**: Soporte para múltiples providers sin filtrar credenciales
+- **Auditoría**: Log de acciones en desarrollo
+
+---
+
+## 📊 Roadmap Innovador
+
+Este fork incluye una visión a largo plazo:
+
+### Fase 1: Algoritmos Bio-Inspiados ✅
+- [x] PSO para selección óptima de herramientas
+- [x] GA para evolución de estrategias de coding
+- [x] ACO para descubrimiento de paths de código
+
+### Fase 2: Machine Learning (en desarrollo)
+- [ ] Tool predictor con embeddings
+- [ ] Clasificación de errores con ML
+- [ ] Compresión de contexto inteligente
+
+### Fase 3: Seguridad Avanzada (en desarrollo)
+- [ ] Cifrado de configuración en disco
+- [ ] Auditoría inmutable con hash chain
+- [ ] Sandbox de herramientas
+
+### Fase 4: Arquitectura 99% Rust
+- [ ] Eliminación progresiva de dependencias Python
+- [ ] Binary único optimizado
+- [ ] Performance de nivel militar
+
+---
+
+## 📈 Comparativa: Original vs Este Fork
+
+| Característica | Original | Este Fork |
+|----------------|----------|-----------|
+| **Proveedores** | Anthropic, xAI | +DeepSeek, Big Pickle, Ollama, DashScope |
+| **Modelos gratuitos** | ❌ | ✅ 5M+ opciones gratis |
+| **Seguridad** | Basic | Zeroize + encryption |
+| **Algoritmos** | Rule-based | +PSO, GA, ACO |
+| **Documentación ES** | ❌ | ✅ Completa |
+| **Vision ML** | ❌ | ✅ Roadmap definido |
+
+---
+
 ## Modelos Soportados
 
 ### Modelos Gratuitos/Económicos
@@ -199,9 +269,12 @@ Este fork incluye:
 
 1. ✅ **Proveedor DeepSeek** - Modelos económicos (5M tokens gratis)
 2. ✅ **Proveedor OpenCode Zen** - Big Pickle gratuito
-3. ✅ **Soporte Ollama** - Modelos locales gratis
-4. ✅ **Documentación en español** - README.es.md, docs/GRATIS.md
-5. ✅ **Alias de modelos** - deepseek, r1, big-pickle, etc.
+3. ✅ **Proveedor DashScope** - Qwen y Kimi
+4. ✅ **Soporte Ollama** - Modelos locales y cualquier API OpenAI-compat
+5. ✅ **Seguridad Zeroize** - API keys borradas de memoria
+6. ✅ **Algoritmos Bio-Inspirados** - PSO, GA, ACO
+7. ✅ **Documentación en español** - README.es.md, docs/GRATIS.md
+8. ✅ **Roadmap Innovador** - ML, seguridad avanzada, 99% Rust
 
 ---
 
