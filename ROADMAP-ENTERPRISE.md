@@ -327,9 +327,9 @@ pub struct RateLimiter {
 
 ### Fase 2: Observabilidad (Week 3-4)
 
-- [ ] 2.1 Structured logging JSON
+- [x] 2.1 Structured logging JSON (`enterprise/src/logging.rs`)
 - [x] 2.2 Métricas por provider (`enterprise/src/metrics.rs`)
-- [ ] 2.3 Tracing
+- [x] 2.3 Tracing (`enterprise/src/tracing.rs`)
 - [ ] 2.4 Health dashboard
 
 ### Fase 3: Performance (Week 5-6)

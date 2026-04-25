@@ -6,17 +6,24 @@
 //! - Health checks
 //! - Graceful degradation
 //! - Metrics collection
+//! - Structured logging
+//! - Distributed tracing
 
 pub mod retry;
 pub mod circuit_breaker;
 pub mod health;
 pub mod metrics;
 pub mod graceful_degradation;
+pub mod logging;
+pub mod tracing;
 
 pub use retry::{RetryConfig, RetryStrategy};
 pub use circuit_breaker::{CircuitBreaker, CircuitState};
 pub use health::{HealthCheck, HealthStatus, ProviderHealth};
 pub use metrics::{MetricsCollector, ProviderMetrics};
+pub use graceful_degradation::GracefulDegradation;
+pub use logging::{JsonLogger, LogEntry, Level};
+pub use tracing::{TraceContext, SpanTracer, TraceCollector};
 
 #[cfg(test)]
 mod tests {
