@@ -1,348 +1,187 @@
-# 🦞 Claw Code Venezuela
+# 🦀 Claw Code Venezuela - Enterprise AI Coding Agent
 
 <p align="center">
-  <a href="https://github.com/rooselvelt6/claw-vzla">rooselvelt6/claw-vzla</a>
-  ·
-  <a href="./USAGE.md">Usage</a>
-  ·
-  <a href="./rust/README.md">Rust workspace</a>
-  ·
-  <a href="./PARITY.md">Parity</a>
-  ·
-  <a href="./ROADMAP.md">Roadmap</a>
-  ·
-  <a href="./docs/GRATIS.md">Modelos Gratuitos</a>
-  ·
-  <a href="https://discord.gg/5TUQKqFWd">Discord</a>
+  <img src="assets/claw-hero.jpeg" alt="Claw Code Venezuela" width="400" />
 </p>
 
 <p align="center">
-  <img src="assets/claw-hero.jpeg" alt="Claw Code Venezuela" width="300" />
+  <a href="https://github.com/rooselvelt6/claw-vzla">
+    <img src="https://img.shields.io/github stars/rooselvelt6/claw-vzla?style=flat&color=blue" alt="GitHub stars" />
+  </a>
+  <a href="https://discord.gg/5TUQKqFWd">
+    <img src="https://img.shields.io/discord/5TUQKqFWd?style=flat&color=blue" alt="Discord" />
+  </a>
+  <img src="https://img.shields.io/badge/rust-100%25-blue" alt="Rust" />
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License" />
 </p>
-
-## 🇻🇪 Para Venezuela
-
-Este es un fork de **Claw Code** adaptado para usuarios venezolanos y países con restricciones.
-
-### ✨ Características especiales para Venezuela
-
-| Característica | Descripción |
-|----------------|-------------|
-| **Modelos gratuitos** | DeepSeek (5M tokens gratis), Big Pickle, Ollama local |
-| **Sin dependencia USD** | Modelos económicos que no requieren dólares |
-| **Adaptado para LATAM** | Documentación en español, proveedores chinos |
-| **100% compatible** | Mantiene compatibilidad con el upstream |
 
 ---
 
-## 🚀 Avances y Logros
+## 🇻🇪 Description
 
-### ✅ Completados en este fork
+**Claw Code Venezuela** is an enterprise-grade fork of Claw Code optimized for Venezuelan users and the Latin American market. Built with 100% Rust for maximum performance, security, and cost-effectiveness.
 
-| Avance | Descripción | Estado |
-|--------|-------------|--------|
-| **Proveedor DeepSeek** | Modelos V3, R1, Coder con 5M tokens gratis | ✅ |
-| **Proveedor Big Pickle** | OpenCode Zen - modelo gratuito con límites | ✅ |
-| **Soporte Ollama** | Modelos locales (qwen2.5-coder, llama3.1, etc.) | ✅ |
-| **Seguridad Zeroize** | API keys borradas de memoria automáticamente | ✅ |
-| **Algoritmos Bio-Inspirados** | PSO, GA, ACO + Simulated Annealing | ✅ |
-| **Cifrado AES-GCM** | Configuración cifrada en disco | ✅ |
-| **Audit Log** | Hash chain para auditoría inmutable | ✅ |
-| **Sandbox** | Aislamiento de ejecución de tools | ✅ |
-| **Binary único** | 150MB con wrappers (kraken, claw-vzla, claw-ve) | ✅ |
-| **Documentación ES** | README.es.md, docs/GRATIS.md, rust/README.es.md | ✅ |
+### Why Venezuela?
 
-### 🧬 Algoritmos Implementados (Rust 100%)
+- **No USD dependency** - Free models that work without international payment
+- **Optimized for LATAM** - Models available without restrictions
+- **Enterprise-ready** - Production features built-in
+
+---
+
+## ✨ Key Features
+
+### Free Models (No API Key Required)
+
+| Provider | Models | Free Tier |
+|----------|-------|----------|
+| **DeepSeek** | V3, R1, Coder | 5M tokens/month |
+| **Big Pickle** | OpenCode Zen | Unlimited |
+| **Ollama** | qwen2.5-coder, llama3.1 | Local (free) |
+
+### Enterprise Features (Built-in)
+
+| Feature | Module | Description |
+|---------|--------|------------|
+| **Retry with Backoff** | `enterprise/retry.rs` | Exponential backoff + jitter |
+| **Circuit Breaker** | `enterprise/circuit_breaker.rs` | Fault tolerance |
+| **Health Checks** | `enterprise/health.rs` | Provider health monitoring |
+| **Graceful Degradation** | `enterprise/graceful_degradation.rs` | Automatic fallback |
+| **Metrics** | `enterprise/metrics.rs` | Per-provider metrics |
+| **Structured Logging** | `enterprise/logging.rs` | JSON format |
+| **Distributed Tracing** | `enterprise/tracing.rs` | Request correlation |
+| **Connection Pooling** | `enterprise/performance.rs` | Connection reuse |
+| **Timed Cache** | `enterprise/performance.rs` | TTL-based caching |
+| **Enterprise Audit** | `enterprise/enterprise_features.rs` | User action audit |
+| **Rate Limiting** | `enterprise/enterprise_features.rs` | Per-user limits |
+| **AES-GCM Encryption** | `security/crypto.rs` | Config encryption |
+| **Audit Log Chain** | `security/audit.rs` | Hash chain integrity |
+
+### Nature-Inspired Algorithms (Rust 100%)
 
 ```
 rust/crates/optimization/
-├── pso.rs    # Particle Swarm Optimization - Selección de tools
-├── ga.rs     # Genetic Algorithm - Evolución de estrategias
-├── aco.rs    # Ant Colony Optimization - Descubrimiento de paths
-└── sa.rs     # Simulated Annealing - Escape de óptimos locales
+├── pso.rs    # Particle Swarm Optimization
+├── ga.rs     # Genetic Algorithm
+├── aco.rs    # Ant Colony Optimization
+└── sa.rs     # Simulated Annealing
 ```
 
-### 🔐 Seguridad
-
-- **Zeroize**: Las API keys se borran automáticamente de memoria al salir del scope
-- **AES-GCM**: Cifrado de configuración en disco
-- **Audit Log**: Hash chain con SHA-256 para integridad verificable
-- **Sandbox**: Aislamiento de ejecución de herramientas
-
 ---
 
-## 📊 Roadmap Innovador
-
-Este fork incluye una visión a largo plazo:
-
-### Fase 1: Algoritmos Bio-Inspiados ✅
-- [x] PSO para selección óptima de herramientas
-- [x] GA para evolución de estrategias de coding
-- [x] ACO para descubrimiento de paths de código
-- [x] Simulated Annealing para escape de óptimos locales
-
-### Fase 2: Machine Learning (pendiente)
-- [ ] Tool predictor con embeddings
-- [ ] Clasificación de errores con ML
-- [ ] Compresión de contexto inteligente
-
-### Fase 3: Seguridad Avanzada ✅
-- [x] Cifrado de configuración en disco (AES-GCM)
-- [x] Auditoría inmutable con hash chain
-- [x] Sandbox de herramientas
-
-### Fase 4: Arquitectura 99% Rust ✅
-- [x] Binary único optimizado
-- [x] Wrappers para nombres personalizados
-- [ ] Performance tuning
-
----
-
-## 📈 Comparativa: Original vs Este Fork
-
-| Característica | Original | Este Fork |
-|----------------|----------|-----------|
-| **Proveedores** | Anthropic, xAI | +DeepSeek, Big Pickle, Ollama, DashScope |
-| **Modelos gratuitos** | ❌ | ✅ 5M+ opciones gratis |
-| **Seguridad** | Basic | Zeroize + encryption |
-| **Algoritmos** | Rule-based | +PSO, GA, ACO |
-| **Documentación ES** | ❌ | ✅ Completa |
-| **Vision ML** | ❌ | ✅ Roadmap definido |
-
----
-
-## Modelos Soportados
-
-### Modelos Gratuitos/Económicos
-
-| Modelo | Costo | Contexto | Uso recomendado |
-|--------|-------|----------|-----------------|
-| **DeepSeek V3** | 5M gratis, luego $0.14/M | 128K | Chat general |
-| **DeepSeek R1** | 5M gratis, luego $0.55/M | 128K | Razonamiento |
-| **DeepSeek Coder** | $0.28/M input | 64K | Programación |
-| **Big Pickle** | Gratis* | 200K | Coding |
-| **Ollama local** | Gratis | Variable | Offline |
-
-### Modelos Originales
-
-| Modelo | Proveedor | Costo |
-|--------|-----------|-------|
-| Claude (opus/sonnet/haiku) | Anthropic | Pago |
-| Grok (grok-3) | xAI | Pago |
-| Qwen (qwen-max) | DashScope | Pago |
-| Kimi (kimi-k2.5) | DashScope | Pago |
-
----
-
-## Inicio Rápido
-
-### Opción 1: DeepSeek (Recomendado)
+## 🚀 Quick Start
 
 ```bash
-# 1. Clonar y construir
-git clone https://github.com/rooselvelt6/claw-vzla
+# Clone
+git clone https://github.com/rooselvelt6/claw-vzla.git
 cd claw-vzla/rust
-cargo build --workspace
 
-# 2. Configurar DeepSeek (5M tokens gratis)
-# Regístrate en https://platform.deepseek.com
-export DEEPSEEK_API_KEY="sk-tu-api-key"
+# Build
+cargo build --release
 
-# 3. Usar DeepSeek
-./target/debug/claw --model deepseek prompt "hola"
+# Run with DeepSeek (free)
+DEEPSEEK_API_KEY=your_key ./target/release/claw run "Hello"
 
-# O usar R1 para razonamiento
-./target/debug/claw --model r1 prompt "resuelve esto"
+# Or with Ollama (local free)
+./target/release/claw run "Hello" --model ollama/qwen2.5-coder
 ```
 
-### Opción 2: Big Pickle (Gratis)
+---
+
+## 📊 Architecture
+
+```
+claw-vzla/
+├── rust/
+│   ├── crates/
+│   │   ├── api/              # Providers (DeepSeek, Big Pickle, Ollama)
+│   │   ├── enterprise/       # Enterprise features (27 tests)
+│   │   ├── optimization/    # Bio-inspired algorithms
+│   │   ├── security/        # Encryption + audit
+│   │   ├── sandbox/         # Tool isolation
+│   │   ├── runtime/         # Core runtime
+│   │   └── rusty-claude-cli/ # Main CLI (~150MB)
+���   └── target/release/claw  # Single binary
+└── docs/
+    └── GRATIS.md           # Free models guide
+```
+
+---
+
+## 🏢 Enterprise Production Ready
+
+### Fault Tolerance
+
+```rust
+use enterprise::{CircuitBreaker, RetryConfig, GracefulDegradation};
+
+let cb = CircuitBreaker::new(5, std::time::Duration::from_secs(30));
+let retry = RetryConfig::default();
+let fallback = GracefulDegradation::with_default();
+```
+
+### Observability
+
+```rust
+use enterprise::{JsonLogger, Level, TraceContext};
+
+let logger = JsonLogger::new(Level::Info);
+logger.info("provider", "DeepSeek request completed");
+
+let trace = TraceContext::new("api_call");
+trace.with_tag("provider", "deepseek");
+```
+
+### Rate Limiting & Audit
+
+```rust
+use enterprise::{RateLimiter, EnterpriseAuditLog};
+
+let limiter = RateLimiter::new(60, 100_000, 10); // 60 req/min, 100k tokens
+let audit = EnterpriseAuditLog::new(10_000);
+```
+
+---
+
+## 📈 Comparison
+
+| Feature | Original Claw | Venezuela Fork |
+|---------|--------------|--------------|
+| **Providers** | Anthropic only | DeepSeek + Big Pickle + Ollama |
+| **Free Tier** | ❌ | ✅ 5M+ tokens |
+| **Encryption** | Basic | AES-GCM |
+| **Audit** | ❌ | ✅ Hash chain |
+| **Circuit Breaker** | ❌ | ✅ Built-in |
+| **Rate Limiting** | ❌ | ✅ Per-user |
+| **Language** | EN | ES + EN |
+
+---
+
+## 📝 Documentation
+
+- [Roadmap](./ROADMAP.md) - Original roadmap
+- [Enterprise Roadmap](./ROADMAP-ENTERPRISE.md) - Production features
+- [Free Models Guide](./docs/GRATIS.md) - Modelos gratuitos
+
+---
+
+## 🤝 Contributing
 
 ```bash
-# Configurar OpenCode Zen
-export OPENCODE_API_KEY="tu-api-key"  # Obténla en https://opencode.ai/zen
-
-./target/debug/claw --model big-pickle prompt "crea un API REST"
-```
-
-### Opción 3: Ollama Local
-
-```bash
-# Instalar Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Descargar modelos
-ollama pull qwen2.5-coder:7b
-ollama pull deepseek-coder:6.7b
-
-# Configurar
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-export OPENAI_API_KEY="ollama"
-
-# Usar modelo local
-./target/debug/claw --model qwen2.5-coder:7b prompt "hola"
+# Build and test
+cd rust
+cargo test --workspace
+cargo fmt
+cargo clippy --workspace -- -D warnings
 ```
 
 ---
 
-## Configuración de Variables de Entorno
+## 📜 License
 
-### Modelos DeepSeek
-```bash
-export DEEPSEEK_API_KEY="sk-..."
-export DEEPSEEK_BASE_URL="https://api.deepseek.com/v1"  # opcional
-```
-
-### Modelos OpenCode (Big Pickle)
-```bash
-export OPENCODE_API_KEY="tu-api-key"
-export OPENCODE_BASE_URL="https://opencode.ai/zen/v1"  # opcional
-```
-
-### Ollama / OpenAI Compatible
-```bash
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-export OPENAI_API_KEY="ollama"  # o tu API key
-```
-
-### Modelos Originales (Anthropic)
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
+MIT License - See [LICENSE](./LICENSE)
 
 ---
 
-## Alias de Modelos Disponibles
-
-```bash
-# DeepSeek
-claw --model deepseek        # deepseek-chat
-claw --model r1              # deepseek-reasoner
-claw --model deepseek-r1     # deepseek-reasoner
-claw --model deepseek-coder  # deepseek-coder
-
-# OpenCode
-claw --model big-pickle      # Big Pickle (GLM-4.6)
-
-# Anthropic
-claw --model opus            # claude-opus-4-6
-claw --model sonnet          # claude-sonnet-4-6
-claw --model haiku           # claude-haiku-4-5-20251213
-
-# xAI
-claw --model grok            # grok-3
-claw --model grok-mini       # grok-3-mini
-
-# DashScope (Qwen/Kimi)
-claw --model qwen-max        # Qwen max
-claw --model kimi            # Kimi k2.5
-```
-
----
-
-## Comandos Útiles
-
-```bash
-# Verificar configuración
-./target/debug/claw doctor
-
-# Estado del sistema
-./target/debug/claw status
-
-# Usar modelo específico
-./target/debug/claw --model deepseek prompt "tu prompt aquí"
-
-# Salida JSON para scripting
-./target/debug/claw --output-format json status
-```
-
----
-
-## Documentación
-
-| Archivo | Descripción |
-|---------|-------------|
-| [`USAGE.md`](./USAGE.md) | Guía de uso completa |
-| [`docs/GRATIS.md`](./docs/GRATIS.md) | Guía de modelos gratuitos para Venezuela |
-| [`rust/README.md`](./rust/README.md) | Documentación técnica |
-| [`PARITY.md`](./PARITY.md) | Estado del puerto a Rust |
-| [`ROADMAP.md`](./ROADMAP.md) | Hoja de ruta del proyecto |
-
----
-
-## Diferencias con el Original
-
-Este fork incluye:
-
-1. ✅ **Proveedor DeepSeek** - Modelos económicos (5M tokens gratis)
-2. ✅ **Proveedor OpenCode Zen** - Big Pickle gratuito
-3. ✅ **Proveedor DashScope** - Qwen y Kimi
-4. ✅ **Soporte Ollama** - Modelos locales y cualquier API OpenAI-compat
-5. ✅ **Seguridad Zeroize** - API keys borradas de memoria
-6. ✅ **Algoritmos Bio-Inspirados** - PSO, GA, ACO
-7. ✅ **Documentación en español** - README.es.md, docs/GRATIS.md
-8. ✅ **Roadmap Innovador** - ML, seguridad avanzada, 99% Rust
-
----
-
-## Requisitos
-
-- **Rust** (1.70+): https://rustup.rs/
-- **Git**
-- **API Key** del proveedor elegido
-
----
-
-## Solución de Problemas
-
-### "Missing API key"
-Asegúrate de tener la variable correcta:
-```bash
-# Verifica que está configurada
-echo $DEEPSEEK_API_KEY
-```
-
-### "Connection refused" (Ollama)
-```bash
-# Inicia Ollama primero
-ollama serve
-```
-
-### Necesitas VPN?
-Algunos proveedores pueden requerir VPN desde Venezuela. DeepSeek generalmente funciona sin VPN.
-
----
-
-## Comparativa de Precios (USD)
-
-| Modelo | Input/M | Output/M | Notas |
-|--------|---------|----------|-------|
-| Claude 4 Opus | $15.00 | $75.00 | Premium |
-| GPT-4o | $2.50 | $10.00 | Pago |
-| **DeepSeek V3** | **$0.14** | **$0.28** | 5M gratis |
-| **DeepSeek R1** | **$0.55** | **$2.19** | 5M gratis |
-| **DeepSeek Coder** | **$0.28** | **$0.56** | Económico |
-| **Big Pickle** | **Gratis** | **Gratis** | Límites |
-
----
-
-## Enlaces Útiles
-
-- [DeepSeek API](https://platform.deepseek.com) - 5M tokens gratis
-- [OpenCode Zen](https://opencode.ai/zen) - Big Pickle gratis
-- [Ollama](https://ollama.com) - Modelos locales
-- [DashScope](https://dashscope.console.aliyun.com) - Qwen/Kimi
-- [Rust](https://rustup.rs/) - Instalar Rust
-
----
-
-## Licencia
-
-Ver repositorio original: [ultraworkers/claw-code](https://github.com/ultraworkers/claw-code)
-
----
-
-## Notas
-
-- Este es un fork mantenido por la comunidad venezolana
-- Compatible con el upstream ultraworkers/claw-code
-- Para contribuciones, issues y PRs, usar GitHub
+**Built with ❤️ for Venezuela**  
+100% Rust • Enterprise Ready • Free Models
