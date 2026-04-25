@@ -3,6 +3,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 use runtime::format_usd;
 use runtime::{
     load_oauth_credentials, save_oauth_credentials, OAuthConfig, OAuthRefreshRequest,
@@ -29,7 +31,7 @@ const DEFAULT_INITIAL_BACKOFF: Duration = Duration::from_secs(1);
 const DEFAULT_MAX_BACKOFF: Duration = Duration::from_secs(128);
 const DEFAULT_MAX_RETRIES: u32 = 8;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub enum AuthSource {
     None,
     ApiKey(String),

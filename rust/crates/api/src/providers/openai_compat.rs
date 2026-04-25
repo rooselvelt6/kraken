@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::Deserialize;
 use serde_json::{json, Value};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::error::ApiError;
 use crate::http_client::build_http_client_or_default;
@@ -131,14 +132,20 @@ impl OpenAiCompatConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct OpenAiCompatClient {
+    #[zeroize(skip)]
     http: reqwest::Client,
     api_key: String,
+    #[zeroize(skip)]
     config: OpenAiCompatConfig,
+    #[zeroize(skip)]
     base_url: String,
+    #[zeroize(skip)]
     max_retries: u32,
+    #[zeroize(skip)]
     initial_backoff: Duration,
+    #[zeroize(skip)]
     max_backoff: Duration,
 }
 
