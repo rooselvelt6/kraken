@@ -8,6 +8,8 @@
 //! - Metrics collection
 //! - Structured logging
 //! - Distributed tracing
+//! - Performance optimizations
+//! - Enterprise audit and rate limiting
 
 pub mod retry;
 pub mod circuit_breaker;
@@ -16,6 +18,8 @@ pub mod metrics;
 pub mod graceful_degradation;
 pub mod logging;
 pub mod tracing;
+pub mod performance;
+pub mod enterprise_features;
 
 pub use retry::{RetryConfig, RetryStrategy};
 pub use circuit_breaker::{CircuitBreaker, CircuitState};
@@ -24,6 +28,11 @@ pub use metrics::{MetricsCollector, ProviderMetrics};
 pub use graceful_degradation::GracefulDegradation;
 pub use logging::{JsonLogger, LogEntry, Level};
 pub use tracing::{TraceContext, SpanTracer, TraceCollector};
+pub use performance::{ConnectionPool, TimedCache};
+pub use enterprise_features::{
+    EnterpriseAuditLog, EnterpriseAuditEntry, AuditAction, AuditResult,
+    RateLimiter, RateLimitBucket, EnterpriseConfig,
+};
 
 #[cfg(test)]
 mod tests {

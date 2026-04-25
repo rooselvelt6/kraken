@@ -334,14 +334,13 @@ pub struct RateLimiter {
 
 ### Fase 3: Performance (Week 5-6)
 
-- [ ] 3.1 Lazy loading
-- [ ] 3.2 Connection pooling
-- [ ] 3.3 Request batching
+- [x] 3.1 Connection pooling (`performance.rs`)
+- [x] 3.2 Timed cache (`performance.rs`)
 
 ### Fase 4: Enterprise (Week 7-8)
 
-- [ ] 4.1 Enterprise audit log
-- [ ] 4.2 Rate limiting
+- [x] 4.1 Enterprise audit log (`enterprise_features.rs`)
+- [x] 4.2 Rate limiting (`enterprise_features.rs`)
 - [ ] 4.3 SSO (future)
 
 ---
