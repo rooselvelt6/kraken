@@ -18,6 +18,24 @@ use std::net::TcpListener;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+const CLI_NAMES: &[&str] = &["claw", "kraken", "claw-vzla", "claw-ve"];
+
+fn get_invoked_name() -> String {
+    let args: Vec<String> = std::env::args().collect();
+    let binary_name = args
+        .first()
+        .and_then(|p| Path::new(p).file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("claw")
+        .to_lowercase();
+    
+    CLI_NAMES
+        .iter()
+        .find(|&name| binary_name == *name)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "claw".to_string())
+}
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
