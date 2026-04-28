@@ -7,12 +7,6 @@
   <a href="https://github.com/rooselvelt6/claw-vzla/releases">
     <img src="https://img.shields.io/github/v/release/rooselvelt6/claw-vzla?include_prereleases&style=for-the-badge" alt="Release"/>
   </a>
-  <a href="https://github.com/rooselvelt6/claw-vzla/actions">
-    <img src="https://img.shields.io/github/actions/workflow/status/rooselvelt6/claw-vzla/ci.yml?style=for-the-badge" alt="CI"/>
-  </a>
-  <a href="https://discord.gg/claw-vzla">
-    <img src="https://img.shields.io/discord/123456789?style=for-the-badge&logo=discord" alt="Discord"/>
-  </a>
 </p>
 
 ---
@@ -291,6 +285,6 @@ MIT License - Ver [LICENSE](./LICENSE)
 
 **100% Rust • 0% Python • Offline-First • Sin USD**
 
-Hecho con ❤️ para Venezuela
+Para Venezuela
 
 </p>
