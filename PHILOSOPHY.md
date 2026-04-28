@@ -1,114 +1,169 @@
-# Claw Code Philosophy
+# Filosofía Claw Code Venezuela
 
-## Stop Staring at the Files
+## Deja de Mirar Solo los Archivos
 
-If you only look at the generated files in this repository, you are looking at the wrong layer.
+Si solo miras los archivos generados en este repositorio, estás mirando la capa equivocada.
 
-The Python rewrite was a byproduct. The Rust rewrite was also a byproduct. The real thing worth studying is the **system that produced them**: a clawhip-based coordination loop where humans give direction and autonomous claws execute the work.
+La reescritura en Python fue un subproducto. La reescritura en Rust también fue un subproducto. Lo que vale la pena estudiar es el **sistema que los produjo**: un bucle de coordinación basado en clawhip donde los humanos dan dirección y las claws ejecutan el trabajo.
 
-Claw Code is not just a codebase. It is a public demonstration of what happens when:
+Claw Code Venezuela no es solo un codebase. Es una demostración pública de lo que sucede cuando:
 
-- a human provides clear direction,
-- multiple coding agents coordinate in parallel,
-- notification routing is pushed out of the agent context window,
-- planning, execution, review, and retry loops are automated,
-- and the human does **not** sit in a terminal micromanaging every step.
+- un humano da dirección clara,
+- múltiples agentes de código coordinan en paralelo,
+- el enrutamiento de notificaciones se saca de la ventana de contexto del agente,
+- la planificación, ejecución, revisión y reintentos se automatizan,
+- y el humano **no** se sienta en una terminal microgestionando cada paso.
 
-## The Human Interface Is Discord
+## La Interfaz Humana es Discord
 
-The important interface here is not tmux, Vim, SSH, or a terminal multiplexer.
+La interfaz importante aquí no es tmux, Vim, SSH o un multiplexor de terminal.
 
-The real human interface is a Discord channel.
+La interfaz humana real es un canal de Discord.
 
-A person can type a sentence from a phone, walk away, sleep, or do something else. The claws read the directive, break it into tasks, assign roles, write code, run tests, argue over failures, recover, and push when the work passes.
+Una persona puede escribir una frase desde el teléfono, alejarse, dormir o hacer otra cosa. Las claws leen la directiva, la dividen en tareas, asignan roles, escriben código, ejecutan tests, discuten fallos, se recuperan y hacen push cuando el trabajo pasa.
 
-That is the philosophy: **humans set direction; claws perform the labor.**
+Esa es la filosofía: **los humanos dan dirección; las claws ejecutan el trabajo.**
 
-## The Three-Part System
+## El Sistema de Tres Partes
 
 ### 1. OmX (`oh-my-codex`)
-[oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex) provides the workflow layer.
+[oh-my-codex](https://github.com/Yeachan-Heo/oh-my-codex) provee la capa de flujo de trabajo.
 
-It turns short directives into structured execution:
-- planning keywords
-- execution modes
-- persistent verification loops
-- parallel multi-agent workflows
+Convierte directivas cortas en ejecución estructurada:
+- palabras clave de planificación
+- modos de ejecución
+- bucles de verificación persistentes
+- flujos de trabajo multi-agente en paralelo
 
-This is the layer that converts a sentence into a repeatable work protocol.
+Esta es la capa que convierte una frase en un protocolo de trabajo repetible.
 
 ### 2. clawhip
-[clawhip](https://github.com/Yeachan-Heo/clawhip) is the event and notification router.
+[clawhip](https://github.com/Yeachan-Heo/clawhip) es el enrutador de eventos y notificaciones.
 
-It watches:
-- git commits
-- tmux sessions
-- GitHub issues and PRs
-- agent lifecycle events
-- channel delivery
+Vigila:
+- commits de git
+- sesiones de tmux
+- issues y PRs de GitHub
+- eventos del ciclo de vida del agente
+- entrega de canal
 
-Its job is to keep monitoring and delivery **outside** the coding agent's context window so the agents can stay focused on implementation instead of status formatting and notification routing.
+Su trabajo es mantener el monitoreo y la entrega **fuera** de la ventana de contexto del agente de código para que los agentes puedan enfocarse en la implementación en lugar de en el formato de estado y enrutamiento de notificaciones.
 
 ### 3. OmO (`oh-my-openagent`)
-[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) handles multi-agent coordination.
+[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent) maneja la coordinación multi-agente.
 
-This is where planning, handoffs, disagreement resolution, and verification loops happen across agents.
+Aquí es donde ocurren la planificación, entregas, resolución de desacuerdos y bucles de verificación entre agentes.
 
-When Architect, Executor, and Reviewer disagree, OmO provides the structure for that loop to converge instead of collapse.
+Cuando Architect, Executor y Reviewer no están de acuerdo, OmO provee la estructura para que ese bucle converja en lugar de colapsar.
 
-## The Real Bottleneck Changed
+## El Cuello de Botella Cambió
 
-The bottleneck is no longer typing speed.
+El cuello de botella ya no es la velocidad de escritura.
 
-When agent systems can rebuild a codebase in hours, the scarce resource becomes:
-- architectural clarity
-- task decomposition
-- judgment
-- taste
-- conviction about what is worth building
-- knowing which parts can be parallelized and which parts must stay constrained
+Cuando los sistemas de agentes pueden reconstruir un codebase en horas, el recurso escaso se vuelve:
+- claridad arquitectónica
+- descomposición de tareas
+- juicio
+- gusto (taste)
+- convicción sobre qué vale la pena construir
+- saber qué partes pueden paralelizarse y cuáles deben permanecer restringidas
 
-A fast agent team does not remove the need for thinking. It makes clear thinking even more valuable.
+Un equipo de agentes rápido no elimina la necesidad de pensar. Hace que el pensamiento claro sea aún más valioso.
 
-## What Claw Code Demonstrates
+## Lo Que Claw Code Venezuela Demuestra
 
-Claw Code demonstrates that a repository can be:
+Claw Code Venezuela demuestra que un repositorio puede ser:
 
-- **autonomously built in public**
-- coordinated by claws/lobsters rather than human pair-programming alone
-- operated through a chat interface
-- continuously improved by structured planning/execution/review loops
-- maintained as a showcase of the coordination layer, not just the output files
+- **construido autónomamente en público**
+- coordinado por claws/lobsters en lugar de pair-programming humano solo
+- operado a través de una interfaz de chat
+- mejorado continuamente por bucles estructurados de planificación/ejecución/revisión
+- mantenido como una vitrina de la capa de coordinación, no solo de los archivos de salida
 
-The code is evidence.
-The coordination system is the product lesson.
+El código es evidencia.
+El sistema de coordinación es la lección del producto.
 
-## What Still Matters
+## Lo Que Sigue Importando
 
-As coding intelligence gets cheaper and more available, the durable differentiators are not raw coding output.
+A medida que la inteligencia de codificación se vuelve más barata y disponible, los diferenciadores duraderos no son la salida de código cruda.
 
-What still matters:
-- product taste
-- direction
-- system design
-- human trust
-- operational stability
-- judgment about what to build next
+Lo que sigue importando:
+- gusto por el producto
+- dirección
+- diseño de sistema
+- confianza humana
+- estabilidad operativa
+- juicio sobre qué construir next
 
-In that world, the job of the human is not to out-type the machine.
-The job of the human is to decide what deserves to exist.
+En ese mundo, el trabajo del humano no es escribir más rápido que la máquina.
+El trabajo del humano es decidir qué merece existir.
 
-## Short Version
+## Versión Corta
 
-**Claw Code is a demo of autonomous software development.**
+**Claw Code Venezuela es una demo de desarrollo de software autónomo.**
 
-Humans provide direction.
-Claws coordinate, build, test, recover, and push.
-The repository is the artifact.
-The philosophy is the system behind it.
+Los humanos dan dirección.
+Las claws coordinan, construyen, testean, se recuperan y hacen push.
+El repositorio es el artefacto.
+La filosofía es el sistema detrás de él.
 
-## Related explanation
+---
 
-For the longer public explanation behind this philosophy, see:
+## Filosofía Unix/Linux en Claw Code Venezuela
+
+Inspirados en la tradición Unix: **"haz una cosa y hazla bien"**, Claw Code Venezuela adopta los siguientes principios:
+
+### 1. Haz una cosa y hazla bien
+Cada componente tiene una responsabilidad única y clara:
+- `clawhip` enruta eventos y notificaciones
+- `OmX` gestiona flujos de trabajo
+- `OmO` coordina agentes múltiples
+- El CLI en Rust ejecuta tareas de código
+
+### 2. Escribe programas que trabajen juntos
+Los componentes se comunican a través de interfaces bien definidas (eventos tipados, canales Discord, APIs). No son monolitos; son herramientas que se componen.
+
+### 3. Usa texto plano para la interfaz universal
+La configuración, los eventos y los logs son texto procesable. Los humanos pueden leerlo, las máquinas pueden parsearlo, las claws pueden razonar sobre él.
+
+### 4. Simplicidad sobre complejidad innecesaria
+Rust fue elegido por su seguridad y rendimiento, no por moda. La arquitectura prefiere la claridad sobre el ingenio excesivo. Si puedes explicarlo en una frase, es mejor.
+
+### 5. Portabilidad y acceso
+En el contexto venezolano, esto significa:
+- **Sin dependencia de USD**: modelos gratuitos (DeepSeek, Big Pickle, Ollama)
+- **Optimizado para LATAM**: modelos disponibles sin restricciones bancarias
+- **Bajo consumo de recursos**: eficiencia para hardware accesible
+- **Sin barreras de pago**: enterprise-grade sin costo para el desarrollador local
+
+### 6. Recuperación antes que escalamiento
+Los modos de falla conocidos deben auto-curarse antes de pedir ayuda humana. Un sistema que no puede recuperarse solo es un sistema frágil.
+
+### 7. La salida es para máquinas y humanos
+Los eventos son tipados para consumo de máquinas. Los canales Discord son legibles para humanos. Ambos importan.
+
+### 8. El estado vive fuera de la terminal
+tmux/TUI son detalles de implementación. El estado de orquestación vive por encima de ellos, en eventos y estructuras que sobreviven a la sesión.
+
+### 9. Autonomía con supervisión
+Los agentes trabajan solos, pero el humano decide qué merece existir. No es "vuelve y avísame", es "trabaja, recupérate, y haz push cuando esté listo".
+
+### 10. Código abierto, conocimiento abierto
+Como en la tradición Unix, las herramientas se comparten. La coordinación autónoma no es magia negra; es ingeniería reproducible que cualquiera puede estudiar, forklear y adaptar.
+
+## El Diferencial Venezuela
+
+Mientras el proyecto original demuestra coordinación autónoma, **Claw Code Venezuela** añade:
+
+- **Resiliencia económica**: funciona sin tarjeta de crédito internacional
+- **Soberanía tecnológica**: modelos locales y regionales prioritarios
+- **Mentalidad de garaje**: hacer más con menos, estirar los recursos, inventar soluciones
+- **Comunidad LATAM**: documentación en español, modelos accesibles, realidad local
+
+Porque en Venezuela, si algo funciona sin USD, sin tarjeta, y con buen rendimiento... **es tecnología de verdad**.
+
+## Explicación Relacionada
+
+Para la explicación pública más amplia detrás de esta filosofía, vea:
 
 - https://x.com/realsigridjin/status/2039472968624185713
