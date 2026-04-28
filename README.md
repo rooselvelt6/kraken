@@ -69,7 +69,7 @@ El crate `security` implementa criptografía de grado militar/enterprise:
 |-------|---------|----------|
 | **localmodels** | Proveedores locales | Ollama, LM Studio, llama.cpp |
 | **offline** | Sistema offline-first | SQLite, cola sync, recovery |
-| **cache** | Cache multi-nivel | gzip, TTL, LRU, stats |
+| **cache** | Cache multi-nivel | gzip, TTL, LRU/LFU/FIFO, memoria+disco, stats |
 
 ### Modo Offline-First
 
@@ -84,16 +84,33 @@ manager.queue_operation(op).await?;
 manager.update_connection_state().await;
 ```
 
-### Cache Inteligente
+### Cache Inteligente (Multi-nivel)
 
 ```rust
-// Cache con compresión gzip
+// Cache con compresión automática
+let cache = CacheManager::new(data_dir)?;
+
+// Guardar en memoria y disco
 cache.set("prompt-key", CacheType::Response, &response)?;
 
-// Stats de hit rate
+// Leer (memoria primero, luego disco)
+let content = cache.get("prompt-key", CacheType::Response)?;
+
+// Stats detalladas
 let stats = cache.stats();
-// CacheStats { hits: 150, misses: 50, hit_rate: 75% }
+// CacheStats { total_entries, expired_entries, hits, misses, hit_rate }
+
+// Eviction policies: LRU, LFU, FIFO, TTL
+cache.clear_by_type(CacheType::Response);
+cache.remove("key", CacheType::Prompt);
 ```
+
+**Features implementadas:**
+- ✅ Compresión Zlib (configurable)
+- ✅ Caché en memoria + SQLite
+- ✅ 4 políticas de eviction (LRU, LFU, FIFO, TTL)
+- ✅ 45 tests (86% cobertura)
+- ✅ Estadísticas de hit rate
 
 ### Proveedores Locales
 
@@ -190,15 +207,16 @@ cd rust && cargo test --workspace
 
 ### Cobertura de Tests
 
-| Crate | Tests | Estado |
-|-------|------|--------|
-| enterprise | 27 | ✅ Passing |
-| optimization | 12 | ✅ Passing |
-| security | 14 | ✅ Passing |
-| sandbox | 2 | ✅ Passing |
-| api | 50+ | ✅ Passing |
+| Crate | Tests | Estado | Cobertura |
+|-------|------|--------|-----------|
+| enterprise | 27 | ✅ Passing | - |
+| optimization | 12 | ✅ Passing | - |
+| security | 14 | ✅ Passing | - |
+| sandbox | 2 | ✅ Passing | - |
+| api | 50+ | ✅ Passing | - |
+| **cache** | **45** | **✅ Passing** | **86%** |
 
-**Total: 465+ tests passing**
+**Total: 510+ tests passing**
 
 ---
 
