@@ -1,7 +1,7 @@
 //! Health checks for providers
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HealthStatus {
@@ -40,24 +40,24 @@ impl ProviderHealth {
             failed_requests: 0,
         }
     }
-    
+
     pub fn record_success(&mut self, latency_ms: u64) {
         self.latency_ms = latency_ms;
         self.last_check = Utc::now();
         self.total_requests += 1;
-        
+
         self.update_status();
     }
-    
+
     pub fn record_failure(&mut self) {
         self.last_check = Utc::now();
         self.total_requests += 1;
         self.failed_requests += 1;
-        
+
         self.error_rate = self.failed_requests as f64 / self.total_requests as f64;
         self.update_status();
     }
-    
+
     fn update_status(&mut self) {
         if self.total_requests > 10 && self.error_rate > 0.5 {
             self.status = HealthStatus::Unhealthy;
@@ -67,9 +67,12 @@ impl ProviderHealth {
             self.status = HealthStatus::Healthy;
         }
     }
-    
+
     pub fn is_available(&self) -> bool {
-        matches!(self.status, HealthStatus::Healthy | HealthStatus::Degraded | HealthStatus::Unknown)
+        matches!(
+            self.status,
+            HealthStatus::Healthy | HealthStatus::Degraded | HealthStatus::Unknown
+        )
     }
 }
 
@@ -93,7 +96,7 @@ impl HealthCheck {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn add_provider(&mut self, health: ProviderHealth) {
         let status_str = match health.status {
             HealthStatus::Healthy => "healthy",
@@ -101,7 +104,7 @@ impl HealthCheck {
             HealthStatus::Unhealthy => "unhealthy",
             HealthStatus::Unknown => "unknown",
         };
-        
+
         self.providers.insert(
             health.name,
             ProviderHealthStatus {
@@ -111,7 +114,7 @@ impl HealthCheck {
             },
         );
     }
-    
+
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
@@ -120,29 +123,29 @@ impl HealthCheck {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_provider_health_recording() {
         let mut health = ProviderHealth::new("deepseek".to_string());
-        
+
         health.record_success(100);
         assert!(matches!(health.status, HealthStatus::Healthy));
-        
+
         health.record_failure();
         assert!(health.is_available());
-        
+
         for _ in 0..20 {
             health.record_failure();
         }
-        
+
         assert!(matches!(health.status, HealthStatus::Unhealthy));
     }
-    
+
     #[test]
     fn test_health_check_json() {
         let mut check = HealthCheck::new();
         check.add_provider(ProviderHealth::new("deepseek".to_string()));
-        
+
         let json = check.to_json();
         assert!(json.contains("deepseek"));
     }

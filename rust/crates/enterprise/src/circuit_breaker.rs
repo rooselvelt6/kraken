@@ -1,7 +1,7 @@
 //! Circuit Breaker implementation
 
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CircuitState {
@@ -22,7 +22,7 @@ pub struct CircuitBreaker {
     pub success_threshold: u32,
     pub recovery_timeout_ms: u64,
     pub half_open_requests: u32,
-    
+
     #[serde(skip)]
     state: CircuitState,
     failures: u32,
@@ -41,15 +41,15 @@ impl CircuitBreaker {
             successes: 0,
         }
     }
-    
+
     pub fn state(&self) -> CircuitState {
         self.state
     }
-    
+
     pub fn can_execute(&self) -> bool {
         !matches!(self.state, CircuitState::Open)
     }
-    
+
     pub fn record_success(&mut self) {
         match self.state {
             CircuitState::HalfOpen => {
@@ -66,10 +66,10 @@ impl CircuitBreaker {
             CircuitState::Open => {}
         }
     }
-    
+
     pub fn record_failure(&mut self) {
         self.failures += 1;
-        
+
         match self.state {
             CircuitState::HalfOpen => {
                 self.state = CircuitState::Open;
@@ -83,15 +83,15 @@ impl CircuitBreaker {
             CircuitState::Open => {}
         }
     }
-    
+
     pub fn failures(&self) -> u32 {
         self.failures
     }
-    
+
     pub fn is_healthy(&self) -> bool {
         matches!(self.state, CircuitState::Closed)
     }
-    
+
     pub fn reset(&mut self) {
         self.state = CircuitState::Closed;
         self.failures = 0;
@@ -102,22 +102,22 @@ impl CircuitBreaker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_circuit_breaker_closed_by_default() {
         let cb = CircuitBreaker::new(3, Duration::from_secs(30));
         assert!(matches!(cb.state(), CircuitState::Closed));
         assert!(cb.can_execute());
     }
-    
+
     #[test]
     fn test_circuit_breaker_opens_after_threshold() {
         let mut cb = CircuitBreaker::new(3, Duration::from_secs(30));
-        
+
         for _ in 0..3 {
             cb.record_failure();
         }
-        
+
         assert!(matches!(cb.state(), CircuitState::Open));
         assert!(!cb.can_execute());
     }

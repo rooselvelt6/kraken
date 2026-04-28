@@ -52,13 +52,23 @@ impl AuditEntry {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         let entry_hash = Self::compute_hash(timestamp, &action, target.as_deref(), prev_hash);
-        
-        Self { timestamp, action, target, entry_hash }
+
+        Self {
+            timestamp,
+            action,
+            target,
+            entry_hash,
+        }
     }
-    
-    fn compute_hash(timestamp: u64, action: &AuditAction, target: Option<&str>, prev: [u8; 32]) -> [u8; 32] {
+
+    fn compute_hash(
+        timestamp: u64,
+        action: &AuditAction,
+        target: Option<&str>,
+        prev: [u8; 32],
+    ) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(prev);
         hasher.update(timestamp.to_le_bytes());
@@ -82,21 +92,21 @@ impl AuditLog {
             previous_hash: [0u8; 32],
         }
     }
-    
+
     pub fn log(&mut self, action: AuditAction, target: Option<String>) {
         let entry = AuditEntry::new(action, target, self.previous_hash);
         self.previous_hash = entry.entry_hash;
-        
+
         self.entries.push_back(entry);
-        
+
         if self.entries.len() > MAX_ENTRIES {
             self.entries.pop_front();
         }
     }
-    
+
     pub fn verify(&self) -> bool {
         let mut prev = [0u8; 32];
-        
+
         for entry in self.entries.iter() {
             let computed = AuditEntry::compute_hash(
                 entry.timestamp,
@@ -109,18 +119,18 @@ impl AuditLog {
             }
             prev = entry.entry_hash;
         }
-        
+
         true
     }
-    
+
     pub fn entries(&self) -> impl Iterator<Item = &AuditEntry> {
         self.entries.iter()
     }
-    
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
-    
+
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -135,18 +145,18 @@ impl Default for AuditLog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_audit_log() {
         let mut log = AuditLog::new();
-        
+
         log.log(AuditAction::SessionStart, Some("session-123".to_string()));
         log.log(AuditAction::ToolExecute, Some("read".to_string()));
-        
+
         assert_eq!(log.len(), 2);
         assert!(log.verify());
     }
-    
+
     #[test]
     fn test_audit_empty_verify() {
         let log = AuditLog::new();

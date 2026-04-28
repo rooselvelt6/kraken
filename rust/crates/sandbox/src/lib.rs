@@ -1,5 +1,5 @@
 //! Sandbox Crate - Tool Execution Isolation
-//! 
+//!
 //! Provides sandboxed tool execution with syscall whitelisting and memory limits.
 //! Currently a placeholder for future seccomp/wasmer integration.
 
@@ -48,35 +48,34 @@ impl ToolSandbox {
     pub fn new(config: SandboxConfig) -> Self {
         Self { config }
     }
-    
+
     pub fn with_default() -> Self {
         Self::new(SandboxConfig::default())
     }
-    
+
     pub fn execute(&self, program: &str, args: &[&str]) -> Result<String, String> {
         let mut cmd = Command::new(program);
         cmd.args(args);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-        
+
         if let Some(ref dir) = self.config.working_directory {
             cmd.current_dir(dir);
         }
-        
-        let output = cmd.output()
-            .map_err(|e| format!("execute failed: {}", e))?;
-        
+
+        let output = cmd.output().map_err(|e| format!("execute failed: {}", e))?;
+
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
             Err(String::from_utf8_lossy(&output.stderr).to_string())
         }
     }
-    
+
     pub fn can_execute(&self, _program: &str) -> bool {
         true
     }
-    
+
     pub fn verify_config(&self) -> bool {
         true
     }
@@ -85,13 +84,13 @@ impl ToolSandbox {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_sandbox_default() {
         let sandbox = ToolSandbox::with_default();
         assert!(sandbox.verify_config());
     }
-    
+
     #[test]
     fn test_sandbox_execute() {
         let sandbox = ToolSandbox::with_default();

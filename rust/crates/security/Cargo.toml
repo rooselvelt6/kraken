@@ -1,17 +1,29 @@
 [package]
 name = "security"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Claw Code Venezuela"]
 
 [dependencies]
+# AEAD Ciphers
 aes-gcm = "0.10"
-rand = "0.8"
+chacha20poly1305 = { version = "0.10", features = ["std"] }
+
+# Key Derivation
+argon2 = { version = "0.5", features = ["password-hash"] }
+hkdf = "0.12"
 sha2 = "0.10"
+
+# Security
 zeroize = { version = "1.7", features = ["derive"] }
+subtle = "2.6"
+
+# Utilities
+rand = "0.8"
 base64 = "0.22"
 serde = { version = "1.0", features = ["derive"] }
 toml = "0.8"
+password-hash = "0.5"
 
 [dev-dependencies]
 tempfile = "3.8"

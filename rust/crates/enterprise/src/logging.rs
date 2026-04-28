@@ -70,32 +70,32 @@ impl LogEntry {
             metadata: HashMap::new(),
         }
     }
-    
+
     pub fn with_provider(mut self, provider: &str) -> Self {
         self.provider = Some(provider.to_string());
         self
     }
-    
+
     pub fn with_session(mut self, session_id: &str) -> Self {
         self.session_id = Some(session_id.to_string());
         self
     }
-    
+
     pub fn with_trace(mut self, trace_id: &str, span_id: &str) -> Self {
         self.trace_id = Some(trace_id.to_string());
         self.span_id = Some(span_id.to_string());
         self
     }
-    
+
     pub fn with_metadata(mut self, key: &str, value: serde_json::Value) -> Self {
         self.metadata.insert(key.to_string(), value);
         self
     }
-    
+
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
-    
+
     pub fn to_string(&self) -> String {
         format!(
             "[{}] {} {}: {}",
@@ -115,29 +115,29 @@ impl JsonLogger {
     pub fn new(level: Level) -> Self {
         Self { level }
     }
-    
+
     pub fn log(&self, entry: &LogEntry) {
         if entry.level as u8 >= self.level as u8 {
             println!("{}", entry.to_json());
         }
     }
-    
+
     pub fn trace(&self, target: &str, message: &str) {
         self.log(&LogEntry::new(Level::Trace, target, message));
     }
-    
+
     pub fn debug(&self, target: &str, message: &str) {
         self.log(&LogEntry::new(Level::Debug, target, message));
     }
-    
+
     pub fn info(&self, target: &str, message: &str) {
         self.log(&LogEntry::new(Level::Info, target, message));
     }
-    
+
     pub fn warn(&self, target: &str, message: &str) {
         self.log(&LogEntry::new(Level::Warn, target, message));
     }
-    
+
     pub fn error(&self, target: &str, message: &str) {
         self.log(&LogEntry::new(Level::Error, target, message));
     }
@@ -187,34 +187,34 @@ pub fn error(target: &str, message: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_log_entry_creation() {
         let entry = LogEntry::new(Level::Info, "test", "hello world");
-        
+
         assert_eq!(entry.level, Level::Info);
         assert_eq!(entry.target, "test");
         assert_eq!(entry.message, "hello world");
     }
-    
+
     #[test]
     fn test_log_entry_with_provider() {
         let entry = LogEntry::new(Level::Info, "api", "request")
             .with_provider("deepseek")
             .with_session("session-123");
-        
+
         assert_eq!(entry.provider, Some("deepseek".to_string()));
         assert_eq!(entry.session_id, Some("session-123".to_string()));
     }
-    
+
     #[test]
     fn test_log_entry_json() {
         let entry = LogEntry::new(Level::Info, "test", "message");
         let json = entry.to_json();
-        
+
         assert!(!json.is_empty());
     }
-    
+
     #[test]
     fn test_level_from_str() {
         assert_eq!(Level::from_str("DEBUG"), Level::Debug);

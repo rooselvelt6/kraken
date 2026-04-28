@@ -23,20 +23,20 @@ impl PooledConnection {
             in_use: false,
         }
     }
-    
+
     pub fn mark_used(&mut self) {
         self.last_used = Instant::now();
         self.in_use = true;
     }
-    
+
     pub fn release(&mut self) {
         self.in_use = false;
     }
-    
+
     pub fn is_idle(&self) -> bool {
         !self.in_use
     }
-    
+
     pub fn idle_duration(&self) -> Duration {
         self.last_used.elapsed()
     }
@@ -58,10 +58,10 @@ impl ConnectionPool {
             connections: Mutex::new(VecDeque::new()),
         }
     }
-    
+
     pub fn acquire(&self) -> Option<PooledConnection> {
         let mut guard = self.connections.lock().unwrap();
-        
+
         while let Some(mut conn) = guard.pop_front() {
             if conn.idle_duration() > self.idle_timeout {
                 continue;
@@ -69,25 +69,29 @@ impl ConnectionPool {
             conn.mark_used();
             return Some(conn);
         }
-        
+
         if guard.len() < self.max_connections {
             Some(PooledConnection::new())
         } else {
             None
         }
     }
-    
+
     pub fn release(&self, mut conn: PooledConnection) {
         conn.release();
         let mut guard = self.connections.lock().unwrap();
-        
-        while guard.len() > self.min_idle && guard.front().map_or(false, |c| c.idle_duration() > self.idle_timeout) {
+
+        while guard.len() > self.min_idle
+            && guard
+                .front()
+                .map_or(false, |c| c.idle_duration() > self.idle_timeout)
+        {
             guard.pop_front();
         }
-        
+
         guard.push_back(conn);
     }
-    
+
     pub fn stats(&self) -> PoolStats {
         let guard = self.connections.lock().unwrap();
         PoolStats {
@@ -125,7 +129,7 @@ impl<K: std::hash::Hash + Eq + Clone, V: Clone> TimedCache<K, V> {
             entries: HashMap::new(),
         }
     }
-    
+
     pub fn get(&mut self, key: &K) -> Option<V> {
         if let Some(entry) = self.entries.get(key) {
             if let Some(expires) = entry.expires_at {
@@ -138,27 +142,30 @@ impl<K: std::hash::Hash + Eq + Clone, V: Clone> TimedCache<K, V> {
         }
         None
     }
-    
+
     pub fn insert(&mut self, key: K, value: V, ttl_secs: Option<u64>) {
         if self.entries.len() >= self.max_size {
             if let Some(oldest) = self.entries.keys().next().cloned() {
                 self.entries.remove(&oldest);
             }
         }
-        
+
         let expires_at = ttl_secs.map(|ttl| Instant::now() + Duration::from_secs(ttl));
-        
-        self.entries.insert(key, CacheEntry {
-            value,
-            created_at: Instant::now(),
-            expires_at,
-        });
+
+        self.entries.insert(
+            key,
+            CacheEntry {
+                value,
+                created_at: Instant::now(),
+                expires_at,
+            },
+        );
     }
-    
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
-    
+
     pub fn clear(&mut self) {
         self.entries.clear();
     }
@@ -167,24 +174,24 @@ impl<K: std::hash::Hash + Eq + Clone, V: Clone> TimedCache<K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_connection_pool() {
         let pool = ConnectionPool::new(5, 1, Duration::from_secs(60));
-        
+
         let conn = pool.acquire();
         assert!(conn.is_some());
-        
+
         pool.release(conn.unwrap());
-        
+
         let stats = pool.stats();
         assert_eq!(stats.total, 1);
     }
-    
+
     #[test]
     fn test_timed_cache() {
         let mut cache = TimedCache::new(10);
-        
+
         cache.insert("key1", "value1", None);
         assert!(cache.get(&"key1").is_some());
         assert_eq!(cache.len(), 1);

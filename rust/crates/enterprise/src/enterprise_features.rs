@@ -46,7 +46,7 @@ pub enum AuditResult {
     Success,
     Failure,
     Partial,
-   Denied,
+    Denied,
 }
 
 impl EnterpriseAuditEntry {
@@ -70,22 +70,22 @@ impl EnterpriseAuditEntry {
             metadata: HashMap::new(),
         }
     }
-    
+
     pub fn with_ip(mut self, ip: &str) -> Self {
         self.ip_address = Some(ip.to_string());
         self
     }
-    
+
     pub fn with_user_agent(mut self, ua: &str) -> Self {
         self.user_agent = Some(ua.to_string());
         self
     }
-    
+
     pub fn with_metadata(mut self, key: &str, value: &str) -> Self {
         self.metadata.insert(key.to_string(), value.to_string());
         self
     }
-    
+
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
@@ -103,18 +103,22 @@ impl EnterpriseAuditLog {
             max_entries,
         }
     }
-    
+
     pub fn log(&self, entry: EnterpriseAuditEntry) {
         let mut guard = self.entries.lock().unwrap();
         guard.push(entry);
-        
+
         // Prune old entries
         while guard.len() > self.max_entries {
             guard.remove(0);
         }
     }
-    
-    pub fn query(&self, user_id: Option<&str>, action: Option<AuditAction>) -> Vec<EnterpriseAuditEntry> {
+
+    pub fn query(
+        &self,
+        user_id: Option<&str>,
+        action: Option<AuditAction>,
+    ) -> Vec<EnterpriseAuditEntry> {
         let guard = self.entries.lock().unwrap();
         guard
             .iter()
@@ -126,12 +130,12 @@ impl EnterpriseAuditLog {
             .cloned()
             .collect()
     }
-    
+
     pub fn export_json(&self) -> String {
         let guard = self.entries.lock().unwrap();
         serde_json::to_string(&*guard).unwrap_or_default()
     }
-    
+
     pub fn len(&self) -> usize {
         self.entries.lock().unwrap().len()
     }
@@ -162,7 +166,7 @@ impl RateLimitBucket {
             window_start: std::time::Instant::now(),
         }
     }
-    
+
     pub fn allows(&mut self, tokens: u64) -> bool {
         // Reset window if expired (1 minute)
         if self.window_start.elapsed() > std::time::Duration::from_secs(60) {
@@ -170,36 +174,36 @@ impl RateLimitBucket {
             self.tokens_used = 0;
             self.window_start = std::time::Instant::now();
         }
-        
+
         // Check burst limit
         if self.requests_used >= self.burst {
             return false;
         }
-        
+
         // Check rate limits
         if self.requests_used >= self.requests_per_minute {
             return false;
         }
-        
+
         if self.tokens_used + tokens > self.tokens_per_minute {
             return false;
         }
-        
+
         // Consume
         self.requests_used += 1;
         self.tokens_used += tokens;
-        
+
         true
     }
-    
+
     pub fn remaining_requests(&self) -> u32 {
         self.requests_per_minute.saturating_sub(self.requests_used)
     }
-    
+
     pub fn remaining_tokens(&self) -> u64 {
         self.tokens_per_minute.saturating_sub(self.tokens_used)
     }
-    
+
     pub fn reset(&mut self) {
         self.requests_used = 0;
         self.tokens_used = 0;
@@ -223,10 +227,10 @@ impl RateLimiter {
             default_burst,
         }
     }
-    
+
     pub fn check(&self, key: &str, tokens: u64) -> bool {
         let mut guard = self.buckets.lock().unwrap();
-        
+
         let bucket = guard.entry(key.to_string()).or_insert_with(|| {
             RateLimitBucket::new(
                 self.default_requests,
@@ -234,20 +238,20 @@ impl RateLimiter {
                 self.default_burst,
             )
         });
-        
+
         bucket.allows(tokens)
     }
-    
+
     pub fn get_remaining(&self, key: &str) -> (u32, u64) {
         let guard = self.buckets.lock().unwrap();
-        
+
         if let Some(bucket) = guard.get(key) {
             (bucket.remaining_requests(), bucket.remaining_tokens())
         } else {
             (self.default_requests, self.default_tokens)
         }
     }
-    
+
     pub fn reset(&self, key: &str) {
         let mut guard = self.buckets.lock().unwrap();
         if let Some(bucket) = guard.get_mut(key) {
@@ -288,7 +292,7 @@ impl Default for EnterpriseConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_enterprise_audit_entry() {
         let entry = EnterpriseAuditEntry::new(
@@ -298,15 +302,15 @@ mod tests {
             "read",
             AuditResult::Success,
         );
-        
+
         assert!(!entry.id.is_empty());
         assert_eq!(entry.action, AuditAction::ToolExecute);
     }
-    
+
     #[test]
     fn test_audit_log() {
         let log = EnterpriseAuditLog::new(100);
-        
+
         let entry = EnterpriseAuditEntry::new(
             "user1",
             "session1",
@@ -314,29 +318,29 @@ mod tests {
             "system",
             AuditResult::Success,
         );
-        
+
         log.log(entry);
         assert_eq!(log.len(), 1);
     }
-    
+
     #[test]
     fn test_rate_limit_bucket() {
         let mut bucket = RateLimitBucket::new(10, 1000, 5);
-        
+
         assert!(bucket.allows(100));
         assert!(bucket.allows(100));
         assert!(!bucket.allows(2000)); // exceeds tokens
-        
+
         assert_eq!(bucket.remaining_requests(), 8);
     }
-    
+
     #[test]
     fn test_rate_limiter() {
         let limiter = RateLimiter::new(10, 100, 5);
-        
+
         assert!(limiter.check("user1", 50));
         assert!(limiter.check("user2", 50));
-        
+
         let (requests, tokens) = limiter.get_remaining("user1");
         assert_eq!(requests, 9);
     }
