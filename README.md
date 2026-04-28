@@ -19,7 +19,7 @@
 
 ## 🇻🇪 El Proyecto
 
-**Claw Code Venezuela** es un fork de nivel enterprise del agente de código autónomo Claw Code, optimizado para usuarios venezolanos y el mercado latinoamericano.
+**Claw Code Venezuela** es un fork de nivel enterprise del agente de código autónomo Claw Code, optimizado para usuarios venezolanos y el mercado latinoamericano. 100% Rust - 0% Python.
 
 > *"Los humanos dan dirección; las claws ejecutan el trabajo."*
 
@@ -43,7 +43,7 @@ Inspirados en la tradición Unix: **"haz una cosa y hazla bien"**
 
 El crate `security` implementa criptografía de grado militar/enterprise:
 
-### Cifrado AEAD (Authenticated Encryption with Associated Data)
+### Cifrado AEAD
 
 | Algoritmo | Nonce | Uso | Rendimiento |
 |----------|-------|-----|-----|
@@ -67,6 +67,50 @@ El crate `security` implementa criptografía de grado militar/enterprise:
 
 ---
 
+## ☁️ Módulos Venezuela
+
+### Crates Nuevos
+
+| Crate | Propósito | Features |
+|-------|---------|----------|
+| **localmodels** | Proveedores locales | Ollama, LM Studio, llama.cpp |
+| **offline** | Sistema offline-first | SQLite, cola sync, recovery |
+| **cache** | Cache multi-nivel | gzip, TTL, LRU, stats |
+
+### Modo Offline-First
+
+```rust
+// Persistencia local SQLite
+let manager = OfflineManager::new(data_dir)?;
+
+// Guardar operación offline
+manager.queue_operation(op).await?;
+
+// Auto-sync cuando hay conexión
+manager.update_connection_state().await;
+```
+
+### Cache Inteligente
+
+```rust
+// Cache con compresión gzip
+cache.set("prompt-key", CacheType::Response, &response)?;
+
+// Stats de hit rate
+let stats = cache.stats();
+// CacheStats { hits: 150, misses: 50, hit_rate: 75% }
+```
+
+### Proveedores Locales
+
+```rust
+// Auto-discovery de proveedores
+let providers = discover_providers().await;
+// [ProviderInfo { name: "ollama", available: true }, ...]
+```
+
+---
+
 ## ✨ Características Enterprise
 
 ### Features Incluidas (Sin Costo Extra)
@@ -85,20 +129,6 @@ El crate `security` implementa criptografía de grado militar/enterprise:
 | `enterprise_features` | **Auditoría** | Registro de acciones |
 | `enterprise_features` | **Rate Limiting** | Límites por usuario |
 
-### Cifrado y Seguridad
-
-| Módulo | Característica | Estado |
-|--------|---------------|--------|
-| `security/crypto.rs` | **AES-256-GCM** | ✅ Implementado |
-| `security/crypto.rs` | **XChaCha20Poly1305** | ✅ Implementado |
-| `security/crypto.rs` | **Argon2id** | ✅ Implementado |
-| `security/crypto.rs` | **Algoritmo Agility** | ✅ Implementado |
-| `security/crypto.rs` | **Zeroize** | ✅ Implementado |
-| `security/crypto.rs` | **Constant-time** | ✅ Implementado |
-| `security/crypto.rs` | **OWASP Params** | ✅ Implementado |
-| `security/audit.rs` | **Audit Log Chain** | ✅ Implementado |
-| `security/config.rs` | **SecureConfig** | ✅ Implementado |
-
 ---
 
 ## 🤖 Modelos Gratuitos (Sin USD)
@@ -108,6 +138,7 @@ El crate `security` implementa criptografía de grado militar/enterprise:
 | **DeepSeek** | V3, R1, Coder | 5M/mes |
 | **Big Pickle** | OpenCode Zen | Ilimitado |
 | **Ollama** | qwen2.5-coder, llama3.1 | Local (gratis) |
+| **LM Studio** | Modelos locales | Local (gratis) |
 
 > Sin tarjeta de crédito internacional requerida
 
@@ -123,8 +154,6 @@ rust/crates/optimization/
 └── sa.rs     # Simulated Annealing (SA)
 ```
 
-Selección automática de herramientas mediante algoritmos evolutivos.
-
 ---
 
 ## 🏗️ Arquitectura
@@ -132,26 +161,29 @@ Selección automática de herramientas mediante algoritmos evolutivos.
 ```
 claw-vzla/
 ├── rust/
-│   ├── Cargo.toml              # Workspace (14 crates)
+│   ├── Cargo.toml              # Workspace (17 crates)
 │   ├── crates/
-│   │   ├── api/              # Proveedores (DeepSeek, Big Pickle, Ollama)
+│   │   ├── api/              # Proveedores
 │   │   ├── commands/         # Comandos CLI
-│   │   ├── compat-harness/  # Testing
-│   │   ├── enterprise/      # Features enterprise (27 tests)
+│   │   ├── cache/            # Cache multi-nivel (NUEVO)
+│   │   ├── compat-harness/
+│   │   ├── enterprise/        # Features enterprise
+│   │   ├── localmodels/      # Proveedores locales (NUEVO)
 │   │   ├── mock-anthropic-service/
-│   │   ├── optimization/   # PSO, GA, ACO, SA
-│   │   ├── plugins/        # Lifecycle
-│   │   ├── runtime/        # Core runtime
+│   │   ├── offline/          # Sistema offline (NUEVO)
+│   │   ├── optimization/     # PSO, GA, ACO, SA
+│   │   ├── plugins/
+│   │   ├── runtime/
 │   │   ├── rusty-claude-cli/ # CLI (~150MB)
-│   │   ├── sandbox/       # Aislamiento
-│   │   ├── security/     # Cifrado nivel dios
-│   │   ├── telemetry/    # Analytics
-│   │   └── tools/        # Registro
-├── docs/
-│   └── gratis.md         # Guía modelos gratuitos
-├── PHILOSOPHY.md        # Filosofía del proyecto
-├── ROADMAP.md           # Roadmap original
-└── ROADMAP-ENTERPRISE.md
+│   │   ├── sandbox/
+│   │   ├── security/        # Cifrado nivel dios
+│   │   ├── telemetry/
+│   │   └── tools/
+├── ROADMAP.md
+├── ROADMAP-ENTERPRISE.md
+├── ROADMAP-VENEZUELA.md     # Roadmap nuevos módulos
+├── PHILOSOPHY.md
+└── LICENSE
 ```
 
 ---
@@ -168,7 +200,7 @@ cd rust && cargo test --workspace
 |-------|------|--------|
 | enterprise | 27 | ✅ Passing |
 | optimization | 12 | ✅ Passing |
-| security | **14** | ✅ Passing |
+| security | 14 | ✅ Passing |
 | sandbox | 2 | ✅ Passing |
 | api | 50+ | ✅ Passing |
 
@@ -191,9 +223,6 @@ DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola mundo"
 
 # O con Ollama (local)
 ./target/release/claw run "Hola" --model ollama/qwen2.5-coder
-
-# O con Big Pickle (ilimitado)
-./target/release/claw run "Hola" --model bigpickle/opencode-zen
 ```
 
 ---
@@ -208,9 +237,10 @@ DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola mundo"
 | **KDF** | SHA256 | Argon2id (OWASP 2024) |
 | **Audit Log** | ❌ | ✅ Hash chain |
 | **Circuit Breaker** | ❌ | ✅ Incluido |
-| **Rate Limiting** | ❌ | ✅ Por usuario |
+| **Offline Mode** | ❌ | ✅ SQLite + sync |
+| **Cache** | ❌ | ✅ Multi-nivel gzip |
 | **Zeroize** | ❌ | ✅ Memoria segura |
-| **Idioma** | EN | ES + EN |
+| **Python** | 30% | 0% |
 
 ---
 
@@ -220,10 +250,12 @@ DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola mundo"
 
 - ✅ **Sin dependencia USD**
 - ✅ **Sin tarjeta de crédito internacional**
-- ✅ **Modelos gratuitos optimizados para LATAM**
+- ✅ **Mode Offline-first** - Funciona sin internet
+- ✅ **Cache inteligente** - Reduce uso de API
+- ✅ **Modelos locales** - Ollama, LM Studio
 - ✅ **Cifrado nivel enterprise**
 - ✅ **100% Rust - memoria segura**
-- ✅ **Código abierto**
+- ✅ **0% Python**
 
 ---
 
@@ -232,6 +264,7 @@ DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola mundo"
 - [PHILOSOPHY.md](./PHILOSOPHY.md) - Filosofía del proyecto
 - [ROADMAP.md](./ROADMAP.md) - Roadmap original
 - [ROADMAP-ENTERPRISE.md](./ROADMAP-ENTERPRISE.md) - Roadmap enterprise
+- [ROADMAP-VENEZUELA.md](./ROADMAP-VENEZUELA.md) - Roadmap Venezuela
 - [docs/GRATIS.md](./docs/GRATIS.md) - Guía modelos gratuitos
 
 ---
@@ -256,8 +289,8 @@ MIT License - Ver [LICENSE](./LICENSE)
 
 <p align="center">
 
-**Construido con ❤️ para Venezuela**
+**100% Rust • 0% Python • Offline-First • Sin USD**
 
-100% Rust • Nivel Enterprise • Sin USD • Cifrado Nivel Dios
+Hecho con ❤️ para Venezuela
 
 </p>
