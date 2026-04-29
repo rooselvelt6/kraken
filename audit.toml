@@ -1,0 +1,14 @@
+# Audit exceptions for local crates with same name as registry crates
+# These are false positives - our crates are not the same as the registry ones
+
+[[advisories.ignore]]
+id = "RUSTSEC-2020-0128"
+reason = "Our 'cache' crate is local, not the registry crate this advisory targets"
+
+[[advisories.ignore]]
+id = "RUSTSEC-2021-0006"
+reason = "Our 'cache' crate is local, not the registry crate this advisory targets"
+
+[[advisories.ignore]]
+id = "RUSTSEC-2021-0046"
+reason = "Our 'telemetry' crate is local, not the registry crate this advisory targets"
