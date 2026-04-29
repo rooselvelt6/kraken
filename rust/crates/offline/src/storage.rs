@@ -5,11 +5,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tokio::sync::RwLock;
 
-use super::{ConnectionState, OfflineError, OfflineSettings, Operation};
+use super::{ConnectionState, OfflineError, Operation};
 
 pub struct OfflineManager {
     db: Mutex<Connection>,
-    settings: RwLock<OfflineSettings>,
     connection_state: RwLock<ConnectionState>,
 }
 
@@ -55,7 +54,6 @@ impl OfflineManager {
 
         Ok(Self {
             db: Mutex::new(conn),
-            settings: RwLock::new(OfflineSettings::default()),
             connection_state: RwLock::new(ConnectionState::Offline),
         })
     }

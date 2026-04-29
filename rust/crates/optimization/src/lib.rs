@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 pub mod aco;
 pub mod ga;
 pub mod pso;

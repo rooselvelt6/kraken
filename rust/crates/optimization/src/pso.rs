@@ -234,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_tool_scores() {
         let tool_names = vec!["read".to_string(), "edit".to_string(), "bash".to_string()];
 

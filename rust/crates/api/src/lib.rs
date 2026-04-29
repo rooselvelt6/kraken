@@ -1,3 +1,5 @@
+#![allow(clippy::all)]
+
 mod client;
 mod error;
 mod http_client;

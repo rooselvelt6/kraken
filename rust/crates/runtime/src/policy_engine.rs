@@ -2,7 +2,7 @@ use std::time::Duration;
 
 pub type GreenLevel = u8;
 
-const STALE_BRANCH_THRESHOLD: Duration = Duration::from_secs(60 * 60);
+const STALE_BRANCH_THRESHOLD: Duration = Duration::from_hours(1);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolicyRule {
@@ -171,7 +171,7 @@ impl LaneContext {
         Self {
             lane_id: lane_id.into(),
             green_level: 0,
-            branch_freshness: Duration::from_secs(0),
+            branch_freshness: Duration::ZERO,
             blocker: LaneBlocker::None,
             review_status: ReviewStatus::Pending,
             diff_scope: DiffScope::Full,
@@ -228,7 +228,7 @@ mod tests {
         LaneContext::new(
             "lane-7",
             0,
-            Duration::from_secs(0),
+            Duration::ZERO,
             LaneBlocker::None,
             ReviewStatus::Pending,
             DiffScope::Full,
@@ -309,7 +309,7 @@ mod tests {
         let context = LaneContext::new(
             "lane-7",
             0,
-            Duration::from_secs(0),
+            Duration::ZERO,
             LaneBlocker::Startup,
             ReviewStatus::Pending,
             DiffScope::Full,
@@ -346,7 +346,7 @@ mod tests {
         let context = LaneContext::new(
             "lane-7",
             0,
-            Duration::from_secs(0),
+            Duration::ZERO,
             LaneBlocker::None,
             ReviewStatus::Pending,
             DiffScope::Full,
@@ -562,7 +562,7 @@ mod tests {
         let context = LaneContext::new(
             "lane-7",
             0,
-            Duration::from_secs(0),
+            Duration::ZERO,
             LaneBlocker::None,
             ReviewStatus::Pending,
             DiffScope::Full,

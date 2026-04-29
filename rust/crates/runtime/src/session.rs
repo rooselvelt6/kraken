@@ -1033,8 +1033,7 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
 fn current_time_millis() -> u64 {
     let wall_clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
-        .unwrap_or_default();
+        .map_or(0, |duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
 
     let mut candidate = wall_clock;
     loop {
@@ -1066,7 +1065,29 @@ fn write_atomic(path: &Path, contents: &str) -> Result<(), SessionError> {
     }
     let temp_path = temporary_path_for(path);
     fs::write(&temp_path, contents)?;
+    
+    // Set restrictive permissions on temp file (owner read/write only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(&temp_path)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(&temp_path, perms)?;
+    }
+    
     fs::rename(temp_path, path)?;
+    
+    // Also set permissions on final file
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(path)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(path, perms)?;
+    }
+    
     Ok(())
 }
 

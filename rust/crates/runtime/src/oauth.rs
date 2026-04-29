@@ -376,7 +376,30 @@ fn write_credentials_root(path: &PathBuf, root: &Map<String, Value>) -> io::Resu
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     let temp_path = path.with_extension("json.tmp");
     fs::write(&temp_path, format!("{rendered}\n"))?;
-    fs::rename(temp_path, path)
+    
+    // Set restrictive permissions (owner read/write only) on temp file
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(&temp_path)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(&temp_path, perms)?;
+    }
+    
+    fs::rename(temp_path, path)?;
+    
+    // Ensure final file also has correct permissions
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::metadata(path)?;
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(path, perms)?;
+    }
+    
+    Ok(())
 }
 
 fn base64url_encode(bytes: &[u8]) -> String {

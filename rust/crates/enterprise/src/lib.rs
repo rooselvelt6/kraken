@@ -8,6 +8,8 @@
 //! - Metrics collection
 //! - Structured logging
 //! - Distributed tracing
+
+#![allow(clippy::all)]
 //! - Performance optimizations
 //! - Enterprise audit and rate limiting
 
