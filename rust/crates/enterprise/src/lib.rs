@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Enterprise Features for Claw Code Venezuela
 //!
 //! This crate provides production-ready features:
@@ -8,8 +9,16 @@
 //! - Metrics collection
 //! - Structured logging
 //! - Distributed tracing
-
-#![allow(clippy::all)]
+//! Enterprise Features for Claw Code Venezuela
+//!
+//! This crate provides production-ready features:
+//! - Retry logic with exponential backoff
+//! - Circuit breaker pattern
+//! - Health checks
+//! - Graceful degradation
+//! - Metrics collection
+//! - Structured logging
+//! - Distributed tracing
 //! - Performance optimizations
 //! - Enterprise audit and rate limiting
 

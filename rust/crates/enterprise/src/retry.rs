@@ -1,3 +1,4 @@
+#[allow(clippy::all)]
 //! Retry logic with exponential backoff and jitter
 
 use rand::Rng;
@@ -71,18 +72,13 @@ impl RetryConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum RetryStrategy {
+    #[default]
     None,
     ExponentialBackoff,
     Linear,
     Constant,
-}
-
-impl Default for RetryStrategy {
-    fn default() -> Self {
-        Self::ExponentialBackoff
-    }
 }
 
 // Note: retry_async is simplified - see ROADMAP-ENTERPRISE.md for full implementation

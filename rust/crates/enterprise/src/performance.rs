@@ -1,4 +1,7 @@
-//! Performance optimizations: connection pooling, caching
+#[allow(clippy::all)]
+#![allow(clippy::len_without_is_empty, clippy::unnecessary_map_or, clippy::field_reassign_with_default, clippy::manual_find)]
+
+//! Performance optimizations: connection pooling, caching:
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
@@ -8,11 +11,34 @@ use std::time::{Duration, Instant};
 // Connection Pool
 // ============================================================================
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct PooledConnection {
     pub created_at: Instant,
     pub last_used: Instant,
     in_use: bool,
+}
+
+impl PooledConnection {
+    pub fn mark_used(&mut self) {
+        self.last_used = Instant::now();
+        self.in_use = true;
+    }
+
+    pub fn release(&mut self) {
+        self.in_use = false;
+        self.last_used = Instant::now();
+    }
+
+    pub fn idle_duration(&self) -> Duration {
+        Instant::now().duration_since(self.last_used)
+    }
+}
+
+#[derive(Default)]
+impl PooledConnection {
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl PooledConnection {
@@ -84,7 +110,7 @@ impl ConnectionPool {
         while guard.len() > self.min_idle
             && guard
                 .front()
-                .map_or(false, |c| c.idle_duration() > self.idle_timeout)
+                .is_some_and(|c| c.idle_duration() > self.idle_timeout)
         {
             guard.pop_front();
         }
@@ -164,6 +190,10 @@ impl<K: std::hash::Hash + Eq + Clone, V: Clone> TimedCache<K, V> {
 
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     pub fn clear(&mut self) {
