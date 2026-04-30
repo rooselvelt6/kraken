@@ -169,6 +169,122 @@ rust/crates/optimization/
 
 ## 🏗️ Arquitectura
 
+### Vista General
+
+Claw Code Venezuela implementa una **arquitectura de capas** basada en crates Rust modulares:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CLI (rusty-claude-cli)                 │
+│              ⬇️ 150MB binario standalone                  │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
+│  │commands │  │  tools   │  │plugins  │  │telemetry│  │
+│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
+│  │  api    │  │ runtime  │  │enterprise│                 │
+│  └──────────┘  └──────────┘  └──────────┘                 │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
+│  │security │  │  cache  │  │ offline │  │localmodel│  │
+│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
+│  │optimiz. │  │sandbox  │  │compat-   │  │ mock-   │  │
+│  │(PSO/GA) │  │         │  │harness  │  │service │  │
+│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Capa 1: Core Runtime
+
+| Crate | Propósito | Deps. Externas |
+|-------|---------|--------------|
+| **runtime** | Gestión de sesiones, MCP, permisos, workers | tokio, sha2, walkdir |
+| **security** | Cifrado AES-256-GCM, Argon2id, XChaCha20Poly1305 | aes-gcm, argon2, zeroize |
+| **api** | Proveedores (DeepSeek, Ollama, BigPickle) | reqwest, tokio |
+
+### Capa 2: Aplicación
+
+| Crate | Propósito | Deps. Externas |
+|-------|---------|--------------|
+| **commands** | ~100 comandos slash | plugins, runtime |
+| **tools** | ~40 tools (read, edit, bash, etc.) | api, runtime, reqwest |
+| **enterprise** | Circuit breaker, retry, metrics, logging | tokio, chrono, uuid |
+| **plugins** | Plugin lifecycle | serde |
+| **telemetry** | Analytics | serde |
+
+### Capa 3: Venezuela Features
+
+| Crate | Propósito | Deps. Externas |
+|-------|---------|--------------|
+| **cache** | Cache multi-nivel (memoria + SQLite + gzip) | rusqlite, lru, flate2 |
+| **offline** | Sistema offline-first con sync | rusqlite, tokio |
+| **localmodels** | Proveedores locales (Ollama, LM Studio) | reqwest |
+| **optimization** | Algoritmos bio-inspirados (PSO, GA, ACO, SA) | rand |
+
+### Capa 4: Utilidades
+
+| Crate | Propósito |
+|-------|---------|
+| **sandbox** | Aislamiento de comandos (experimental) |
+| **compat-harness** | Tests de compatibilidad |
+| **mock-anthropic-service** | Mock de API para tests |
+
+### Flujo de Datos
+
+```
+Usuario Input
+     │
+     ▼
+┌────────────┐
+│ rusty-cli  │  ← rustyline (input), pulldown-cmark (markdown)
+└─────┬──────┘
+      ▼
+┌────────────┐
+│  runtime    │  ← Sesiones, permisos, MCP
+└─────┬──────┘
+      ▼
+┌────────────┐         ┌────────────┐
+│  commands  │ ──────► │   tools    │  ← Herramientas ejecutables
+└────────────┘         └─────┬──────┘
+                              ▼
+                       ┌────────────┐
+                       │    api     │  ← HTTP client
+                       └─────┬──────┘
+                              ▼
+                       ┌────────────────────────┐
+                       │ Proveedores (LLM)     │
+                       │ • DeepSeek (HTTP)      │
+                       │ • Ollama (local)       │
+                       │ • BigPickle (HTTP)     │
+                       └────────────────────────┘
+```
+
+### Módulos del Workspace
+
+```
+claw-vzla/rust/
+├── Cargo.toml              # Workspace (17 crates)
+├── crates/
+│   ├── api/              # Proveedores LLM
+│   ├── commands/         # Comandos CLI (~100)
+│   ├── cache/            # Cache multi-nivel
+│   ├── compat-harness/   # Tests compatibilidad
+│   ├── enterprise/      # Features enterprise
+│   ├── localmodels/    # Proveedores locales
+│   ├── mock-anthropic-service/
+│   ├── offline/        # Sistema offline
+│   ├── optimization/   # PSO, GA, ACO, SA
+│   ├── plugins/        # Plugin lifecycle
+│   ├── runtime/        # Core runtime
+│   ├── rusty-claude-cli/ # CLI binario
+│   ├── sandbox/        # Aislamiento
+│   ├── security/      # Cifrado nivel dios
+│   ├── telemetry/     # Analytics
+│   └── tools/         # Herramientas (~40)
+└── ...
 ```
 claw-vzla/
 ├── rust/
