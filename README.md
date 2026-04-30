@@ -11,43 +11,6 @@
 
 ---
 
-## 📋 About
-
-| | |
-|---|---|
-| **Nombre** | Claw Code Venezuela |
-| **Tipo** | Fork enterprise de Claw Code |
-| **Lenguaje** | 100% Rust (0% Python) |
-| **Licencia** | MIT |
-| **Estado** | ✅ Production Ready |
-| **Crates** | 17 |
-| **Tests** | 130+ passing |
-| **Maintainer** | [@rooselvelt6](https://github.com/rooselvelt6) |
-
-### Propósito
-
-Agente de código autónomo optimizado para:
-- Usuarios venezolanos y mercado latinoamericano
-- Funcionamiento sin dependencia USD
-- Offline-first con sync automático
-- Modelos gratuitos (DeepSeek, Ollama, BigPickle)
-- Seguridad nivel enterprise (AES-256-GCM, Argon2id)
-- 100% reproducible (ingeniería abierta)
-
-### Diferencial Venezuela
-
-> *"En Venezuela, si algo funciona sin USD, sin tarjeta, y con buen rendimiento... **es tecnología de verdad."*
-
-- Sin dependencia USD
-- Sin tarjeta de crédito internacional
-- Modo Offline-first
-- Cache inteligente multi-nivel
-- Modelos locales (Ollama, LM Studio)
-- Cifrado nivel enterprise
-- 100% Rust - memoria segura
-
----
-
 ## 🇻🇪 El Proyecto
 
 **Claw Code Venezuela** es un fork de nivel enterprise del agente de código autónomo Claw Code, optimizado para usuarios venezolanos y el mercado latinoamericano. 100% Rust - 0% Python.
