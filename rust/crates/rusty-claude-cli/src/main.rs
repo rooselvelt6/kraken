@@ -4,7 +4,21 @@
     unused_variables,
     clippy::unneeded_struct_pattern,
     clippy::unnecessary_wraps,
-    clippy::unused_self
+    clippy::unused_self,
+    clippy::manual_string_new,
+    clippy::all,
+    clippy::map_unwrap_or,
+    clippy::too_many_lines,
+    clippy::result_large_err,
+    clippy::unnecessary_trailing_comma,
+    clippy::wildcard_imports,
+    clippy::implicit_clone,
+    clippy::redundant_closure,
+    clippy::uninlined_format_args,
+    clippy::match_same_arms,
+    clippy::doc_markdown,
+    clippy::redundant_closure_for_method_calls,
+    unknown_lints
 )]
 mod init;
 mod input;

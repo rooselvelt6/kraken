@@ -245,7 +245,7 @@ mod tests {
     fn test_tool_scores() {
         let tool_names = vec!["read".to_string(), "edit".to_string(), "bash".to_string()];
         
-        let mut selector = PSOToolSelector::new(3, 10, 10);
+        let selector = PSOToolSelector::new(3, 10, 10);
         
         // Run some iterations to build up global_best_position
         for _ in 0..100 {

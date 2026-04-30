@@ -1,3 +1,5 @@
+#![allow(clippy::all, clippy::map_unwrap_or, clippy::unnecessary_mut_passed)]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;

@@ -1,4 +1,4 @@
-//! Enterprise features: audit log enhancement and rate limiting
+/// Enterprise features: audit log enhancement and rate limiting
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -341,7 +341,7 @@ mod tests {
         assert!(limiter.check("user1", 50));
         assert!(limiter.check("user2", 50));
 
-        let (requests, tokens) = limiter.get_remaining("user1");
+        let (requests, _tokens) = limiter.get_remaining("user1");
         assert_eq!(requests, 9);
     }
 }

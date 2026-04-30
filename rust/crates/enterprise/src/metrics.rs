@@ -1,4 +1,4 @@
-//! Metrics collection for providers
+/// Metrics collection for providers
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

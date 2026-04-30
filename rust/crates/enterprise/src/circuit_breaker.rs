@@ -1,4 +1,4 @@
-//! Circuit Breaker implementation
+/// Circuit Breaker implementation
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

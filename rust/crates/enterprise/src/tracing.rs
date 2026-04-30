@@ -1,4 +1,4 @@
-//! Distributed tracing for request correlation
+/// Distributed tracing for request correlation
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

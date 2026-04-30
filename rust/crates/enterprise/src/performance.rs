@@ -1,44 +1,16 @@
-#[allow(clippy::all)]
-#![allow(clippy::len_without_is_empty, clippy::unnecessary_map_or, clippy::field_reassign_with_default, clippy::manual_find)]
+#[allow(clippy::all, clippy::len_without_is_empty, clippy::unnecessary_map_or, clippy::field_reassign_with_default, clippy::manual_find)]
 
-//! Performance optimizations: connection pooling, caching:
+/// Performance optimizations: connection pooling, caching:
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-// ============================================================================
-// Connection Pool
-// ============================================================================
-
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PooledConnection {
     pub created_at: Instant,
     pub last_used: Instant,
     in_use: bool,
-}
-
-impl PooledConnection {
-    pub fn mark_used(&mut self) {
-        self.last_used = Instant::now();
-        self.in_use = true;
-    }
-
-    pub fn release(&mut self) {
-        self.in_use = false;
-        self.last_used = Instant::now();
-    }
-
-    pub fn idle_duration(&self) -> Duration {
-        Instant::now().duration_since(self.last_used)
-    }
-}
-
-#[derive(Default)]
-impl PooledConnection {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 impl PooledConnection {

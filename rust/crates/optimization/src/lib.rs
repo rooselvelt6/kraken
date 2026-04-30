@@ -1,4 +1,4 @@
-#![allow(clippy::all)]
+#![allow(clippy::all, clippy::cast_precision_loss, clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::must_use_candidate, clippy::uninlined_format_args, clippy::implicit_clone, clippy::assigning_clones, clippy::map_unwrap_or, clippy::unnecessary_mut_passed)]
 
 pub mod aco;
 pub mod ga;

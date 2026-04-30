@@ -1,4 +1,4 @@
-//! Health checks for providers
+/// Health checks for providers
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
