@@ -1,0 +1,49 @@
+{
+  "agentId": "agent-1781102805569322731",
+  "name": "recovery-lane",
+  "description": "Recover the stalled audit lane",
+  "subagentType": "Explore",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781102805569322731.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781102805569322731.json",
+  "createdAt": "1781102805",
+  "startedAt": "1781102805",
+  "completedAt": "1781102805",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781102805",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781102805603
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781102805",
+      "detail": "Completed lane `recovery-lane` for target: Recover the stalled audit lane. Status: completed. Recovery handoff observed via tmux reinjection (cause: `tmux_reinject_after_idle`). Target lane: `read-only-audit-only-for-roadm`.",
+      "data": {
+        "qualityFloorApplied": true,
+        "rawSummary": "Team read-only-audit-only-for-roadm: worker panes stalled, no progress 2m30s. Next: omx team status read-only-audit-only-for-roadm; read worker messages; unblock/reassign or shutdown. [OMX_TMUX_INJECT]",
+        "reasons": [
+          "recovery_control_prose"
+        ],
+        "recoveryOutcome": {
+          "cause": "tmux_reinject_after_idle",
+          "targetLane": "read-only-audit-only-for-roadm"
+        },
+        "wordCount": 23
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781102805603
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable"
+}

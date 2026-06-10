@@ -1002,7 +1002,7 @@ pub fn translate_message(message: &InputMessage, model: &str) -> Vec<Value> {
                             "arguments": input.to_string(),
                         }
                     })),
-                    InputContentBlock::ToolResult { .. } => {}
+                    InputContentBlock::ToolResult { .. } | InputContentBlock::Image { .. } => {}
                 }
             }
             if text.is_empty() && tool_calls.is_empty() {
@@ -1020,34 +1020,79 @@ pub fn translate_message(message: &InputMessage, model: &str) -> Vec<Value> {
                 vec![msg]
             }
         }
-        _ => message
-            .content
-            .iter()
-            .filter_map(|block| match block {
-                InputContentBlock::Text { text } => Some(json!({
-                    "role": "user",
-                    "content": text,
-                })),
-                InputContentBlock::ToolResult {
-                    tool_use_id,
-                    content,
-                    is_error,
-                } => {
-                    let mut msg = json!({
-                        "role": "tool",
-                        "tool_call_id": tool_use_id,
-                        "content": flatten_tool_result_content(content),
-                    });
-                    // Only include is_error for models that support it.
-                    // kimi models reject this field with 400 Bad Request.
-                    if supports_is_error {
-                        msg["is_error"] = json!(is_error);
+        _ => {
+            // Separate blocks: user-role (Text + Image) and tool-role (ToolResult).
+            let mut user_blocks: Vec<Value> = Vec::new();
+            let mut tool_messages: Vec<Value> = Vec::new();
+            let mut has_image = false;
+
+            for block in &message.content {
+                match block {
+                    InputContentBlock::Text { text } => {
+                        user_blocks.push(json!({"type": "text", "text": text}));
                     }
-                    Some(msg)
+                    InputContentBlock::Image { source } => {
+                        has_image = true;
+                        let url = format!(
+                            "data:{};base64,{}",
+                            source.media_type, source.data
+                        );
+                        user_blocks.push(json!({
+                            "type": "image_url",
+                            "image_url": {"url": url}
+                        }));
+                    }
+                    InputContentBlock::ToolResult {
+                        tool_use_id,
+                        content,
+                        is_error,
+                    } => {
+                        // Flush pending user blocks into a single message before tool results.
+                        if !user_blocks.is_empty() {
+                            let user_msg = if has_image {
+                                json!({"role": "user", "content": user_blocks})
+                            } else {
+                                // Collapse single text block to a string for compatibility.
+                                let text = user_blocks
+                                    .iter()
+                                    .filter_map(|b| b.get("text").and_then(|v| v.as_str()))
+                                    .collect::<Vec<_>>()
+                                    .join("\n");
+                                json!({"role": "user", "content": text})
+                            };
+                            tool_messages.push(user_msg);
+                            user_blocks.clear();
+                            has_image = false;
+                        }
+                        let mut msg = json!({
+                            "role": "tool",
+                            "tool_call_id": tool_use_id,
+                            "content": flatten_tool_result_content(content),
+                        });
+                        if supports_is_error {
+                            msg["is_error"] = json!(is_error);
+                        }
+                        tool_messages.push(msg);
+                    }
+                    InputContentBlock::ToolUse { .. } => {}
                 }
-                InputContentBlock::ToolUse { .. } => None,
-            })
-            .collect(),
+            }
+            // Flush remaining user blocks.
+            if !user_blocks.is_empty() {
+                let user_msg = if has_image {
+                    json!({"role": "user", "content": user_blocks})
+                } else {
+                    let text = user_blocks
+                        .iter()
+                        .filter_map(|b| b.get("text").and_then(|v| v.as_str()))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    json!({"role": "user", "content": text})
+                };
+                tool_messages.push(user_msg);
+            }
+            tool_messages
+        }
     }
 }
 

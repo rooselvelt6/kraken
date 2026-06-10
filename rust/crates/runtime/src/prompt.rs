@@ -97,6 +97,7 @@ pub struct SystemPromptBuilder {
     output_style_prompt: Option<String>,
     os_name: Option<String>,
     os_version: Option<String>,
+    reasoning_effort: Option<String>,
     append_sections: Vec<String>,
     project_context: Option<ProjectContext>,
     config: Option<RuntimeConfig>,
@@ -135,6 +136,12 @@ impl SystemPromptBuilder {
     }
 
     #[must_use]
+    pub fn with_reasoning_effort(mut self, effort: Option<String>) -> Self {
+        self.reasoning_effort = effort;
+        self
+    }
+
+    #[must_use]
     pub fn append_section(mut self, section: impl Into<String>) -> Self {
         self.append_sections.push(section.into());
         self
@@ -150,6 +157,11 @@ impl SystemPromptBuilder {
         sections.push(get_simple_system_section());
         sections.push(get_simple_doing_tasks_section());
         sections.push(get_actions_section());
+        sections.push(get_memory_usage_section());
+        sections.push(get_multi_agent_section());
+        if self.reasoning_effort.as_deref() == Some("high") {
+            sections.push(get_self_validation_section());
+        }
         sections.push(SYSTEM_PROMPT_DYNAMIC_BOUNDARY.to_string());
         sections.push(self.environment_section());
         if let Some(project_context) = &self.project_context {
@@ -445,6 +457,26 @@ pub fn load_system_prompt(
         .build())
 }
 
+/// Like `load_system_prompt` but with a `reasoning_effort` level that controls
+/// whether the self-validation section is included (only when `"high"`).
+pub fn load_system_prompt_with_effort(
+    cwd: impl Into<PathBuf>,
+    current_date: impl Into<String>,
+    os_name: impl Into<String>,
+    os_version: impl Into<String>,
+    reasoning_effort: Option<&str>,
+) -> Result<Vec<String>, PromptBuildError> {
+    let cwd = cwd.into();
+    let project_context = ProjectContext::discover_with_git(&cwd, current_date.into())?;
+    let config = ConfigLoader::default_for(&cwd).load()?;
+    Ok(SystemPromptBuilder::new()
+        .with_os(os_name, os_version)
+        .with_project_context(project_context)
+        .with_runtime_config(config)
+        .with_reasoning_effort(reasoning_effort.map(String::from))
+        .build())
+}
+
 fn render_config_section(config: &RuntimeConfig) -> String {
     let mut lines = vec!["# Runtime config".to_string()];
     if config.loaded_entries().is_empty() {
@@ -517,12 +549,50 @@ fn get_actions_section() -> String {
     .join("\n")
 }
 
+fn get_memory_usage_section() -> String {
+    [
+        "# Working Memory".to_string(),
+        "You have persistent file-based memory using WriteNote, ReadNote, and ListNotes tools.".to_string(),
+        "Before complex tasks, review existing notes with ListNotes or ReadNote.".to_string(),
+        "After subtasks, save progress with WriteNote.".to_string(),
+        "Store: task state, decisions, partial results, hypotheses.".to_string(),
+        "Notes are saved to .kraken/memory/ and persist across sessions.".to_string(),
+    ]
+    .join("\n")
+}
+
+fn get_self_validation_section() -> String {
+    [
+        "# Self-Validation Mode (high effort)".to_string(),
+        "After each task:".to_string(),
+        "1. Review correctness and edge cases".to_string(),
+        "2. Validate against acceptance criteria".to_string(),
+        "3. Fix issues found".to_string(),
+        "4. Report checks performed and fixes applied".to_string(),
+    ]
+    .join("\n")
+}
+
+fn get_multi_agent_section() -> String {
+    [
+        "# Multi-Agent Workflow".to_string(),
+        "For complex tasks, decompose into parallel subtasks and delegate to sub-agents.".to_string(),
+        "Each sub-agent handles one concern. Consolidate results when all complete.".to_string(),
+        "Use the Agent tool with clear objective and scope for delegation.".to_string(),
+        "Use RunParallel to execute multiple sub-agents concurrently.".to_string(),
+        "Use TeamCreate to organize agents into named teams for coordinated work.".to_string(),
+        "Pass relevant context (files, notes, images) to sub-agents via the context field.".to_string(),
+    ]
+    .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        collapse_blank_lines, display_context_path, normalize_instruction_content,
-        render_instruction_content, render_instruction_files, truncate_instruction_content,
-        ContextFile, ProjectContext, SystemPromptBuilder, SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
+        collapse_blank_lines, display_context_path, get_memory_usage_section,
+        normalize_instruction_content, render_instruction_content, render_instruction_files,
+        truncate_instruction_content, ContextFile, ProjectContext, SystemPromptBuilder,
+        SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
     };
     use crate::config::ConfigLoader;
     use std::fs;
@@ -901,5 +971,54 @@ mod tests {
         assert!(rendered.contains("# Claude instructions"));
         assert!(rendered.contains("scope: /tmp/project"));
         assert!(rendered.contains("Project rules"));
+    }
+
+    #[test]
+    fn memory_usage_section_includes_note_tools() {
+        let section = get_memory_usage_section();
+        assert!(section.contains("Working Memory"));
+        assert!(section.contains("WriteNote"));
+        assert!(section.contains("ReadNote"));
+        assert!(section.contains("ListNotes"));
+        assert!(section.contains(".kraken/memory/"));
+    }
+
+    #[test]
+    fn self_validation_section_included_when_effort_high() {
+        let prompt = SystemPromptBuilder::new()
+            .with_os("linux", "6.8")
+            .with_reasoning_effort(Some("high".into()))
+            .render();
+        assert!(prompt.contains("Self-Validation Mode"));
+        assert!(prompt.contains("high effort"));
+        assert!(prompt.contains("Review correctness and edge cases"));
+        assert!(prompt.contains("Validate against acceptance criteria"));
+    }
+
+    #[test]
+    fn self_validation_section_absent_when_effort_low() {
+        let prompt = SystemPromptBuilder::new()
+            .with_os("linux", "6.8")
+            .with_reasoning_effort(Some("low".into()))
+            .render();
+        assert!(!prompt.contains("Self-Validation Mode"));
+    }
+
+    #[test]
+    fn self_validation_section_absent_when_no_effort() {
+        let prompt = SystemPromptBuilder::new()
+            .with_os("linux", "6.8")
+            .render();
+        assert!(!prompt.contains("Self-Validation Mode"));
+    }
+
+    #[test]
+    fn self_validation_section_in_builder_output() {
+        let sections = SystemPromptBuilder::new()
+            .with_os("linux", "6.8")
+            .with_reasoning_effort(Some("high".into()))
+            .build();
+        let has_validation = sections.iter().any(|s| s.contains("Self-Validation Mode"));
+        assert!(has_validation, "high effort should include validation section");
     }
 }

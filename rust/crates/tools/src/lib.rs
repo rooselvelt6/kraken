@@ -6,9 +6,10 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use api::{
-    max_tokens_for_model, resolve_model_alias, ApiError, ContentBlockDelta, InputContentBlock,
-    InputMessage, MessageRequest, MessageResponse, OutputContentBlock, ProviderClient,
-    StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
+    max_tokens_for_model, resolve_model_alias, ApiError, ContentBlockDelta, ImageSource,
+    InputContentBlock, InputMessage, MessageRequest, MessageResponse, OutputContentBlock,
+    ProviderClient, StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition,
+    ToolResultContentBlock,
 };
 use plugins::PluginTool;
 use reqwest::blocking::Client;
@@ -1033,6 +1034,33 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
             required_permission: PermissionMode::DangerFullAccess,
         },
         ToolSpec {
+            name: "RunParallel",
+            description: "Execute multiple sub-agents in parallel and collect all results.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "agents": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "description": { "type": "string" },
+                                "prompt": { "type": "string" },
+                                "subagent_type": { "type": "string" },
+                                "name": { "type": "string" },
+                                "model": { "type": "string" },
+                                "context": { "type": "object" }
+                            },
+                            "required": ["description", "prompt"]
+                        }
+                    }
+                },
+                "required": ["agents"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::DangerFullAccess,
+        },
+        ToolSpec {
             name: "CronCreate",
             description: "Create a scheduled recurring task.",
             input_schema: json!({
@@ -1274,6 +1302,7 @@ fn execute_tool_with_enforcer(
             .and_then(run_worker_observe_completion),
         "TeamCreate" => from_value::<TeamCreateInput>(input).and_then(run_team_create),
         "TeamDelete" => from_value::<TeamDeleteInput>(input).and_then(run_team_delete),
+        "RunParallel" => from_value::<RunParallelInput>(input).and_then(run_parallel),
         "CronCreate" => from_value::<CronCreateInput>(input).and_then(run_cron_create),
         "CronDelete" => from_value::<CronDeleteInput>(input).and_then(run_cron_delete),
         "CronList" => run_cron_list(input.clone()),
@@ -2116,6 +2145,46 @@ fn run_agent(input: AgentInput) -> Result<String, String> {
     to_pretty_json(execute_agent(input)?)
 }
 
+fn run_parallel(input: RunParallelInput) -> Result<String, String> {
+    if input.agents.is_empty() {
+        return Err("at least one agent is required".into());
+    }
+    let n = input.agents.len();
+    let results: Vec<Result<AgentOutput, String>> = std::thread::scope(|s| {
+        input
+            .agents
+            .into_iter()
+            .map(|agent_input| {
+                s.spawn(|| execute_agent(agent_input))
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .map(|handle| handle.join().unwrap_or_else(|_| Err("parallel agent panicked".into())))
+            .collect()
+    });
+    let mut outputs: Vec<serde_json::Value> = Vec::with_capacity(n);
+    let mut errors: Vec<String> = Vec::new();
+    for (i, result) in results.into_iter().enumerate() {
+        match result {
+            Ok(output) => {
+                if let Ok(val) = serde_json::to_value(&output) {
+                    outputs.push(val);
+                }
+            }
+            Err(e) => {
+                errors.push(format!("agent {i}: {e}"));
+            }
+        }
+    }
+    to_pretty_json(json!({
+        "total": n,
+        "succeeded": outputs.len(),
+        "failed": errors.len(),
+        "outputs": outputs,
+        "errors": errors,
+    }))
+}
+
 fn run_tool_search(input: ToolSearchInput) -> Result<String, String> {
     to_pretty_json(execute_tool_search(input))
 }
@@ -2304,13 +2373,20 @@ struct SkillInput {
     args: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 struct AgentInput {
     description: String,
     prompt: String,
     subagent_type: Option<String>,
     name: Option<String>,
     model: Option<String>,
+    context: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RunParallelInput {
+    agents: Vec<AgentInput>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2609,6 +2685,8 @@ struct AgentOutput {
     derived_state: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -3508,6 +3586,17 @@ where
     let system_prompt = build_agent_system_prompt(&normalized_subagent_type)?;
     let allowed_tools = allowed_tools_for_subagent(&normalized_subagent_type);
 
+    let prompt = if let Some(ctx) = &input.context {
+        let context_json =
+            serde_json::to_string_pretty(ctx).unwrap_or_else(|_| "{}".to_string());
+        format!(
+            "{}\n\n## Context from parent\n\n{}\n",
+            input.prompt, context_json
+        )
+    } else {
+        input.prompt.clone()
+    };
+
     let output_contents = format!(
         "# Agent Task
 
@@ -3521,7 +3610,7 @@ where
 
 {}
 ",
-        agent_id, agent_name, input.description, normalized_subagent_type, created_at, input.prompt
+        agent_id, agent_name, input.description, normalized_subagent_type, created_at, prompt
     );
     std::fs::write(&output_file, output_contents).map_err(|error| error.to_string())?;
 
@@ -3541,13 +3630,14 @@ where
         current_blocker: None,
         derived_state: String::from("working"),
         error: None,
+        output: None,
     };
     write_agent_manifest(&manifest)?;
 
     let manifest_for_spawn = manifest.clone();
     let job = AgentJob {
         manifest: manifest_for_spawn,
-        prompt: input.prompt,
+        prompt,
         system_prompt,
         allowed_tools,
     };
@@ -3757,6 +3847,9 @@ fn persist_agent_terminal_state(
     next_manifest.derived_state =
         derive_agent_state(status, result, error.as_deref(), blocker.as_ref()).to_string();
     next_manifest.error = error;
+    if status == "completed" {
+        next_manifest.output = result.map(str::to_string);
+    }
     if let Some(blocker) = blocker {
         next_manifest
             .lane_events
@@ -4771,6 +4864,17 @@ fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMessage> {
                             text: output.clone(),
                         }],
                         is_error: *is_error,
+                    },
+                    ContentBlock::Image {
+                        media_type,
+                        data,
+                        source_type,
+                    } => InputContentBlock::Image {
+                        source: ImageSource {
+                            source_type: source_type.clone(),
+                            media_type: media_type.clone(),
+                            data: data.clone(),
+                        },
                     },
                 })
                 .collect::<Vec<_>>();
@@ -7735,6 +7839,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("ship-audit".to_string()),
                 model: None,
+                context: None,
             },
             move |job| {
                 *captured_for_spawn
@@ -7816,6 +7921,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("complete-task".to_string()),
                 model: Some("claude-sonnet-4-6".to_string()),
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -7873,6 +7979,7 @@ mod tests {
                 subagent_type: Some("Verification".to_string()),
                 name: Some("fail-task".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -7920,6 +8027,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("summary-floor".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -7965,6 +8073,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("recovery-lane".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -8013,6 +8122,7 @@ mod tests {
                 subagent_type: Some("Verification".to_string()),
                 name: Some("review-lane".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -8053,6 +8163,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("backlog-scan".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -8099,6 +8210,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("artifact-lane".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -8169,6 +8281,7 @@ mod tests {
                 subagent_type: Some("Explore".to_string()),
                 name: Some("cron-closeout".to_string()),
                 model: None,
+                context: None,
             },
             |job| {
                 persist_agent_terminal_state(
@@ -8210,6 +8323,7 @@ mod tests {
                 subagent_type: None,
                 name: Some("spawn-error".to_string()),
                 model: None,
+                context: None,
             },
             |_| Err(String::from("thread creation failed")),
         )

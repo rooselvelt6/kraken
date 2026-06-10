@@ -1,0 +1,83 @@
+{
+  "agentId": "agent-1781104503351939779",
+  "name": "artifact-lane",
+  "description": "Land ROADMAP #64 provenance hardening",
+  "subagentType": "Explore",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781104503351939779.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781104503351939779.json",
+  "createdAt": "1781104503",
+  "startedAt": "1781104503",
+  "completedAt": "1781104503",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781104503",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781104503403
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781104503",
+      "detail": "Completed ROADMAP #64. Files: rust/crates/tools/src/lib.rs ROADMAP.md. Diff stat: 2 files, +12/-1. Tested, committed, pushed as commit deadbee.",
+      "data": {
+        "artifactProvenance": {
+          "commitSha": "deadbee",
+          "diffStat": "2 files, +12/-1.",
+          "files": [
+            "ROADMAP.md",
+            "rust/crates/tools/src/lib.rs"
+          ],
+          "roadmapIds": [
+            "ROADMAP #64"
+          ],
+          "sourceLanes": [
+            "artifact-lane"
+          ],
+          "verification": [
+            "tested",
+            "committed",
+            "pushed"
+          ]
+        },
+        "qualityFloorApplied": false,
+        "rawSummary": "Completed ROADMAP #64. Files: rust/crates/tools/src/lib.rs ROADMAP.md. Diff stat: 2 files, +12/-1. Tested, committed, pushed as commit deadbee.",
+        "reasons": [],
+        "wordCount": 24
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781104503403
+      }
+    },
+    {
+      "event": "lane.commit.created",
+      "status": "completed",
+      "emittedAt": "1781104503",
+      "detail": "commit deadbee",
+      "data": {
+        "branch": "main",
+        "canonicalCommit": "deadbee",
+        "commit": "deadbee",
+        "lineage": [
+          "deadbee"
+        ],
+        "worktree": "/home/tdy/Escritorio/claw-vzla/rust/crates/tools"
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781104503405
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable",
+  "output": "Completed ROADMAP #64. Files: rust/crates/tools/src/lib.rs ROADMAP.md. Diff stat: 2 files, +12/-1. Tested, committed, pushed as commit deadbee."
+}

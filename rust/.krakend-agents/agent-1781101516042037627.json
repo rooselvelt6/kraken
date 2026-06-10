@@ -1,0 +1,54 @@
+{
+  "agentId": "agent-1781101516042037627",
+  "name": "cron-closeout",
+  "description": "Close ROADMAP #66 reminder shutdown",
+  "subagentType": "Explore",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781101516042037627.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781101516042037627.json",
+  "createdAt": "1781101516",
+  "startedAt": "1781101516",
+  "completedAt": "1781101516",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781101516",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781101516089
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781101516",
+      "detail": "Completed ROADMAP #66 after verification.",
+      "data": {
+        "artifactProvenance": {
+          "roadmapIds": [
+            "ROADMAP #66"
+          ],
+          "sourceLanes": [
+            "cron-closeout"
+          ]
+        },
+        "disabledCronIds": [
+          "cron_6a2973cc_1"
+        ],
+        "qualityFloorApplied": false,
+        "rawSummary": "Completed ROADMAP #66 after verification.",
+        "reasons": [],
+        "wordCount": 5
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781101516090
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable"
+}

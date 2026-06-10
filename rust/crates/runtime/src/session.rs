@@ -41,6 +41,11 @@ pub enum ContentBlock {
         output: String,
         is_error: bool,
     },
+    Image {
+        media_type: String,
+        data: String,
+        source_type: String,
+    },
 }
 
 /// One conversation message with optional token-usage metadata.
@@ -669,6 +674,23 @@ impl ConversationMessage {
     }
 
     #[must_use]
+    pub fn user_image(
+        media_type: impl Into<String>,
+        data: impl Into<String>,
+        source_type: impl Into<String>,
+    ) -> Self {
+        Self {
+            role: MessageRole::User,
+            blocks: vec![ContentBlock::Image {
+                media_type: media_type.into(),
+                data: data.into(),
+                source_type: source_type.into(),
+            }],
+            usage: None,
+        }
+    }
+
+    #[must_use]
     pub fn to_json(&self) -> JsonValue {
         let mut object = BTreeMap::new();
         object.insert(
@@ -767,6 +789,25 @@ impl ContentBlock {
                 object.insert("output".to_string(), JsonValue::String(output.clone()));
                 object.insert("is_error".to_string(), JsonValue::Bool(*is_error));
             }
+            Self::Image {
+                media_type,
+                data,
+                source_type,
+            } => {
+                object.insert(
+                    "type".to_string(),
+                    JsonValue::String("image".to_string()),
+                );
+                object.insert(
+                    "media_type".to_string(),
+                    JsonValue::String(media_type.clone()),
+                );
+                object.insert("data".to_string(), JsonValue::String(data.clone()));
+                object.insert(
+                    "source_type".to_string(),
+                    JsonValue::String(source_type.clone()),
+                );
+            }
         }
         JsonValue::Object(object)
     }
@@ -796,6 +837,11 @@ impl ContentBlock {
                     .get("is_error")
                     .and_then(JsonValue::as_bool)
                     .ok_or_else(|| SessionError::Format("missing is_error".to_string()))?,
+            }),
+            "image" => Ok(Self::Image {
+                media_type: required_string(object, "media_type")?,
+                data: required_string(object, "data")?,
+                source_type: required_string(object, "source_type")?,
             }),
             other => Err(SessionError::Format(format!(
                 "unsupported block type: {other}"

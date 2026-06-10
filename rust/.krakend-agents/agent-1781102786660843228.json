@@ -1,0 +1,75 @@
+{
+  "agentId": "agent-1781102786660843228",
+  "name": "review-lane",
+  "description": "Review commit 1234abcd for ROADMAP #67",
+  "subagentType": "Verification",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781102786660843228.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781102786660843228.json",
+  "createdAt": "1781102786",
+  "startedAt": "1781102786",
+  "completedAt": "1781102786",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781102786",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781102786698
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781102786",
+      "detail": "APPROVE\nTarget: commit 1234abcd\nRationale: scoped diff is safe.",
+      "data": {
+        "artifactProvenance": {
+          "commitSha": "1234abcd",
+          "roadmapIds": [
+            "ROADMAP #67"
+          ],
+          "sourceLanes": [
+            "review-lane"
+          ]
+        },
+        "qualityFloorApplied": false,
+        "rawSummary": "APPROVE\n\nTarget: commit 1234abcd\nRationale: scoped diff is safe.",
+        "reasons": [],
+        "reviewRationale": "Target: commit 1234abcd Rationale: scoped diff is safe.",
+        "reviewTarget": "Review commit 1234abcd for ROADMAP #67",
+        "reviewVerdict": "approve",
+        "wordCount": 9
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781102786699
+      }
+    },
+    {
+      "event": "lane.commit.created",
+      "status": "completed",
+      "emittedAt": "1781102786",
+      "detail": "commit 1234abcd",
+      "data": {
+        "branch": "main",
+        "canonicalCommit": "1234abcd",
+        "commit": "1234abcd",
+        "lineage": [
+          "1234abcd"
+        ],
+        "worktree": "/home/tdy/Escritorio/claw-vzla/rust/crates/tools"
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781102786700
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable"
+}

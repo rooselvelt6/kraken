@@ -40,9 +40,11 @@ Unlike other AI coding assistants, Kraken also functions as a **full vulnerabili
 
 ### AI Coding Agent
 - Interactive REPL and one-shot prompts
-- 40+ tools: read, edit, write, grep, glob, bash, web fetch, and more
-- 135+ slash commands
+- 44+ tools: read, edit, write, grep, glob, bash, web fetch, WriteNote, ReadNote, ListNotes, and more
+- 140+ slash commands (including `/effort`, `/notes`, `/compact`, `/resume`, ...)
 - Multi-agent orchestration (sub-agents, parallel work)
+- Reasoning effort control (`/effort low|medium|high`) with self-validation mode
+- Persistent file-based memory (WriteNote, ReadNote, ListNotes)
 - Session management with checkpoint/resume
 - MCP (Model Context Protocol) support
 - Plugin system
@@ -152,9 +154,9 @@ ollama pull qwen2.5-coder
 | Crate | Purpose | Lines |
 |---|---|---|
 | `api` | Multi-provider LLM client (Anthropic, DeepSeek, xAI, OpenAI, Ollama) | ~3,500 |
-| `commands` | 135+ slash commands | ~5,800 |
-| `tools` | 40+ tools (read, edit, bash, grep, glob, web_fetch, ...) | ~2,500 |
-| `runtime` | Sessions, MCP server, permissions, task registry, workers | ~4,000 |
+| `commands` | 140+ slash commands | ~5,900 |
+| `tools` | 44+ tools (read, edit, bash, grep, glob, web_fetch, WriteNote, ...) | ~10,000 |
+| `runtime` | Sessions, MCP server, permissions, task registry, workers, prompt builder | ~4,100 |
 | **`vulnscan`** | **9-language AST scanner, exploit gen, chain solver, bughunt** | **~6,500** |
 | `security` | AES-256-GCM, XChaCha20Poly1305, Argon2id, zeroize | ~1,000 |
 | `enterprise` | Circuit breaker, retry, health checks, metrics, tracing | ~1,800 |
@@ -167,9 +169,9 @@ ollama pull qwen2.5-coder
 | `telemetry` | Analytics and structured logging | ~400 |
 | `compat-harness` | Behavioral compatibility tests | ~1,000 |
 | `mock-anthropic-service` | Deterministic mock API for testing | ~300 |
-| `rusty-claude-cli` | Main binary entry point | ~13,400 |
+| `rusty-claude-cli` | Main binary entry point | ~13,600 |
 
-**Total: ~93,000 lines of Rust, 1,100+ tests, 545+ commits.**
+**Total: ~95,000 lines of Rust, 1,100+ tests, 545+ commits.**
 
 ---
 

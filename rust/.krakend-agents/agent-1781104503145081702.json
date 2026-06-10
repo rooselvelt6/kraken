@@ -1,0 +1,47 @@
+{
+  "agentId": "agent-1781104503145081702",
+  "name": "summary-floor",
+  "description": "Sweep the next backlog item",
+  "subagentType": "Explore",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781104503145081702.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781104503145081702.json",
+  "createdAt": "1781104503",
+  "startedAt": "1781104503",
+  "completedAt": "1781104503",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781104503",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781104503197
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781104503",
+      "detail": "Completed lane `summary-floor` for target: Sweep the next backlog item. Status: completed. Original stop summary was too vague to keep as the lane result: \"commit push everyting, keep sweeping $ralph\".",
+      "data": {
+        "qualityFloorApplied": true,
+        "rawSummary": "commit push everyting, keep sweeping $ralph",
+        "reasons": [
+          "control_only",
+          "too_short_without_context"
+        ],
+        "wordCount": 6
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781104503197
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable",
+  "output": "commit push everyting, keep sweeping $ralph"
+}

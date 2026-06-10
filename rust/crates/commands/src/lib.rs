@@ -135,6 +135,13 @@ const SLASH_COMMAND_SPECS: &[SlashCommandSpec] = &[
         resume_supported: true,
     },
     SlashCommandSpec {
+        name: "notes",
+        aliases: &[],
+        summary: "List, read, or write persistent notes",
+        argument_hint: Some("[list|read <name>|write <name> <content>]"),
+        resume_supported: true,
+    },
+    SlashCommandSpec {
         name: "memory",
         aliases: &[],
         summary: "Inspect loaded Claude instruction memory files",
@@ -804,6 +811,13 @@ const SLASH_COMMAND_SPECS: &[SlashCommandSpec] = &[
         resume_supported: true,
     },
     SlashCommandSpec {
+        name: "plan-with-team",
+        aliases: &[],
+        summary: "Decompose objective into parallel tasks for a team",
+        argument_hint: Some("<objective> <task1> <task2> ..."),
+        resume_supported: false,
+    },
+    SlashCommandSpec {
         name: "benchmark",
         aliases: &[],
         summary: "Run performance benchmarks",
@@ -1087,6 +1101,10 @@ pub enum SlashCommand {
         target: Option<String>,
     },
     Memory,
+    Notes {
+        action: Option<String>,
+        target: Option<String>,
+    },
     Init,
     Diff,
     Version,
@@ -1190,6 +1208,14 @@ pub enum SlashCommand {
     History {
         count: Option<String>,
     },
+    Team {
+        action: Option<String>,
+        name: Option<String>,
+    },
+    PlanWithTeam {
+        objective: String,
+        decomposition: Vec<String>,
+    },
     Unknown(String),
 }
 
@@ -1232,7 +1258,10 @@ impl SlashCommand {
             Self::Doctor => "/doctor",
             Self::Config { .. } => "/config",
             Self::Memory { .. } => "/memory",
+            Self::Notes { .. } => "/notes",
             Self::History { .. } => "/history",
+            Self::Team { .. } => "/team",
+            Self::PlanWithTeam { .. } => "/plan-with-team",
             Self::Diff => "/diff",
             Self::Status => "/status",
             Self::Stats => "/stats",
@@ -1381,6 +1410,9 @@ pub fn validate_slash_command_input(
             validate_no_args(command, &args)?;
             SlashCommand::Memory
         }
+        "notes" => parse_notes_command(&args)?,
+        "team" => parse_team_command(&args)?,
+        "plan-with-team" => parse_plan_with_team_command(command, &args)?,
         "init" => {
             validate_no_args(command, &args)?;
             SlashCommand::Init
@@ -1697,6 +1729,47 @@ fn parse_mcp_command(args: &[&str]) -> Result<SlashCommand, SlashCommandParseErr
     }
 }
 
+fn parse_notes_command(args: &[&str]) -> Result<SlashCommand, SlashCommandParseError> {
+    match args {
+        [] => Ok(SlashCommand::Notes {
+            action: None,
+            target: None,
+        }),
+        ["list"] => Ok(SlashCommand::Notes {
+            action: Some("list".to_string()),
+            target: None,
+        }),
+        ["list", ..] => Err(usage_error("notes list", "")),
+        ["read"] => Err(usage_error("notes read", "<name>")),
+        ["read", target] => Ok(SlashCommand::Notes {
+            action: Some("read".to_string()),
+            target: Some((*target).to_string()),
+        }),
+        ["read", ..] => Err(command_error(
+            "Unexpected arguments for /notes read.",
+            "notes",
+            "/notes read <name>",
+        )),
+        ["write"] => Err(usage_error("notes write", "<name> <content>")),
+        ["write", target, ..] => {
+            let content = args[2..].join(" ");
+            Ok(SlashCommand::Notes {
+                action: Some("write".to_string()),
+                target: Some(format!("{target} {content}")),
+            })
+        }
+        ["help" | "-h" | "--help"] => Ok(SlashCommand::Notes {
+            action: Some("help".to_string()),
+            target: None,
+        }),
+        [action, ..] => Err(command_error(
+            &format!("Unknown /notes action '{action}'. Use list, read <name>, write <name> <content>, or help."),
+            "notes",
+            "/notes [list|read <name>|write <name> <content>]",
+        )),
+    }
+}
+
 fn parse_plugin_command(args: &[&str]) -> Result<SlashCommand, SlashCommandParseError> {
     match args {
         [] => Ok(SlashCommand::Plugins {
@@ -1761,6 +1834,69 @@ fn parse_plugin_command(args: &[&str]) -> Result<SlashCommand, SlashCommandParse
             "/plugin [list|install <path>|enable <name>|disable <name>|uninstall <id>|update <id>]",
         )),
     }
+}
+
+fn parse_team_command(args: &[&str]) -> Result<SlashCommand, SlashCommandParseError> {
+    match args {
+        [] => Ok(SlashCommand::Team {
+            action: None,
+            name: None,
+        }),
+        ["list"] => Ok(SlashCommand::Team {
+            action: Some("list".to_string()),
+            name: None,
+        }),
+        ["list", ..] => Err(usage_error("team list", "")),
+        ["status"] => Ok(SlashCommand::Team {
+            action: Some("status".to_string()),
+            name: None,
+        }),
+        ["status", ..] => Err(usage_error("team status", "")),
+        ["create"] => Err(usage_error("team create", "<name>")),
+        ["create", name] => Ok(SlashCommand::Team {
+            action: Some("create".to_string()),
+            name: Some((*name).to_string()),
+        }),
+        ["create", ..] => Err(command_error(
+            "Unexpected arguments for /team create.",
+            "team",
+            "/team create <name>",
+        )),
+        ["delete"] => Err(usage_error("team delete", "<id>")),
+        ["delete", id] => Ok(SlashCommand::Team {
+            action: Some("delete".to_string()),
+            name: Some((*id).to_string()),
+        }),
+        ["delete", ..] => Err(command_error(
+            "Unexpected arguments for /team delete.",
+            "team",
+            "/team delete <id>",
+        )),
+        ["help" | "-h" | "--help"] => Ok(SlashCommand::Team {
+            action: Some("help".to_string()),
+            name: None,
+        }),
+        _ => Err(command_error(
+            "Unknown /team action. Use list, status, create <name>, or delete <id>.",
+            "team",
+            "/team [list|status|create <name>|delete <id>]",
+        )),
+    }
+}
+
+fn parse_plan_with_team_command(
+    command: &str,
+    args: &[&str],
+) -> Result<SlashCommand, SlashCommandParseError> {
+    if args.is_empty() {
+        return Err(usage_error(command, "<objective> <task1> <task2> ..."));
+    }
+    let objective = args[0].to_string();
+    let decomposition: Vec<String> = args[1..].iter().map(|s| (*s).to_string()).collect();
+    Ok(SlashCommand::PlanWithTeam {
+        objective,
+        decomposition,
+    })
 }
 
 fn parse_list_or_help_args(
@@ -4141,6 +4277,7 @@ pub fn handle_slash_command(
         | SlashCommand::Config { .. }
         | SlashCommand::Mcp { .. }
         | SlashCommand::Memory
+        | SlashCommand::Notes { .. }
         | SlashCommand::Init
         | SlashCommand::Diff
         | SlashCommand::Version
@@ -4190,6 +4327,8 @@ pub fn handle_slash_command(
         | SlashCommand::OutputStyle { .. }
         | SlashCommand::AddDir { .. }
         | SlashCommand::History { .. }
+        | SlashCommand::Team { .. }
+        | SlashCommand::PlanWithTeam { .. }
         | SlashCommand::Unknown(_) => None,
     }
 }
@@ -4727,7 +4866,7 @@ mod tests {
         assert!(help.contains("aliases: /skill"));
         assert!(!help.contains("/login"));
         assert!(!help.contains("/logout"));
-        assert_eq!(slash_command_specs().len(), 140);
+        assert_eq!(slash_command_specs().len(), 142);
         assert!(resume_supported_slash_commands().len() >= 39);
     }
 
@@ -4821,6 +4960,43 @@ mod tests {
         assert!(session_error.contains("  Usage            /session switch <session-id>"));
         assert!(plugin_error.contains("Unexpected arguments for /plugin enable."));
         assert!(plugin_error.contains("  Usage            /plugin enable <name>"));
+    }
+
+    #[test]
+    fn notes_parses_list_read_and_write_commands() {
+        assert_eq!(
+            validate_slash_command_input("/notes").unwrap(),
+            Some(SlashCommand::Notes {
+                action: None,
+                target: None,
+            })
+        );
+        assert_eq!(
+            validate_slash_command_input("/notes list").unwrap(),
+            Some(SlashCommand::Notes {
+                action: Some("list".to_string()),
+                target: None,
+            })
+        );
+        let read = validate_slash_command_input("/notes read my-note").unwrap();
+        assert_eq!(
+            read,
+            Some(SlashCommand::Notes {
+                action: Some("read".to_string()),
+                target: Some("my-note".to_string()),
+            })
+        );
+        let write = validate_slash_command_input("/notes write my-key hello world").unwrap();
+        assert_eq!(
+            write,
+            Some(SlashCommand::Notes {
+                action: Some("write".to_string()),
+                target: Some("my-key hello world".to_string()),
+            })
+        );
+        let err = validate_slash_command_input("/notes read")
+            .expect_err("read requires a name");
+        assert!(err.to_string().contains("Usage"));
     }
 
     #[test]

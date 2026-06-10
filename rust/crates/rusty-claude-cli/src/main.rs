@@ -57,9 +57,10 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use api::{
     detect_provider_kind, resolve_startup_auth_source, AnthropicClient, AuthSource,
-    ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest, MessageResponse,
-    OutputContentBlock, PromptCache, ProviderClient as ApiProviderClient, ProviderKind,
-    StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
+    ContentBlockDelta, ImageSource, InputContentBlock, InputMessage, MessageRequest,
+    MessageResponse, OutputContentBlock, PromptCache, ProviderClient as ApiProviderClient,
+    ProviderKind, StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition,
+    ToolResultContentBlock,
 };
 
 use commands::{
@@ -75,7 +76,8 @@ use plugins::{PluginHooks, PluginManager, PluginManagerConfig, PluginRegistry};
 use render::{MarkdownStreamState, Spinner, TerminalRenderer};
 use runtime::{
     check_base_commit, format_stale_base_warning, format_usd, load_oauth_credentials,
-    load_system_prompt, pricing_for_model, resolve_expected_base, resolve_sandbox_status,
+    load_system_prompt, load_system_prompt_with_effort, pricing_for_model, resolve_expected_base,
+    resolve_sandbox_status,
     ApiClient, ApiRequest, AssistantEvent, CompactionConfig, ConfigLoader, ConfigSource,
     ContentBlock, ConversationMessage, ConversationRuntime, McpServer, McpServerManager,
     McpServerSpec, McpTool, MessageRole, ModelPricing, PermissionMode, PermissionPolicy,
@@ -3495,7 +3497,10 @@ fn run_resume_command(
         | SlashCommand::Ide { .. }
         | SlashCommand::Tag { .. }
         | SlashCommand::OutputStyle { .. }
-        | SlashCommand::AddDir { .. } => Err("unsupported resumed slash command".into()),
+        | SlashCommand::AddDir { .. }
+        | SlashCommand::Notes { .. }
+        | SlashCommand::Team { .. }
+        | SlashCommand::PlanWithTeam { .. } => Err("unsupported resumed slash command".into()),
     }
 }
 
@@ -4576,7 +4581,6 @@ impl LiveCli {
             | SlashCommand::Hooks { .. }
             | SlashCommand::Context { .. }
             | SlashCommand::Color { .. }
-            | SlashCommand::Effort { .. }
             | SlashCommand::Branch { .. }
             | SlashCommand::Rewind { .. }
             | SlashCommand::Ide { .. }
@@ -4586,6 +4590,12 @@ impl LiveCli {
                 let cmd_name = command.slash_name();
                 eprintln!("{cmd_name} is not yet implemented in this build.");
                 false
+            }
+            SlashCommand::Effort { level } => self.set_effort(level)?,
+            SlashCommand::Notes { action, target } => self.run_notes(action, target)?,
+            SlashCommand::Team { action, name } => self.run_team(action, name)?,
+            SlashCommand::PlanWithTeam { objective, decomposition } => {
+                self.run_plan_with_team(objective, decomposition)?
             }
             SlashCommand::Unknown(name) => {
                 eprintln!("{}", format_unknown_slash_command(&name));
@@ -4815,6 +4825,170 @@ impl LiveCli {
     fn print_cost(&self) {
         let cumulative = self.runtime.usage().cumulative_usage();
         println!("{}", format_cost_report(cumulative));
+    }
+
+    fn set_effort(
+        &mut self,
+        level: Option<String>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let level = match level {
+            Some(l) if l.eq_ignore_ascii_case("none") => None,
+            Some(l) if l.eq_ignore_ascii_case("off") => None,
+            Some(l) if l.eq_ignore_ascii_case("low") => Some("low".into()),
+            Some(l) if l.eq_ignore_ascii_case("medium") => Some("medium".into()),
+            Some(l) if l.eq_ignore_ascii_case("high") => Some("high".into()),
+            _ => {
+                eprintln!("Invalid effort level. Use: low, medium, high, off, or none");
+                return Ok(false);
+            }
+        };
+        self.set_reasoning_effort(level.clone());
+        let prompt = build_system_prompt_with_effort(level.as_deref())?;
+        self.system_prompt = prompt;
+        let session = self.runtime.session().clone();
+        let runtime = build_runtime(
+            session,
+            &self.session.id,
+            self.model.clone(),
+            self.system_prompt.clone(),
+            true,
+            true,
+            self.allowed_tools.clone(),
+            self.permission_mode,
+            None,
+        )?;
+        self.replace_runtime(runtime)?;
+        let display = level.as_deref().unwrap_or("off");
+        println!("Reasoning effort set to: {display}");
+        Ok(true)
+    }
+
+    fn run_notes(
+        &self,
+        action: Option<String>,
+        target: Option<String>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        let dir = std::env::current_dir()
+            .map_err(|e| format!("cannot get cwd: {e}"))?
+            .join(".kraken")
+            .join("memory");
+        match action.as_deref() {
+            None | Some("list") => {
+                if !dir.is_dir() {
+                    println!("No notes found.");
+                    return Ok(false);
+                }
+                let mut notes: Vec<String> = Vec::new();
+                for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    if entry.file_type().map_or(false, |t| t.is_file()) {
+                        if let Some(stem) = entry.path().file_stem().and_then(|s| s.to_str()) {
+                            notes.push(stem.to_string());
+                        }
+                    }
+                }
+                notes.sort();
+                if notes.is_empty() {
+                    println!("No notes found.");
+                } else {
+                    println!("Notes:");
+                    for n in &notes {
+                        println!("  {n}");
+                    }
+                }
+                Ok(false)
+            }
+            Some("read") => {
+                let Some(key) = target else {
+                    eprintln!("Usage: /notes read <name>");
+                    return Ok(false);
+                };
+                let path = dir.join(format!("{key}.md"));
+                match std::fs::read_to_string(&path) {
+                    Ok(content) => {
+                        println!("--- {key} ---\n{content}");
+                        Ok(false)
+                    }
+                    Err(_) => {
+                        eprintln!("Note '{key}' not found.");
+                        Ok(false)
+                    }
+                }
+            }
+            Some("write") => {
+                let Some(combined) = target else {
+                    eprintln!("Usage: /notes write <name> <content>");
+                    return Ok(false);
+                };
+                let mut parts = combined.splitn(2, ' ');
+                let key = parts.next().unwrap_or("");
+                let content = parts.next().unwrap_or("");
+                if key.is_empty() {
+                    eprintln!("Usage: /notes write <name> <content>");
+                    return Ok(false);
+                }
+                std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                let path = dir.join(format!("{key}.md"));
+                std::fs::write(&path, content).map_err(|e| e.to_string())?;
+                println!("Note '{key}' written.");
+                Ok(false)
+            }
+            _ => {
+                eprintln!("Usage: /notes [list|read|write]");
+                Ok(false)
+            }
+        }
+    }
+
+    fn run_team(
+        &self,
+        action: Option<String>,
+        name: Option<String>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        match action.as_deref() {
+            None | Some("list") | Some("status") => {
+                println!("Teams can be created with the TeamCreate tool. Use /team create <name> to create one.");
+                Ok(false)
+            }
+            Some("create") => {
+                if let Some(n) = &name {
+                    println!("Creating team '{n}'... (use the TeamCreate tool with task IDs from the model)");
+                } else {
+                    eprintln!("Usage: /team create <name>");
+                }
+                Ok(false)
+            }
+            Some("delete") => {
+                if let Some(id) = &name {
+                    println!("Deleting team '{id}'... (use the TeamDelete tool)");
+                } else {
+                    eprintln!("Usage: /team delete <id>");
+                }
+                Ok(false)
+            }
+            _ => {
+                eprintln!("Usage: /team [list|status|create <name>|delete <id>]");
+                Ok(false)
+            }
+        }
+    }
+
+    fn run_plan_with_team(
+        &self,
+        objective: String,
+        decomposition: Vec<String>,
+    ) -> Result<bool, Box<dyn std::error::Error>> {
+        println!("Plan objective: {objective}");
+        if decomposition.is_empty() {
+            println!("  No subtasks specified.");
+        } else {
+            println!("  Subtasks:");
+            for (i, task) in decomposition.iter().enumerate() {
+                println!("    {}. {task}", i + 1);
+            }
+        }
+        println!("Use the RunParallel tool with multiple Agent calls to execute this plan.");
+        Ok(false)
     }
 
     fn resume_session(
@@ -6868,6 +7042,11 @@ fn render_export_text(session: &Session) -> String {
                         "[tool_result id={tool_use_id} name={tool_name} error={is_error}] {output}"
                     ));
                 }
+                ContentBlock::Image {
+                    media_type, ..
+                } => {
+                    lines.push(format!("[image: {media_type}]"));
+                }
             }
         }
         lines.push(String::new());
@@ -7067,9 +7246,14 @@ fn render_session_markdown(session: &Session, session_id: &str, session_path: &P
                     if !summary.is_empty() {
                         lines.push(format!("> {summary}"));
                     }
-                    lines.push(String::new());
+                }
+                ContentBlock::Image {
+                    media_type, ..
+                } => {
+                    lines.push(format!("_[Image: {media_type}]_"));
                 }
             }
+            lines.push(String::new());
         }
         if let Some(usage) = message.usage {
             lines.push(format!(
@@ -7100,6 +7284,18 @@ fn build_system_prompt() -> Result<Vec<String>, Box<dyn std::error::Error>> {
         DEFAULT_DATE,
         env::consts::OS,
         "unknown",
+    )?)
+}
+
+fn build_system_prompt_with_effort(
+    reasoning_effort: Option<&str>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    Ok(load_system_prompt_with_effort(
+        env::current_dir()?,
+        DEFAULT_DATE,
+        env::consts::OS,
+        "unknown",
+        reasoning_effort,
     )?)
 }
 
@@ -9084,6 +9280,17 @@ fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMessage> {
                             text: output.clone(),
                         }],
                         is_error: *is_error,
+                    },
+                    ContentBlock::Image {
+                        media_type,
+                        data,
+                        source_type,
+                    } => InputContentBlock::Image {
+                        source: ImageSource {
+                            source_type: source_type.clone(),
+                            media_type: media_type.clone(),
+                            data: data.clone(),
+                        },
                     },
                 })
                 .collect::<Vec<_>>();

@@ -76,6 +76,14 @@ impl InputMessage {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ImageSource {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub media_type: String,
+    pub data: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum InputContentBlock {
     Text {
@@ -91,6 +99,9 @@ pub enum InputContentBlock {
         content: Vec<ToolResultContentBlock>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         is_error: bool,
+    },
+    Image {
+        source: ImageSource,
     },
 }
 
