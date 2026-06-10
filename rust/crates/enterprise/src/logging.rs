@@ -1,6 +1,11 @@
-#[allow(clippy::all, clippy::should_implement_trait, clippy::inherent_to_string, clippy::unwrap_or_default, clippy::new_without_default)]
+#[allow(
+    clippy::all,
+    clippy::should_implement_trait,
+    clippy::inherent_to_string,
+    clippy::unwrap_or_default,
+    clippy::new_without_default
+)]
 /// Structured logging in JSON format for production
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

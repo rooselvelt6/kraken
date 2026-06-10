@@ -1033,7 +1033,9 @@ fn normalize_optional_string(value: Option<String>) -> Option<String> {
 fn current_time_millis() -> u64 {
     let wall_clock = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_or(0, |duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX));
+        .map_or(0, |duration| {
+            u64::try_from(duration.as_millis()).unwrap_or(u64::MAX)
+        });
 
     let mut candidate = wall_clock;
     loop {
@@ -1065,7 +1067,7 @@ fn write_atomic(path: &Path, contents: &str) -> Result<(), SessionError> {
     }
     let temp_path = temporary_path_for(path);
     fs::write(&temp_path, contents)?;
-    
+
     // Set restrictive permissions on temp file (owner read/write only)
     #[cfg(unix)]
     {
@@ -1075,9 +1077,9 @@ fn write_atomic(path: &Path, contents: &str) -> Result<(), SessionError> {
         perms.set_mode(0o600);
         fs::set_permissions(&temp_path, perms)?;
     }
-    
+
     fs::rename(temp_path, path)?;
-    
+
     // Also set permissions on final file
     #[cfg(unix)]
     {
@@ -1087,7 +1089,7 @@ fn write_atomic(path: &Path, contents: &str) -> Result<(), SessionError> {
         perms.set_mode(0o600);
         fs::set_permissions(path, perms)?;
     }
-    
+
     Ok(())
 }
 
@@ -1513,7 +1515,7 @@ mod tests {
 /// Per-worktree session isolation: returns a session directory namespaced
 /// by the workspace fingerprint of the given working directory.
 /// This prevents parallel `opencode serve` instances from colliding.
-/// Called by external consumers (e.g. clawhip) to enumerate sessions for a CWD.
+/// Called by external consumers (e.g. krakenhip) to enumerate sessions for a CWD.
 #[allow(dead_code)]
 pub fn workspace_sessions_dir(cwd: &std::path::Path) -> Result<std::path::PathBuf, SessionError> {
     let store = crate::session_control::SessionStore::from_cwd(cwd)
@@ -1528,7 +1530,7 @@ mod workspace_sessions_dir_tests {
 
     #[test]
     fn workspace_sessions_dir_returns_fingerprinted_path_for_valid_cwd() {
-        let tmp = std::env::temp_dir().join("claw-session-dir-test");
+        let tmp = std::env::temp_dir().join("kraken-session-dir-test");
         fs::create_dir_all(&tmp).expect("create temp dir");
 
         let result = workspace_sessions_dir(&tmp);
@@ -1548,8 +1550,8 @@ mod workspace_sessions_dir_tests {
 
     #[test]
     fn workspace_sessions_dir_differs_for_different_cwds() {
-        let tmp_a = std::env::temp_dir().join("claw-session-dir-a");
-        let tmp_b = std::env::temp_dir().join("claw-session-dir-b");
+        let tmp_a = std::env::temp_dir().join("kraken-session-dir-a");
+        let tmp_b = std::env::temp_dir().join("kraken-session-dir-b");
         fs::create_dir_all(&tmp_a).expect("create dir a");
         fs::create_dir_all(&tmp_b).expect("create dir b");
 

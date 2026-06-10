@@ -28,6 +28,7 @@ impl Cwe190Matcher {
                     remediation: Some("Use checked arithmetic".to_string()),
                     confidence: 0.7,
                     discovery_method: DiscoveryMethod::StaticPatternMatching,
+                    ..Default::default()
                 });
             }
         }
@@ -61,6 +62,7 @@ impl Cwe415Matcher {
                     remediation: Some("Set pointer to NULL after free".to_string()),
                     confidence: 0.8,
                     discovery_method: DiscoveryMethod::StaticPatternMatching,
+                    ..Default::default()
                 });
             }
         }

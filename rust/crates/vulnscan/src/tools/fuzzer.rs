@@ -7,7 +7,9 @@ impl Default for CargoFuzzer {
 }
 
 impl CargoFuzzer {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     pub fn run(&self, path: &std::path::Path) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
@@ -41,6 +43,7 @@ impl CargoFuzzer {
                         remediation: Some("Review fuzzing output and fix crashes".to_string()),
                         confidence: 0.8,
                         discovery_method: crate::DiscoveryMethod::Fuzzing,
+                        ..Default::default()
                     });
                 }
             }

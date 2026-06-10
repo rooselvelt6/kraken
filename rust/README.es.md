@@ -1,6 +1,6 @@
-# 🦞 Claw Code — Implementación en Rust
+# 🦞 Kraken Code — Implementación en Rust
 
-Una reescritura de alto rendimiento en Rust del harness del agente CLI Claw Code. Construido para velocidad, seguridad y ejecución nativa de herramientas.
+Una reescritura de alto rendimiento en Rust del harness del agente CLI Kraken Code. Construido para velocidad, seguridad y ejecución nativa de herramientas.
 
 Para una guía orientada a tareas con ejemplos de copiar y pegar, consulta [`../USAGE.md`](../USAGE.md).
 
@@ -88,7 +88,7 @@ Artefactos principales:
 | Seguimiento de tareas | ✅ |
 | Edición de notebooks | ✅ |
 | CLAUDE.md / memoria del proyecto | ✅ |
-| Jerarquía de archivos de configuración (`.claw.json` + secciones de config fusionadas) | ✅ |
+| Jerarquía de archivos de configuración (`.kraken.json` + secciones de config fusionadas) | ✅ |
 | Sistema de permisos | ✅ |
 | Ciclo de vida de servidor MCP + inspección | ✅ |
 | Persistencia y resumen de sesiones | ✅ |
@@ -118,7 +118,7 @@ Los nombres cortos se resuelven a las últimas versiones de modelo:
 Superficie actual representativa:
 
 ```text
-claw [OPTIONS] [COMMAND]
+kraken [OPTIONS] [COMMAND]
 
 Flags:
   --model MODEL
@@ -145,7 +145,7 @@ Comandos de nivel superior:
   init
 ```
 
-`claw acp` es una superficie de descubrimiento local para usuarios editor-first: reporta el estado actual de ACP/Zed sin iniciar el runtime. A partir del 16 de abril de 2026, claw-code **todavía no** incluye un punto de entrada de daemon ACP/Zed, y `claw acp serve` es solo un alias de estado hasta que la superficie real del protocolo llegue.
+`kraken acp` es una superficie de descubrimiento local para usuarios editor-first: reporta el estado actual de ACP/Zed sin iniciar el runtime. A partir del 16 de abril de 2026, kraken-code **todavía no** incluye un punto de entrada de daemon ACP/Zed, y `kraken acp serve` es solo un alias de estado hasta que la superficie real del protocolo llegue.
 
 La superficie de comandos está cambiando rápidamente. Para el texto de ayuda canónico en vivo, ejecuta:
 
@@ -165,7 +165,7 @@ El REPL ahora expone una superficie mucho más amplia que el shell original mín
 - automatización / análisis: `/review`, `/advisor`, `/insights`, `/security-review`, `/subagent`, `/team`, `/telemetry`, `/providers`, `/cron`, y más
 - gestión de plugins: `/plugin` (con alias `/plugins`, `/marketplace`)
 
-Superficies claw-first notables ahora disponibles directamente en forma slash:
+Superficies kraken-first notables ahora disponibles directamente en forma slash:
 - `/skills [list|install <path>|help]`
 - `/agents [list|help]`
 - `/mcp [list|show <server>|help]`
@@ -188,7 +188,7 @@ rust/
     ├── mock-anthropic-service/ # Mock determinista compatible con Anthropic
     ├── plugins/            # Metadatos de plugins, manager, superficies de install/enable/disable
     ├── runtime/            # Sesión, config, permisos, MCP, prompts, bucle de auth/runtime
-    ├── rusty-claude-cli/   # Binario CLI principal (`claw`)
+    ├── rusty-claude-cli/   # Binario CLI principal (`kraken`)
     ├── telemetry/          # Tipos de trazado de sesión y telemetría
     └── tools/              # Herramientas integradas, resolución de skills, búsqueda de herramientas, superficies de runtime de agente
 ```
@@ -209,7 +209,7 @@ rust/
 
 - **~20K líneas** de Rust
 - **9 crates** en el workspace
-- **Nombre del binario:** `claw`
+- **Nombre del binario:** `kraken`
 - **Modelo por defecto:** `claude-opus-4-6`
 - **Permisos por defecto:** `danger-full-access`
 

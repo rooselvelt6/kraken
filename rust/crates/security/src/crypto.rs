@@ -6,10 +6,7 @@ use aes_gcm::{
 };
 use argon2::{Argon2, PasswordHasher};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-use chacha20poly1305::{
-    aead::Aead,
-    XChaCha20Poly1305, XNonce,
-};
+use chacha20poly1305::{aead::Aead, XChaCha20Poly1305, XNonce};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -330,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_argon2id_key_derivation() {
-        let password = "claw-vzla-god-level-2026";
+        let password = "kraken-god-level-2026";
         let salt = [1u8; SALT_SIZE];
         let params = KdfParams::interactive();
 

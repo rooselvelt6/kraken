@@ -1,12 +1,12 @@
 # vulnscan
 
-A comprehensive vulnerability scanner for the `claw-vzla` system, supporting multiple programming languages with both static pattern matching and LLM-powered analysis.
+A comprehensive vulnerability scanner for the `kraken` system, supporting multiple programming languages with both static pattern matching and LLM-powered analysis.
 
 ## Features
 
 - **Multi-language support**: Rust, C/C++, Python, Ruby, JavaScript/TypeScript
 - **Static pattern matching**: Detects common vulnerabilities (buffer overflows, SQL injection, XSS, etc.)
-- **LLM Agent integration**: Uses local Ollama models for deep code analysis (Mythos-style)
+- **LLM Agent integration**: Uses multi-provider LLM for deep code analysis
 - **Dependency scanning**: Integrates with `cargo audit`, `pip-audit`, `npm audit`, `bundle-audit`
 - **Tool integrations**: Clippy, ASAN sanitizers, and cargo-fuzz
 - **SQLite database**: Stores and retrieves findings locally
@@ -44,7 +44,7 @@ for finding in &findings {
 }
 ```
 
-### With LLM Agent (Mythos-style)
+### With LLM Agent
 
 ```rust
 use vulnscan::{ScanConfig, agent::VulnerabilityAgent};
@@ -91,7 +91,7 @@ ScanConfig {
 }
 ```
 
-## Integration with claw-vzla
+## Integration with kraken
 
 The `vulnscan` crate integrates with:
 - `runtime`: For orchestration and job execution
@@ -110,7 +110,7 @@ The `vulnscan` crate integrates with:
 ## Building
 
 ```bash
-cd /home/tdy/Escritorio/claw-vzla/rust
+cd /home/tdy/Escritorio/kraken/rust
 cargo build -p vulnscan
 ```
 

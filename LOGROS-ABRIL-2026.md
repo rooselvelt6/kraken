@@ -1,10 +1,10 @@
 ---
-title: "Logros Claw Code Venezuela - Abril 2026"
-author: "Claw Code Venezuela Team"
+title: "Logros Kraken Code Venezuela - Abril 2026"
+author: "Kraken Code Venezuela Team"
 date: "28 de abril de 2026"
 ---
 
-# 🦀 Logros Claw Code Venezuela - Abril 2026
+# 🦀 Logros Kraken Code Venezuela - Abril 2026
 
 > **545 commits** en el mes de abril 2026 - Un mes histórico para el proyecto
 
@@ -83,7 +83,7 @@ date: "28 de abril de 2026"
 
 ### 10. CLI Improvements
 - ✅ **135 slash commands** implementados (de 141 especificados)
-- ✅ **14 subcomandos CLI** (claw config, claw diff, claw plugins, etc.)
+- ✅ **14 subcomandos CLI** (kraken config, kraken diff, kraken plugins, etc.)
 - ✅ **Did-you-mean** para typos en subcomandos
 - ✅ **PowerShell support** con permisos correctos
 - ✅ **Windows HOME crash** fix (fallback a USERPROFILE)
@@ -111,7 +111,7 @@ date: "28 de abril de 2026"
 - ✅ Rewrite README to enterprise professional format
 - ✅ Add philosophy document (Unix/Linux principles)
 - ✅ Implement security crate (nivel dios)
-- ✅ Add customizable CLI names (kraken, claw-vzla, claw-ve)
+- ✅ Add customizable CLI names (kraken, kraken-ve)
 - ✅ Add nature-inspired optimization algorithms
 
 ### Semana 2 (Abr 8-14): Expansión
@@ -188,7 +188,7 @@ date: "28 de abril de 2026"
 ## 🤝 Contribuidores
 
 - **rooselvelt6** - Lead developer
-- **Claw Code AI** - Autonomous code maintenance
+- **Kraken Code AI** - Autonomous code maintenance
 - **gaebal-gajae** - Dogfood testing y roadmap filing
 - **UltraWorkers community** - Feedback y testing
 
@@ -211,7 +211,7 @@ date: "28 de abril de 2026"
 
 ```
 ┌─────────────────────────────────────────┐
-│  Claw Code Venezuela - Abril 2026      │
+│  Kraken Code Venezuela - Abril 2026      │
 ├─────────────────────────────────────────┤
 │  🦀 545 commits                    │
 │  📦 17 crates                      │
@@ -225,9 +225,9 @@ date: "28 de abril de 2026"
 ---
 
 **Fecha de generación:** 28 de abril de 2026  
-**Repositorio:** https://github.com/rooselvelt6/claw-vzla  
+**Repositorio:** https://github.com/rooselvelt6/kraken  
 **Licencia:** MIT
 
 ---
 
-*Generado automáticamente por Claw Code Venezuela* 🦀
+*Generado automáticamente por Kraken Code Venezuela* 🦀

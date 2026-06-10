@@ -7,7 +7,9 @@ impl Default for ClippyAnalyzer {
 }
 
 impl ClippyAnalyzer {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     pub fn run(&self, path: &std::path::Path) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
@@ -54,6 +56,7 @@ impl ClippyAnalyzer {
                                 remediation: Some("Fix clippy warning".to_string()),
                                 confidence: 0.9,
                                 discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+                                ..Default::default()
                             });
                         }
                     }

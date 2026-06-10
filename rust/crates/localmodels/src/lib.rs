@@ -38,7 +38,12 @@ pub async fn discover_providers() -> Vec<ProviderInfo> {
     let client = reqwest::Client::new();
 
     // Check Ollama
-    if let Ok(resp) = client.get("http://localhost:11434/api/tags").timeout(std::time::Duration::from_secs(1)).send().await {
+    if let Ok(resp) = client
+        .get("http://localhost:11434/api/tags")
+        .timeout(std::time::Duration::from_secs(1))
+        .send()
+        .await
+    {
         if resp.status().is_success() {
             providers.push(ProviderInfo {
                 name: "ollama".to_string(),
@@ -49,7 +54,12 @@ pub async fn discover_providers() -> Vec<ProviderInfo> {
     }
 
     // Check LM Studio
-    if let Ok(resp) = client.get("http://localhost:1234/v1/models").timeout(std::time::Duration::from_secs(1)).send().await {
+    if let Ok(resp) = client
+        .get("http://localhost:1234/v1/models")
+        .timeout(std::time::Duration::from_secs(1))
+        .send()
+        .await
+    {
         if resp.status().is_success() {
             providers.push(ProviderInfo {
                 name: "lmstudio".to_string(),
@@ -72,7 +82,10 @@ pub mod providers {
 
     impl OllamaProvider {
         pub fn new(url: &str, model: &str) -> Self {
-            Self { url: url.to_string(), model: model.to_string() }
+            Self {
+                url: url.to_string(),
+                model: model.to_string(),
+            }
         }
 
         pub async fn complete(&self, prompt: &str) -> Result<String, ProviderError> {

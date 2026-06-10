@@ -178,9 +178,9 @@ impl PSOToolSelector {
     pub fn to_tool_scores(&self, tool_names: &[String]) -> Vec<ToolScore> {
         let best = &self.global_best_position;
         let sum: f64 = best.iter().sum();
-        
+
         eprintln!("DEBUG: best={:?}, sum={}", best, sum);
-        
+
         // Normalize so confidence sums to ~1.0
         let scores: Vec<ToolScore> = tool_names
             .iter()
@@ -191,10 +191,10 @@ impl PSOToolSelector {
                 confidence: if sum > 0.0 { score / sum } else { 0.0 },
             })
             .collect();
-        
+
         let total_confidence: f64 = scores.iter().map(|s| s.confidence).sum();
         eprintln!("DEBUG: total_confidence={}", total_confidence);
-        
+
         scores
     }
 
@@ -244,21 +244,21 @@ mod tests {
     #[test]
     fn test_tool_scores() {
         let tool_names = vec!["read".to_string(), "edit".to_string(), "bash".to_string()];
-        
+
         let selector = PSOToolSelector::new(3, 10, 10);
-        
+
         // Run some iterations to build up global_best_position
         for _ in 0..100 {
             selector.iteration();
         }
-        
+
         let scores = selector.to_tool_scores(&tool_names);
-        
+
         assert_eq!(scores.len(), 3);
         assert_eq!(scores[0].tool_name, "read");
         assert_eq!(scores[1].tool_name, "edit");
         assert_eq!(scores[2].tool_name, "bash");
-        
+
         // Confidence should sum to approximately 1 (if PSO converges)
         let total_confidence: f64 = scores.iter().map(|s| s.confidence).sum();
         eprintln!("DEBUG: total_confidence={}", total_confidence);

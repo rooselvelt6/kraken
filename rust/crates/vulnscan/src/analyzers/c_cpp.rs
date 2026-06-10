@@ -2,21 +2,38 @@
 pub struct CAnalyzer;
 
 impl super::LanguageAnalyzer for CAnalyzer {
-    fn language(&self) -> super::Language { super::Language::C }
-    fn supported_extensions(&self) -> Vec<&'static str> { vec!["c", "h"] }
+    fn language(&self) -> super::Language {
+        super::Language::C
+    }
+    fn supported_extensions(&self) -> Vec<&'static str> {
+        vec!["c", "h"]
+    }
 
-    fn analyze(&self, content: &str, file_path: &std::path::Path, _config: &crate::ScanConfig) -> Vec<crate::Finding> {
+    fn analyze(
+        &self,
+        content: &str,
+        file_path: &std::path::Path,
+        _config: &crate::ScanConfig,
+    ) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in content.lines().enumerate() {
             let trimmed = line.trim();
 
             // Buffer overflows
-            if trimmed.contains("strcpy") || trimmed.contains("strcat")
-                || trimmed.contains("gets(") || trimmed.contains("sprintf(") {
+            if trimmed.contains("strcpy")
+                || trimmed.contains("strcat")
+                || trimmed.contains("gets(")
+                || trimmed.contains("sprintf(")
+            {
                 findings.push(Self::create_finding(
-                    "Buffer overflow risk - unsafe string function", "CWE-120", crate::Severity::High,
-                    i, line, file_path, "Use strncpy/strncat or safe alternatives"
+                    "Buffer overflow risk - unsafe string function",
+                    "CWE-120",
+                    crate::Severity::High,
+                    i,
+                    line,
+                    file_path,
+                    "Use strncpy/strncat or safe alternatives",
                 ));
             }
 
@@ -26,8 +43,13 @@ impl super::LanguageAnalyzer for CAnalyzer {
             }
             if trimmed.contains("free(") && trimmed.contains("double") {
                 findings.push(Self::create_finding(
-                    "Potential double-free", "CWE-415", crate::Severity::Critical,
-                    i, line, file_path, "Ensure each allocation is freed once"
+                    "Potential double-free",
+                    "CWE-415",
+                    crate::Severity::Critical,
+                    i,
+                    line,
+                    file_path,
+                    "Ensure each allocation is freed once",
                 ));
             }
 
@@ -39,8 +61,13 @@ impl super::LanguageAnalyzer for CAnalyzer {
             // Integer overflow
             if trimmed.contains("malloc") && (trimmed.contains("*") || trimmed.contains("sizeof")) {
                 findings.push(Self::create_finding(
-                    "Potential integer overflow in allocation", "CWE-190", crate::Severity::High,
-                    i, line, file_path, "Check for overflow before multiplication"
+                    "Potential integer overflow in allocation",
+                    "CWE-190",
+                    crate::Severity::High,
+                    i,
+                    line,
+                    file_path,
+                    "Check for overflow before multiplication",
                 ));
             }
         }
@@ -53,10 +80,19 @@ impl super::LanguageAnalyzer for CAnalyzer {
 pub struct CppAnalyzer;
 
 impl super::LanguageAnalyzer for CppAnalyzer {
-    fn language(&self) -> super::Language { super::Language::Cpp }
-    fn supported_extensions(&self) -> Vec<&'static str> { vec!["cpp", "cc", "cxx", "hpp", "hxx"] }
+    fn language(&self) -> super::Language {
+        super::Language::Cpp
+    }
+    fn supported_extensions(&self) -> Vec<&'static str> {
+        vec!["cpp", "cc", "cxx", "hpp", "hxx"]
+    }
 
-    fn analyze(&self, content: &str, file_path: &std::path::Path, _config: &crate::ScanConfig) -> Vec<crate::Finding> {
+    fn analyze(
+        &self,
+        content: &str,
+        file_path: &std::path::Path,
+        _config: &crate::ScanConfig,
+    ) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in content.lines().enumerate() {
@@ -65,21 +101,38 @@ impl super::LanguageAnalyzer for CppAnalyzer {
             // Same C issues plus C++ specific
             if trimmed.contains("strcpy") || trimmed.contains("strcat") {
                 findings.push(Self::create_finding(
-                    "Buffer overflow risk", "CWE-120", crate::Severity::High,
-                    i, line, file_path, "Use std::string or safe alternatives"
+                    "Buffer overflow risk",
+                    "CWE-120",
+                    crate::Severity::High,
+                    i,
+                    line,
+                    file_path,
+                    "Use std::string or safe alternatives",
                 ));
             }
 
             // Use after free
-            if trimmed.contains("delete") && content.lines().skip(i+1).any(|l| l.contains("->") || l.contains("*")) {
+            if trimmed.contains("delete")
+                && content
+                    .lines()
+                    .skip(i + 1)
+                    .any(|l| l.contains("->") || l.contains("*"))
+            {
                 // Simplified check
             }
 
             // Unsafe casts
-            if trimmed.contains("reinterpret_cast") || (trimmed.contains("(") && trimmed.contains("*)")) {
+            if trimmed.contains("reinterpret_cast")
+                || (trimmed.contains("(") && trimmed.contains("*)"))
+            {
                 findings.push(Self::create_finding(
-                    "Unsafe type cast", "CWE-704", crate::Severity::Medium,
-                    i, line, file_path, "Use safe casting alternatives"
+                    "Unsafe type cast",
+                    "CWE-704",
+                    crate::Severity::Medium,
+                    i,
+                    line,
+                    file_path,
+                    "Use safe casting alternatives",
                 ));
             }
         }
@@ -111,6 +164,7 @@ impl CAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }
@@ -138,6 +192,7 @@ impl CppAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }

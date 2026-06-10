@@ -1,6 +1,5 @@
 #[allow(clippy::all, clippy::field_reassign_with_default, clippy::manual_find)]
 /// Graceful degradation with provider fallback chains
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

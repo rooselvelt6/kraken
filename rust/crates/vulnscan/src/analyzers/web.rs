@@ -196,6 +196,7 @@ impl JavaScriptAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.8,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }
@@ -224,6 +225,7 @@ impl TypeScriptAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.8,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }
@@ -252,6 +254,7 @@ impl WebAppAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }

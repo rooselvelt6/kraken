@@ -1,6 +1,6 @@
 //! Storage para el sistema offline
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tokio::sync::RwLock;
@@ -15,9 +15,9 @@ pub struct OfflineManager {
 impl OfflineManager {
     pub fn new(data_dir: PathBuf) -> Result<Self, OfflineError> {
         let db_path = data_dir.join("offline.db");
-        
+
         let conn = Connection::open(&db_path)?;
-        
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS operations (
                 id TEXT PRIMARY KEY,
@@ -60,7 +60,7 @@ impl OfflineManager {
 
     pub async fn queue_operation(&self, op: Operation) -> Result<(), OfflineError> {
         let db = self.db.lock().unwrap();
-        
+
         db.execute(
             "INSERT OR REPLACE INTO operations (id, operation_type, payload, created_at, synced, retry_count) VALUES (?1, ?2, ?3, ?4, 0, 0)",
             params![op.id, op.operation_type, op.payload, op.created_at],
@@ -71,7 +71,7 @@ impl OfflineManager {
 
     pub async fn get_pending_operations(&self) -> Result<Vec<Operation>, OfflineError> {
         let db = self.db.lock().unwrap();
-        
+
         let mut stmt = db.prepare(
             "SELECT id, operation_type, payload, created_at, synced, retry_count FROM operations WHERE synced = 0 ORDER BY created_at ASC LIMIT 100"
         )?;
@@ -97,7 +97,7 @@ impl OfflineManager {
 
     pub async fn mark_synced(&self, op_id: &str) -> Result<(), OfflineError> {
         let db = self.db.lock().unwrap();
-        
+
         db.execute(
             "UPDATE operations SET synced = 1 WHERE id = ?1",
             params![op_id],
@@ -109,7 +109,7 @@ impl OfflineManager {
     pub async fn save_session(&self, session_id: &str, data: &str) -> Result<(), OfflineError> {
         let db = self.db.lock().unwrap();
         let now = chrono::Utc::now().timestamp();
-        
+
         db.execute(
             "INSERT OR REPLACE INTO sessions (id, data, updated_at) VALUES (?1, ?2, ?3)",
             params![session_id, data, now],
@@ -120,10 +120,10 @@ impl OfflineManager {
 
     pub async fn load_session(&self, session_id: &str) -> Result<Option<String>, OfflineError> {
         let db = self.db.lock().unwrap();
-        
+
         let mut stmt = db.prepare("SELECT data FROM sessions WHERE id = ?1")?;
         let result = stmt.query_row(params![session_id], |row| row.get(0));
-        
+
         match result {
             Ok(data) => Ok(Some(data)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -150,7 +150,7 @@ impl OfflineManager {
 
     pub async fn update_connection_state(&self) -> ConnectionState {
         let is_online = self.check_connection().await;
-        
+
         let state = if is_online {
             ConnectionState::Online
         } else {
@@ -180,8 +180,10 @@ mod tests {
     async fn test_offline_manager() {
         let tmp = TempDir::new().unwrap();
         let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
-        
+
         let state = manager.get_state().await;
-        assert!(matches!(state, ConnectionState::Offline) || matches!(state, ConnectionState::Online));
+        assert!(
+            matches!(state, ConnectionState::Offline) || matches!(state, ConnectionState::Online)
+        );
     }
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claw Code Wrapper - Allows running with custom names
+# Kraken Code Wrapper - Allows running with custom names
 # Usage: Create symlinks with different names pointing to this script
 
 # Get the name this script was invoked as
@@ -11,11 +11,11 @@ BINARY_DIR="$(dirname "$SCRIPT_DIR")/target/debug"
 
 # Determine which binary to use
 case "$INVOKED_NAME" in
-    claw|kaken|kaken-cli)
-        BINARY="$BINARY_DIR/claw"
+    kraken|kaken|kaken-cli)
+        BINARY="$BINARY_DIR/kraken"
         ;;
     *)
-        BINARY="$BINARY_DIR/claw"
+        BINARY="$BINARY_DIR/kraken"
         ;;
 esac
 
@@ -24,7 +24,7 @@ if [ -L "$0" ]; then
     REAL_PATH="$(readlink -f "$0")"
     REAL_NAME="$(basename "$REAL_PATH")"
     case "$REAL_NAME" in
-        claw|kaken|kaken-cli)
+        kraken|kaken|kaken-cli)
             BINARY="$BINARY_DIR/$REAL_NAME"
             ;;
     esac
@@ -35,9 +35,9 @@ if [ -n "$CLI_NAME" ]; then
     BINARY="$BINARY_DIR/$CLI_NAME"
 fi
 
-# Fallback to claw
+# Fallback to kraken
 if [ ! -f "$BINARY" ]; then
-    BINARY="$BINARY_DIR/claw"
+    BINARY="$BINARY_DIR/kraken"
 fi
 
 # Execute with all arguments

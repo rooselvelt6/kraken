@@ -108,6 +108,7 @@ impl RubyAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.8,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }

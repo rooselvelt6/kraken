@@ -219,6 +219,7 @@ impl LinuxKernelAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }
@@ -247,6 +248,7 @@ impl OpenBSDAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }
@@ -275,6 +277,7 @@ impl FreeBSDAnalyzer {
             remediation: Some(remediation.to_string()),
             confidence: 0.7,
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
+            ..Default::default()
         }
     }
 }

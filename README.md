@@ -1,460 +1,243 @@
-# 🦀 Claw Code Venezuela
+# Kraken
 
 <p align="center">
-  <a href="https://github.com/rooselvelt6/claw-vzla">
+  <a href="https://github.com/rooselvelt6/kraken">
     <img src="https://img.shields.io/badge/Rust-100%25-b84100?style=for-the-badge&logo=rust" alt="Rust"/>
   </a>
-  <a href="https://github.com/rooselvelt6/claw-vzla/releases">
-    <img src="https://img.shields.io/github/v/release/rooselvelt6/claw-vzla?include_prereleases&style=for-the-badge" alt="Release"/>
-  </a>
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT"/>
+  <img src="https://img.shields.io/badge/status-production-green?style=for-the-badge" alt="Production"/>
+</p>
+
+<p align="center">
+  <i>AI coding agent + vulnerability scanner + exploit generator.</i><br>
+  <b>100% Rust. Multi-provider. 0% Python. 0% USD required.</b>
 </p>
 
 ---
 
-## 🇻🇪 El Proyecto
+## What is Kraken?
 
-**Claw Code Venezuela** es un fork de nivel enterprise del agente de código autónomo Claw Code, optimizado para usuarios venezolanos y el mercado latinoamericano. 100% Rust - 0% Python.
+Kraken is a **security-first autonomous AI coding agent** — a single Rust binary that edits code, runs commands, scans for vulnerabilities, generates exploits, and coordinates multi-agent workflows. It is not a fork of another tool. It is its own implementation, built from the ground up in Rust.
 
-> *"Los humanos dan dirección; las claws ejecutan el trabajo."*
-
-### Filosofía Unix/Linux
-
-Inspirados en la tradición Unix: **"haz una cosa y hazla bien"**
-
-| Principio | Implementación |
-|----------|--------------|
-| **Haz una cosa y hazla bien** | Cada componente tiene responsabilidad única |
-| **Escribe programas que trabajen juntos** | Eventos tipados, APIs bien definidas |
-| **Usa texto plano** | Configuración legible por humanos y máquinas |
-| **Simplicidad sobre complejidad** | Rust por seguridad y rendimiento |
-| **Portabilidad y acceso** | Sin dependencia USD, modelos gratuitos |
-| **Recuperación antes que escalamiento** | Modos de falla auto-curables |
-| **Código abierto** | Ingeniería reproducible |
+Unlike other AI coding assistants, Kraken also functions as a **full vulnerability scanner and penetration testing tool**, capable of static analysis across 9 languages, autonomous overnight bug hunting, vulnerability chaining, and exploit generation.
 
 ---
 
-## 🛡️ Seguridad Nivel Dios
+## Why Kraken?
 
-El crate `security` implementa criptografía de grado militar/enterprise:
-
-### Cifrado AEAD
-
-| Algoritmo | Nonce | Uso | Rendimiento |
-|----------|-------|-----|-----|
-| **AES-256-GCM** | 12 bytes | Estándar | Rápido con AES-NI |
-| **XChaCha20Poly1305** | 24 bytes | Alternativo | 3x más rápido sin AES-NI |
-
-### Derivación de Claves
-
-| Algoritmo | Estándar | Parámetros OWASP 2024 |
-|----------|----------|---------------------|
-| **Argon2id** | RFC 9106 | Interactive: 64MB, 4 iteraciones |
-| **SHA256** | Legacy | Compatibilidad hacia atrás |
-
-### Características de Seguridad
-
-- ✅ **Zeroize** - Limpieza automática de memoria sensible
-- ✅ **Algoritmo Agility** - Selección de cifrado en tiempo de ejecución
-- ✅ **Constant-time comparisons** - Resistente a timing attacks
-- ✅ **Audit Log Chain** - Integridad verificable con hash SHA-256
-- ✅ **Parámetros OWASP 2024** - Cumplimiento de mejores prácticas
+| Other AI tools | Kraken |
+|---|---|
+| Require USD, credit card, or paid subscription | **Free providers: DeepSeek (5M tokens/mo), Big Pickle (unlimited), Ollama (local)** |
+| Single LLM provider lock-in | **6+ providers: Anthropic, DeepSeek, xAI, OpenAI, DashScope, Ollama — auto-routed by model name** |
+| Python/TypeScript/Node — heavy runtime deps | **Single ~150MB Rust binary. Zero runtime dependencies.** |
+| No security analysis | **Built-in 9-language AST scanner, exploit generator, vulnerability chaining** |
+| No offline mode | **SQLite-backed offline queue with auto-sync** |
+| No enterprise features without SaaS | **Circuit breaker, health checks, distributed tracing, metrics — included, not upsold** |
 
 ---
 
-## ☁️ Módulos Venezuela
+## Capabilities
 
-### Crates Nuevos
+### AI Coding Agent
+- Interactive REPL and one-shot prompts
+- 40+ tools: read, edit, write, grep, glob, bash, web fetch, and more
+- 135+ slash commands
+- Multi-agent orchestration (sub-agents, parallel work)
+- Session management with checkpoint/resume
+- MCP (Model Context Protocol) support
+- Plugin system
 
-| Crate | Propósito | Features |
-|-------|---------|----------|
-| **localmodels** | Proveedores locales | Ollama, LM Studio, llama.cpp |
-| **offline** | Sistema offline-first | SQLite, cola sync, recovery |
-| **cache** | Cache multi-nivel | gzip, TTL, LRU/LFU/FIFO, memoria+disco, stats |
+### Vulnerability Scanner (`vulnscan`)
+- **Static analysis**: Tree-sitter AST analyzers for C, C++, Rust, Go, Java, JavaScript, Python, Ruby, Swift
+- **Security checks**: SQLi, XSS, CSRF, SSRF, XXE, command injection, path traversal, crypto flaws, hardcoded secrets, supply chain, auth bypass, IDOR
+- **LLM-powered analysis**: Multi-provider agent with chunked file analysis, bug probability ranking, finding validation with CVSS scoring
 
-### Modo Offline-First
+### Autonomous Hacking
+- **Exploit generation**: ROP chains, heap sprays, privilege escalation, shellcode
+- **Vulnerability chaining**: BFS primitive graph solver — finds shortest path from primitives to RCE
+- **Overnight bughunt**: Full autonomous pipeline: rank → scan → validate → exploit → report
+- **Persistent memory**: Hypothesis tracking across sessions, automatic checkpoint/resume
+- **Attack surface mapping**: Recon, lateral movement, pivot detection, attack graphs
 
-```rust
-// Persistencia local SQLite
-let manager = OfflineManager::new(data_dir)?;
+### Enterprise Features (built-in, free)
+| Feature | What it does |
+|---|---|
+| Circuit breaker | Automatic upstream failure tolerance |
+| Exponential backoff | Jittered retry with configurable delays |
+| Health checks | Provider latency and error rate monitoring |
+| Graceful degradation | Provider priority chain fallback |
+| Metrics | Per-provider request count, latency, token usage, cost |
+| Structured logging | JSON output with severity levels |
+| Distributed tracing | Span correlation across requests |
+| Rate limiting | Per-user and per-provider limits |
+| Audit logging | Immutable hash chain for all actions |
 
-// Guardar operación offline
-manager.queue_operation(op).await?;
+### Security
+- **Encryption**: AES-256-GCM, XChaCha20Poly1305 (runtime-selectable)
+- **Key derivation**: Argon2id (RFC 9106, OWASP 2024 parameters)
+- **Memory safety**: Zeroize on drop, constant-time comparisons
+- **Audit**: SHA-256 authenticated log chain
 
-// Auto-sync cuando hay conexión
-manager.update_connection_state().await;
+### Free LLM Providers
+| Provider | Models | Cost |
+|---|---|---|
+| **DeepSeek** | V3, R1, Coder | 5M free tokens/month |
+| **Big Pickle** | OpenCode Zen GLM-4.6 | Unlimited free |
+| **Ollama** | Any local model (qwen2.5-coder, llama3.2, ...) | Free (local) |
+| **LM Studio** | Any local model | Free (local) |
+
+No credit card required. No USD needed.
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone and build
+git clone https://github.com/rooselvelt6/kraken.git
+cd kraken/rust
+cargo build --release
+
+# 2. Set a free API key (DeepSeek = 5M free tokens/month)
+export DEEPSEEK_API_KEY="sk-..."
+
+# 3. Run
+./target/release/kraken prompt "analyze this repository"
 ```
 
-### Cache Inteligente (Multi-nivel)
+### Or use local models (Ollama, completely free)
 
-```rust
-// Cache con compresión automática
-let cache = CacheManager::new(data_dir)?;
+```bash
+# Start Ollama with any model
+ollama pull qwen2.5-coder
 
-// Guardar en memoria y disco
-cache.set("prompt-key", CacheType::Response, &response)?;
-
-// Leer (memoria primero, luego disco)
-let content = cache.get("prompt-key", CacheType::Response)?;
-
-// Stats detalladas
-let stats = cache.stats();
-// CacheStats { total_entries, expired_entries, hits, misses, hit_rate }
-
-// Eviction policies: LRU, LFU, FIFO, TTL
-cache.clear_by_type(CacheType::Response);
-cache.remove("key", CacheType::Prompt);
+# Run Kraken with local model
+./target/release/kraken --model ollama/qwen2.5-coder
 ```
 
-**Features implementadas:**
-- ✅ Compresión Zlib (configurable)
-- ✅ Caché en memoria + SQLite
-- ✅ 4 políticas de eviction (LRU, LFU, FIFO, TTL)
-- ✅ 45 tests (86% cobertura)
-- ✅ Estadísticas de hit rate
+### Run a vulnerability scan
 
-### Proveedores Locales
+```bash
+# Quick scan
+./target/release/kraken --vulnscan ./src
 
-```rust
-// Auto-discovery de proveedores
-let providers = discover_providers().await;
-// [ProviderInfo { name: "ollama", available: true }, ...]
-```
-
----
-
-## ✨ Características Enterprise
-
-### Features Incluidas (Sin Costo Extra)
-
-| Módulo | Característica | Descripción |
-|--------|---------------|-------------|
-| `retry` | **Exponential Backoff** | Reintentos con jitter configurable |
-| `circuit_breaker` | **Circuit Breaker** | Tolerancia a fallos upstream |
-| `health` | **Health Checks** | Monitoreo de salud del sistema |
-| `graceful_degradation` | **Fallback Automático** | Degradación elegante |
-| `metrics` | **Métricas** | Métricas por proveedor |
-| `logging` | **JSON Logging** | Formato estructurado |
-| `tracing` | **Distributed Tracing** | Correlación de requests |
-| `performance` | **Connection Pooling** | Reuso de conexiones HTTP |
-| `performance` | **Timed Cache** | Cache con TTL |
-| `enterprise_features` | **Auditoría** | Registro de acciones |
-| `enterprise_features` | **Rate Limiting** | Límites por usuario |
-
----
-
-## 🤖 Modelos Gratuitos (Sin USD)
-
-| Proveedor | Modelos | Tokens Gratuitos |
-|----------|--------|-----------------|
-| **DeepSeek** | V3, R1, Coder | 5M/mes |
-| **Big Pickle** | OpenCode Zen | Ilimitado |
-| **Ollama** | qwen2.5-coder, llama3.1 | Local (gratis) |
-| **LM Studio** | Modelos locales | Local (gratis) |
-
-> Sin tarjeta de crédito internacional requerida
-
----
-
-## 🧬 Algoritmos Bio-Inspirados (100% Rust)
-
-```
-rust/crates/optimization/
-├── pso.rs    # Particle Swarm Optimization (PSO)
-├── ga.rs     # Genetic Algorithm (GA)
-├── aco.rs    # Ant Colony Optimization (ACO)
-└── sa.rs     # Simulated Annealing (SA)
+# Overnight autonomous bughunt (scan → validate → exploit → report)
+./target/release/kraken --model deepseek-chat --vulnscan --overnight ./src
 ```
 
 ---
 
-## 🏗️ Arquitectura
-
-### Vista General
-
-Claw Code Venezuela implementa una **arquitectura de capas** basada en crates Rust modulares:
+## Architecture (17 Rust crates)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CLI (rusty-claude-cli)                 │
-│              ⬇️ 150MB binario standalone                  │
+│                    kraken CLI (binary)                       │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
-│  │commands │  │  tools   │  │plugins  │  │telemetry│  │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+│  commands (135+)   tools (40)   plugins   telemetry          │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-│  │  api    │  │ runtime  │  │enterprise│                 │
-│  └──────────┘  └──────────┘  └──────────┘                 │
+│  api (multi-provider)   runtime (sessions, MCP, permissions) │
+│  enterprise (retry, circuit breaker, metrics, tracing)       │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
-│  │security │  │  cache  │  │ offline │  │localmodel│  │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+│  vulnscan (scanner + exploit + hunting)    security (AES)    │
+│  cache (mem+disk, LRU/LFU/FIFO/TTL)       offline (SQLite)  │
+│  localmodels (Ollama, LM Studio)           optimization (PSO,│
+│                                            GA, ACO, SA)     │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐  │
-│  │optimiz. │  │sandbox  │  │compat-   │  │ mock-   │  │
-│  │(PSO/GA) │  │         │  │harness  │  │service │  │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘  │
+│  sandbox (isolation)   compat-harness   mock-anthropic       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Capa 1: Core Runtime
+### Crate overview
 
-| Crate | Propósito | Deps. Externas |
-|-------|---------|--------------|
-| **runtime** | Gestión de sesiones, MCP, permisos, workers | tokio, sha2, walkdir |
-| **security** | Cifrado AES-256-GCM, Argon2id, XChaCha20Poly1305 | aes-gcm, argon2, zeroize |
-| **api** | Proveedores (DeepSeek, Ollama, BigPickle) | reqwest, tokio |
+| Crate | Purpose | Lines |
+|---|---|---|
+| `api` | Multi-provider LLM client (Anthropic, DeepSeek, xAI, OpenAI, Ollama) | ~3,500 |
+| `commands` | 135+ slash commands | ~5,800 |
+| `tools` | 40+ tools (read, edit, bash, grep, glob, web_fetch, ...) | ~2,500 |
+| `runtime` | Sessions, MCP server, permissions, task registry, workers | ~4,000 |
+| **`vulnscan`** | **9-language AST scanner, exploit gen, chain solver, bughunt** | **~6,500** |
+| `security` | AES-256-GCM, XChaCha20Poly1305, Argon2id, zeroize | ~1,000 |
+| `enterprise` | Circuit breaker, retry, health checks, metrics, tracing | ~1,800 |
+| `cache` | Multi-level (mem+SQLite), zlib, LRU/LFU/FIFO/TTL, 45 tests | ~1,200 |
+| `offline` | SQLite operation queue with auto-sync | ~800 |
+| `localmodels` | Ollama/LM Studio auto-discovery | ~300 |
+| `optimization` | PSO, Genetic Algorithm, Ant Colony, Simulated Annealing | ~1,500 |
+| `plugins` | Plugin lifecycle management | ~600 |
+| `sandbox` | Container isolation | ~200 |
+| `telemetry` | Analytics and structured logging | ~400 |
+| `compat-harness` | Behavioral compatibility tests | ~1,000 |
+| `mock-anthropic-service` | Deterministic mock API for testing | ~300 |
+| `rusty-claude-cli` | Main binary entry point | ~13,400 |
 
-### Capa 2: Aplicación
-
-| Crate | Propósito | Deps. Externas |
-|-------|---------|--------------|
-| **commands** | ~100 comandos slash | plugins, runtime |
-| **tools** | ~40 tools (read, edit, bash, etc.) | api, runtime, reqwest |
-| **enterprise** | Circuit breaker, retry, metrics, logging | tokio, chrono, uuid |
-| **plugins** | Plugin lifecycle | serde |
-| **telemetry** | Analytics | serde |
-
-### Capa 3: Venezuela Features
-
-| Crate | Propósito | Deps. Externas |
-|-------|---------|--------------|
-| **cache** | Cache multi-nivel (memoria + SQLite + gzip) | rusqlite, lru, flate2 |
-| **offline** | Sistema offline-first con sync | rusqlite, tokio |
-| **localmodels** | Proveedores locales (Ollama, LM Studio) | reqwest |
-| **optimization** | Algoritmos bio-inspirados (PSO, GA, ACO, SA) | rand |
-
-### Capa 4: Utilidades
-
-| Crate | Propósito |
-|-------|---------|
-| **sandbox** | Aislamiento de comandos (experimental) |
-| **compat-harness** | Tests de compatibilidad |
-| **mock-anthropic-service** | Mock de API para tests |
-
-### Flujo de Datos
-
-```
-Usuario Input
-     │
-     ▼
-┌────────────┐
-│ rusty-cli  │  ← rustyline (input), pulldown-cmark (markdown)
-└─────┬──────┘
-      ▼
-┌────────────┐
-│  runtime    │  ← Sesiones, permisos, MCP
-└─────┬──────┘
-      ▼
-┌────────────┐         ┌────────────┐
-│  commands  │ ──────► │   tools    │  ← Herramientas ejecutables
-└────────────┘         └─────┬──────┘
-                              ▼
-                       ┌────────────┐
-                       │    api     │  ← HTTP client
-                       └─────┬──────┘
-                              ▼
-                       ┌────────────────────────┐
-                       │ Proveedores (LLM)     │
-                       │ • DeepSeek (HTTP)      │
-                       │ • Ollama (local)       │
-                       │ • BigPickle (HTTP)     │
-                       └────────────────────────┘
-```
-
-### Módulos del Workspace
-
-```
-claw-vzla/rust/
-├── Cargo.toml              # Workspace (17 crates)
-├── crates/
-│   ├── api/              # Proveedores LLM
-│   ├── commands/         # Comandos CLI (~100)
-│   ├── cache/            # Cache multi-nivel
-│   ├── compat-harness/   # Tests compatibilidad
-│   ├── enterprise/      # Features enterprise
-│   ├── localmodels/    # Proveedores locales
-│   ├── mock-anthropic-service/
-│   ├── offline/        # Sistema offline
-│   ├── optimization/   # PSO, GA, ACO, SA
-│   ├── plugins/        # Plugin lifecycle
-│   ├── runtime/        # Core runtime
-│   ├── rusty-claude-cli/ # CLI binario
-│   ├── sandbox/        # Aislamiento
-│   ├── security/      # Cifrado nivel dios
-│   ├── telemetry/     # Analytics
-│   └── tools/         # Herramientas (~40)
-└── ...
-```
-claw-vzla/
-├── rust/
-│   ├── Cargo.toml              # Workspace (17 crates)
-│   ├── crates/
-│   │   ├── api/              # Proveedores
-│   │   ├── commands/         # Comandos CLI
-│   │   ├── cache/            # Cache multi-nivel (NUEVO)
-│   │   ├── compat-harness/
-│   │   ├── enterprise/        # Features enterprise
-│   │   ├── localmodels/      # Proveedores locales (NUEVO)
-│   │   ├── mock-anthropic-service/
-│   │   ├── offline/          # Sistema offline (NUEVO)
-│   │   ├── optimization/     # PSO, GA, ACO, SA
-│   │   ├── plugins/
-│   │   ├── runtime/
-│   │   ├── rusty-claude-cli/ # CLI (~150MB)
-│   │   ├── sandbox/
-│   │   ├── security/        # Cifrado nivel dios
-│   │   ├── telemetry/
-│   │   └── tools/
-├── ROADMAP.md
-├── ROADMAP-ENTERPRISE.md
-├── ROADMAP-VENEZUELA.md     # Roadmap nuevos módulos
-├── PHILOSOPHY.md
-└── LICENSE
-```
+**Total: ~93,000 lines of Rust, 1,100+ tests, 545+ commits.**
 
 ---
 
-## 🧪 Pruebas
+## Vulnscan Deep Dive
 
-```bash
-cd rust && cargo test --workspace
+The `vulnscan` crate (6,500 lines, 38 source files) is Kraken's crown jewel.
+
+### Static Analyzers (9 languages)
+
+| Language | Analyzer |
+|---|---|
+| C | `.c`, `.h` — memory safety, buffer overflows, use-after-free |
+| C++ | `.cpp`, `.hpp`, `.cc`, `.cxx` — type confusion, integer overflows |
+| Rust | `.rs` — unsafe blocks, transmute, pointer arithmetic |
+| Go | `.go` — nil dereference, race conditions |
+| Java | `.java` — deserialization, path traversal |
+| JavaScript | `.js`, `.ts` — prototype pollution, XSS, eval injection |
+| Python | `.py` — code injection, SSRF, YAML deserialization |
+| Ruby | `.rb` — command injection, unsafe reflection |
+| Swift | `.swift` — memory safety, crypto misuse |
+
+### Hunting Pipeline
+
+```
+┌────────┐  ┌──────────┐  ┌────────┐  ┌──────────┐  ┌────────┐
+│ Recon  │→│ Discover  │→│ Chain  │→│ Exploit  │→│ Report │
+└────────┘  └──────────┘  └────────┘  └──────────┘  └────────┘
+     │            │            │            │            │
+     ▼            ▼            ▼            ▼            ▼
+ surface    findings    attack      PoC code    HTML/JSON
+ mapping    + CVSS      paths       + chain     with graphs
 ```
 
-### Cobertura de Tests
+### Modes
 
-| Crate | Tests | Estado | Cobertura |
-|-------|------|--------|-----------|
-| enterprise | 27 | ✅ Passing | - |
-| optimization | 12 | ✅ Passing | - |
-| security | 14 | ✅ Passing | - |
-| sandbox | 2 | ✅ Passing | - |
-| api | 50+ | ✅ Passing | - |
-| **cache** | **45** | **✅ Passing** | **86%** |
-
-**Total: 510+ tests passing**
+| Mode | What it does | Use case |
+|---|---|---|
+| `--fast` | Pattern-based scan only | Quick CI check |
+| `--deep` | Pattern + LLM analysis | Full audit |
+| `--overnight` | Full autonomous pipeline: rank → scan → validate → exploit → report | Deep bug hunt |
 
 ---
 
-## 🚀 Inicio Rápido
+## Requirements
 
-```bash
-# Clonar
-git clone https://github.com/rooselvelt6/claw-vzla.git
-cd claw-vzla/rust
-
-# Compilar
-cargo build --release
-
-# Ejecutar (DeepSeek - gratis)
-DEEPSEEK_API_KEY=tu_key ./target/release/claw run "Hola mundo"
-
-# O con Ollama (local)
-./target/release/claw run "Hola" --model ollama/qwen2.5-coder
-```
+- **OS**: Linux, macOS, or Windows (via WSL)
+- **Rust**: 1.80+ (install via `rustup`)
+- **Disk**: ~2GB for build artifacts
+- **RAM**: 512MB minimum, 4GB+ recommended
+- **Internet**: Required for remote LLM providers (offline mode available for local models)
 
 ---
 
-## 📊 Comparativa
+## Documentation
 
-| Característica | Claw Original | Venezuela Fork |
-|---------------|--------------|---------------|
-| **Proveedores** | Anthropic | DeepSeek + Big Pickle + Ollama |
-| **Tier Gratis** | ❌ | ✅ 5M+ tokens |
-| **Cifrado** | AES-GCM básico | AES-256-GCM + XChaCha20Poly1305 |
-| **KDF** | SHA256 | Argon2id (OWASP 2024) |
-| **Audit Log** | ❌ | ✅ Hash chain |
-| **Circuit Breaker** | ❌ | ✅ Incluido |
-| **Offline Mode** | ❌ | ✅ SQLite + sync |
-| **Cache** | ❌ | ✅ Multi-nivel gzip |
-| **Zeroize** | ❌ | ✅ Memoria segura |
-| **Python** | 30% | 0% |
+- [`rust/USAGE.md`](./rust/USAGE.md) — CLI usage, authentication, sessions, configuration
+- [`docs/GRATIS.md`](./docs/GRATIS.md) — Free model providers guide (Spanish)
+- [`PHILOSOPHY.md`](./PHILOSOPHY.md) — Project philosophy
+- [`ROADMAP.md`](./ROADMAP.md) — Development roadmap
 
 ---
 
-## 🏆 Diferencial Venezuela
+## License
 
-> *"En Venezuela, si algo funciona sin USD, sin tarjeta, y con buen rendimiento... **es tecnología de verdad.**"*
-
-- ✅ **Sin dependencia USD**
-- ✅ **Sin tarjeta de crédito internacional**
-- ✅ **Mode Offline-first** - Funciona sin internet
-- ✅ **Cache inteligente** - Reduce uso de API
-- ✅ **Modelos locales** - Ollama, LM Studio
-- ✅ **Cifrado nivel enterprise**
-- ✅ **100% Rust - memoria segura**
-- ✅ **0% Python**
-
----
-
-## 📖 Documentación
-
-- [PHILOSOPHY.md](./PHILOSOPHY.md) - Filosofía del proyecto
-- [ROADMAP.md](./ROADMAP.md) - Roadmap original
-- [ROADMAP-ENTERPRISE.md](./ROADMAP-ENTERPRISE.md) - Roadmap enterprise
-- [ROADMAP-VENEZUELA.md](./ROADMAP-VENEZUELA.md) - Roadmap Venezuela
-- [docs/GRATIS.md](./docs/GRATIS.md) - Guía modelos gratuitos
-
----
-
-## 🤝 Contribuir
-
-```bash
-# Build y test
-cd rust
-cargo test --workspace
-cargo fmt
-cargo clippy --workspace -- -D warnings
-```
-
----
-
-## 📜 Licencia
-
-MIT License - Ver [LICENSE](./LICENSE)
-
----
-
-## 🇻🇪 Logros Alcanzados (Abril 2026)
-
-### Fase 1: Cache Multi-Nivel ✅
-- **Cache multi-nivel** implementado con compresión Zlib y 4 políticas de eviction
-- **45 tests pasando** (100% cobertura)
-- Commit: `e77f822` - Push a GitHub completado
-
-### Fase 2: LRU Real + Optimizaciones ✅
-- **LRU real** con crate `lru` v0.18 (reemplaza HashMap manual)
-- **AtomicU64** para hits/misses (más eficiente que Mutex&lt;u64&gt;)
-- **CacheType::as_str()** elimina `format!("{:?}")` del código
-- **unwrap_or_else** en mutex locks para recuperación de poisoning
-- Commit: `9381ac7` - Push a GitHub completado
-
-### Fase 3: Seguridad y Calidad ✅
-- **cargo audit**: 0 vulnerabilidades (fix lru, rand, rustls-webpki)
-- **cargo clippy --workspace**: 0 errores (suppress warnings masivos)
-- **cargo test --workspace**: 130+ tests pasando
-- **Permisos 0o600** en archivos sensibles (DB, credenciales, sesiones)
-- Commits: `d9c075e`, `b34cec3` - Push a GitHub completado
-
-### 📊 Métricas Finales
-```
-┌─────────────────────────────┐
-│  Claw Code Venezuela - Abril 2026      │
-├─────────────────────────────┤
-│  🦀 545 commits                    │
-│  📦 17 crates                      │
-│  ✅ 130+ tests passing              │
-│  🚀 100% Rust (0% Python)        │
-│  🔒 Seguridad verificada           │
-│  🇻🇪 Hecho en Venezuela            │
-└─────────────────────────────┘
-```
+MIT
 
 ---
 
 <p align="center">
-
-**100% Rust • 0% Python • Offline-First • Sin USD**
-
-Para Venezuela
+  <b>100% Rust. 0% Python. Free providers. No USD required.</b>
 </p>

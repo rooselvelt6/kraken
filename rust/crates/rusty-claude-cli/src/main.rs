@@ -33,7 +33,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const CLI_NAMES: &[&str] = &["claw", "kraken", "claw-vzla", "claw-ve"];
+const CLI_NAMES: &[&str] = &["kraken", "claw", "claw-ve"];
 
 fn get_invoked_name() -> String {
     let args: Vec<String> = std::env::args().collect();
@@ -41,14 +41,14 @@ fn get_invoked_name() -> String {
         .first()
         .and_then(|p| Path::new(p).file_name())
         .and_then(|n| n.to_str())
-        .unwrap_or("claw")
+        .unwrap_or("kraken")
         .to_lowercase();
 
     CLI_NAMES
         .iter()
         .find(|&name| binary_name == *name)
         .map(|s| s.to_string())
-        .unwrap_or_else(|| "claw".to_string())
+        .unwrap_or_else(|| "kraken".to_string())
 }
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
@@ -90,8 +90,8 @@ use tools::{
 
 const DEFAULT_MODEL: &str = "claude-opus-4-6";
 
-/// #148: Model provenance for `claw status` JSON/text output. Records where
-/// the resolved model string came from so claws don't have to re-read argv
+/// #148: Model provenance for `kraken status` JSON/text output. Records where
+/// the resolved model string came from so krakens don't have to re-read argv
 /// to audit whether their `--model` flag was honored vs falling back to env
 /// or config or default.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,7 +100,7 @@ enum ModelSource {
     Flag,
     /// ANTHROPIC_MODEL environment variable (when no flag was passed).
     Env,
-    /// `model` key in `.claw.json` / `.claw/settings.json` (when neither
+    /// `model` key in `.kraken.json` / `.kraken/settings.json` (when neither
     /// flag nor env set it).
     Config,
     /// Compiled-in DEFAULT_MODEL fallback.
@@ -200,9 +200,9 @@ const INTERNAL_PROGRESS_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(3);
 const POST_TOOL_STALL_TIMEOUT: Duration = Duration::from_secs(10);
 const PRIMARY_SESSION_EXTENSION: &str = "jsonl";
 const LEGACY_SESSION_EXTENSION: &str = "json";
-const OFFICIAL_REPO_URL: &str = "https://github.com/ultraworkers/claw-code";
-const OFFICIAL_REPO_SLUG: &str = "ultraworkers/claw-code";
-const DEPRECATED_INSTALL_COMMAND: &str = "cargo install claw-code";
+const OFFICIAL_REPO_URL: &str = "https://github.com/ultraworkers/kraken-code";
+const OFFICIAL_REPO_SLUG: &str = "ultraworkers/kraken-code";
+const DEPRECATED_INSTALL_COMMAND: &str = "cargo install kraken-code";
 const LATEST_SESSION_REFERENCE: &str = "latest";
 const SESSION_REFERENCE_ALIASES: &[&str] = &[LATEST_SESSION_REFERENCE, "last", "recent"];
 const CLI_OPTION_SUGGESTIONS: &[&str] = &[
@@ -242,7 +242,7 @@ fn main() {
             .any(|w| w[0] == "--output-format" && w[1] == "json")
             || argv.iter().any(|a| a == "--output-format=json");
         if json_output {
-            // #77: classify error by prefix so downstream claws can route without
+            // #77: classify error by prefix so downstream krakens can route without
             // regex-scraping the prose. Split short-reason from hint-runbook.
             let kind = classify_error_kind(&message);
             let (short_reason, hint) = split_error_hint(&message);
@@ -259,7 +259,7 @@ fn main() {
             // #156: Add machine-readable error kind to text output so stderr observers
             // don't need to regex-scrape the prose.
             let kind = classify_error_kind(&message);
-            if message.contains("`claw --help`") {
+            if message.contains("`kraken --help`") {
                 eprintln!(
                     "[error-kind: {kind}]
 error: {message}"
@@ -269,7 +269,7 @@ error: {message}"
                     "[error-kind: {kind}]
 error: {message}
 
-Run `claw --help` for usage."
+Run `kraken --help` for usage."
                 );
             }
         }
@@ -574,7 +574,7 @@ enum CliAction {
     Init {
         output_format: CliOutputFormat,
     },
-    // #146: `claw config` and `claw diff` are pure-local read-only
+    // #146: `kraken config` and `kraken diff` are pure-local read-only
     // introspection commands; wire them as standalone CLI subcommands.
     Config {
         section: Option<String>,
@@ -610,7 +610,7 @@ enum LocalHelpTopic {
     Doctor,
     Acp,
     // #141: extend the local-help pattern to every subcommand so
-    // `claw <subcommand> --help` has one consistent contract.
+    // `kraken <subcommand> --help` has one consistent contract.
     Init,
     State,
     Export,
@@ -667,7 +667,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                     && matches!(rest[0].as_str(), "prompt" | "commit" | "pr" | "issue") =>
             {
                 // `--help` following a subcommand that would otherwise forward
-                // the arg to the API (e.g. `claw prompt --help`) should show
+                // the arg to the API (e.g. `kraken prompt --help`) should show
                 // top-level help instead. Subcommands that consume their own
                 // args (agents, mcp, plugins, skills) and local help-topic
                 // subcommands (status, sandbox, doctor, init, state, export,
@@ -765,7 +765,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 index += 1;
             }
             "-p" => {
-                // Claw Code compat: -p "prompt" = one-shot prompt
+                // Kraken Code compat: -p "prompt" = one-shot prompt
                 let prompt = args[index + 1..].join(" ");
                 if prompt.trim().is_empty() {
                     return Err("-p requires a prompt string".to_string());
@@ -784,7 +784,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                 });
             }
             "--print" => {
-                // Claw Code compat: --print makes output non-interactive
+                // Kraken Code compat: --print makes output non-interactive
                 output_format = CliOutputFormat::Text;
                 index += 1;
             }
@@ -899,8 +899,8 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
             output_format,
         }),
         // #145: `plugins` was routed through the prompt fallback because no
-        // top-level parser arm produced CliAction::Plugins. That made `claw
-        // plugins` (and `claw plugins --help`, `claw plugins list`, ...)
+        // top-level parser arm produced CliAction::Plugins. That made `kraken
+        // plugins` (and `kraken plugins --help`, `kraken plugins list`, ...)
         // attempt an Anthropic network call, surfacing the misleading error
         // `missing Anthropic credentials` even though the command is purely
         // local introspection. Mirror `agents`/`mcp`/`skills`: action is the
@@ -911,7 +911,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
             let target = tail.get(1).cloned();
             if tail.len() > 2 {
                 return Err(format!(
-                    "unexpected extra arguments after `claw plugins {}`: {}",
+                    "unexpected extra arguments after `kraken plugins {}`: {}",
                     tail[..2].join(" "),
                     tail[2..].join(" ")
                 ));
@@ -923,9 +923,9 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
             })
         }
         // #146: `config` is pure-local read-only introspection (merges
-        // `.claw.json` + `.claw/settings.json` from disk, no network, no
+        // `.kraken.json` + `.kraken/settings.json` from disk, no network, no
         // state mutation). Previously callers had to spin up a session with
-        // `claw --resume SESSION.jsonl /config` to see their own config,
+        // `kraken --resume SESSION.jsonl /config` to see their own config,
         // which is synthetic friction. Accepts an optional section name
         // (env|hooks|model|plugins) matching the slash command shape.
         "config" => {
@@ -933,7 +933,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
             let section = tail.first().cloned();
             if tail.len() > 1 {
                 return Err(format!(
-                    "unexpected extra arguments after `claw config {}`: {}",
+                    "unexpected extra arguments after `kraken config {}`: {}",
                     tail[0],
                     tail[1..].join(" ")
                 ));
@@ -948,7 +948,7 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
         "diff" => {
             if rest.len() > 1 {
                 return Err(format!(
-                    "unexpected extra arguments after `claw diff`: {}",
+                    "unexpected extra arguments after `kraken diff`: {}",
                     rest[1..].join(" ")
                 ));
             }
@@ -1016,21 +1016,21 @@ fn parse_args(args: &[String]) -> Result<CliAction, String> {
                         message.push_str(&line);
                     }
                     message.push_str(
-                        "\nRun `claw --help` for the full list. If you meant to send a prompt literally, use `claw prompt <text>`.",
+                        "\nRun `kraken --help` for the full list. If you meant to send a prompt literally, use `kraken prompt <text>`.",
                     );
                     return Err(message);
                 }
             }
             // #147: guard empty/whitespace-only prompts at the fallthrough
             // path the same way `"prompt"` arm above does. Without this,
-            // `claw ""`, `claw "   "`, and `claw "" ""` silently route to
+            // `kraken ""`, `kraken "   "`, and `kraken "" ""` silently route to
             // the Anthropic call and surface a misleading
             // `missing Anthropic credentials` error (or burn API tokens on
             // an empty prompt when credentials are present).
             let joined = rest.join(" ");
             if joined.trim().is_empty() {
                 return Err(
-                    "empty prompt: provide a subcommand (run `claw --help`) or a non-empty prompt string"
+                    "empty prompt: provide a subcommand (run `kraken --help`) or a non-empty prompt string"
                         .to_string(),
                 );
             }
@@ -1163,11 +1163,11 @@ fn bare_slash_command_guidance(command_name: &str) -> Option<String> {
         .find(|spec| spec.name == command_name)?;
     let guidance = if slash_command.resume_supported {
         format!(
-            "`claw {command_name}` is a slash command. Use `claw --resume SESSION.jsonl /{command_name}` or start `claw` and run `/{command_name}`."
+            "`kraken {command_name}` is a slash command. Use `kraken --resume SESSION.jsonl /{command_name}` or start `kraken` and run `/{command_name}`."
         )
     } else {
         format!(
-            "`claw {command_name}` is a slash command. Start `claw` and run `/{command_name}` inside the REPL."
+            "`kraken {command_name}` is a slash command. Start `kraken` and run `/{command_name}` inside the REPL."
         )
     };
     Some(guidance)
@@ -1175,7 +1175,7 @@ fn bare_slash_command_guidance(command_name: &str) -> Option<String> {
 
 fn removed_auth_surface_error(command_name: &str) -> String {
     format!(
-        "`claw {command_name}` has been removed. Set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN instead."
+        "`kraken {command_name}` has been removed. Set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN instead."
     )
 }
 
@@ -1184,7 +1184,7 @@ fn parse_acp_args(args: &[String], output_format: CliOutputFormat) -> Result<Cli
         [] => Ok(CliAction::Acp { output_format }),
         [subcommand] if subcommand == "serve" => Ok(CliAction::Acp { output_format }),
         _ => Err(String::from(
-            "unsupported ACP invocation. Use `claw acp`, `claw acp serve`, `claw --acp`, or `claw -acp`.",
+            "unsupported ACP invocation. Use `kraken acp`, `kraken acp serve`, `kraken --acp`, or `kraken -acp`.",
         )),
     }
 }
@@ -1262,7 +1262,7 @@ fn parse_direct_slash_cli_action(
         Ok(Some(command)) => Err({
             let _ = command;
             format!(
-                "slash command {command_name} is interactive-only. Start `claw` and run it there, or use `claw --resume SESSION.jsonl {command_name}` / `claw --resume {latest} {command_name}` when the command is marked [resume] in /help.",
+                "slash command {command_name} is interactive-only. Start `kraken` and run it there, or use `kraken --resume SESSION.jsonl {command_name}` / `kraken --resume {latest} {command_name}` when the command is marked [resume] in /help.",
                 command_name = rest[0],
                 latest = LATEST_SESSION_REFERENCE,
             )
@@ -1279,7 +1279,7 @@ fn format_unknown_option(option: &str) -> String {
         message.push_str(suggestion);
         message.push('?');
     }
-    message.push_str("\nRun `claw --help` for usage.");
+    message.push_str("\nRun `kraken --help` for usage.");
     message
 }
 
@@ -1294,7 +1294,7 @@ fn format_unknown_direct_slash_command(name: &str) -> String {
         message.push('\n');
         message.push_str(note);
     }
-    message.push_str("\nRun `claw --help` for CLI usage, or start `claw` and use /help.");
+    message.push_str("\nRun `kraken --help` for CLI usage, or start `kraken` and use /help.");
     message
 }
 
@@ -1316,7 +1316,7 @@ fn format_unknown_slash_command(name: &str) -> String {
 fn omc_compatibility_note_for_unknown_slash_command(name: &str) -> Option<&'static str> {
     name.starts_with("oh-my-claudecode:")
         .then_some(
-            "Compatibility note: `/oh-my-claudecode:*` is a Claude Code/OMC plugin command. `claw` does not yet load plugin slash commands, Claude statusline stdin, or OMC session hooks.",
+            "Compatibility note: `/oh-my-claudecode:*` is a Claude Code/OMC plugin command. `kraken` does not yet load plugin slash commands, Claude statusline stdin, or OMC session hooks.",
         )
 }
 
@@ -2020,33 +2020,33 @@ fn run_doctor(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::
     Ok(())
 }
 
-/// Starts a minimal Model Context Protocol server that exposes claw's
+/// Starts a minimal Model Context Protocol server that exposes kraken's
 /// built-in tools over stdio.
 ///
 /// Tool descriptors come from [`tools::mvp_tool_specs`] and calls are
 /// dispatched through [`tools::execute_tool`], so this server exposes exactly
-/// Read `.claw/worker-state.json` from the current working directory and print it.
+/// Read `.kraken/worker-state.json` from the current working directory and print it.
 /// This is the file-based worker observability surface: `push_event()` in `worker_boot.rs`
-/// atomically writes state transitions here so external observers (clawhip, orchestrators)
+/// atomically writes state transitions here so external observers (krakenhip, orchestrators)
 /// can poll current `WorkerStatus` without needing an HTTP route on the opencode binary.
 fn run_worker_state(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::Error>> {
     let cwd = env::current_dir()?;
-    let state_path = cwd.join(".claw").join("worker-state.json");
+    let state_path = cwd.join(".kraken").join("worker-state.json");
     if !state_path.exists() {
         // #139: this error used to say "run a worker first" without telling
         // callers how to run one. "worker" is an internal concept (there is
-        // no `claw worker` subcommand), so claws/CI had no discoverable path
+        // no `kraken worker` subcommand), so krakens/CI had no discoverable path
         // from the error to a fix. Emit an actionable, structured error that
         // names the two concrete commands that produce worker state.
         //
         // Format in both text and JSON modes is stable so scripts can match:
         //   error: no worker state file found at <path>
         //     Hint: worker state is written by the interactive REPL or a non-interactive prompt.
-        //     Run:   claw               # start the REPL (writes state on first turn)
-        //     Or:    claw prompt <text> # run one non-interactive turn
-        //     Then rerun: claw state [--output-format json]
+        //     Run:   kraken               # start the REPL (writes state on first turn)
+        //     Or:    kraken prompt <text> # run one non-interactive turn
+        //     Then rerun: kraken state [--output-format json]
         return Err(format!(
-            "no worker state file found at {path}\n  Hint: worker state is written by the interactive REPL or a non-interactive prompt.\n  Run:   claw               # start the REPL (writes state on first turn)\n  Or:    claw prompt <text> # run one non-interactive turn\n  Then rerun: claw state [--output-format json]",
+            "no worker state file found at {path}\n  Hint: worker state is written by the interactive REPL or a non-interactive prompt.\n  Run:   kraken               # start the REPL (writes state on first turn)\n  Or:    kraken prompt <text> # run one non-interactive turn\n  Then rerun: kraken state [--output-format json]",
             path = state_path.display()
         )
         .into());
@@ -2077,7 +2077,7 @@ fn run_mcp_serve() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     let spec = McpServerSpec {
-        server_name: "claw".to_string(),
+        server_name: "kraken".to_string(),
         server_version: VERSION.to_string(),
         tools,
         tool_handler: Box::new(execute_tool),
@@ -2143,7 +2143,7 @@ fn check_auth_health() -> DiagnosticCheck {
                     token_set.scopes.join(",")
                 }
             ),
-            "Suggested action  set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN; `claw login` is removed"
+            "Suggested action  set ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN; `kraken login` is removed"
                 .to_string(),
         ])
         .with_data(Map::from_iter([
@@ -2305,7 +2305,7 @@ fn check_install_source_health() -> DiagnosticCheck {
         "Recommended path  build from this repo or use the upstream binary documented in README.md"
             .to_string(),
         format!(
-            "Deprecated crate  `{DEPRECATED_INSTALL_COMMAND}` installs a deprecated stub and does not provide the `claw` binary"
+            "Deprecated crate  `{DEPRECATED_INSTALL_COMMAND}` installs a deprecated stub and does not provide the `kraken` binary"
         )
             .to_string(),
     ])
@@ -2519,7 +2519,7 @@ fn dump_manifests(
 }
 
 const DUMP_MANIFESTS_OVERRIDE_HINT: &str =
-    "Hint: set CLAUDE_CODE_UPSTREAM=/path/to/upstream or pass `claw dump-manifests --manifests-dir /path/to/upstream`.";
+    "Hint: set CLAUDE_CODE_UPSTREAM=/path/to/upstream or pass `kraken dump-manifests --manifests-dir /path/to/upstream`.";
 
 // Internal function for testing that accepts a workspace directory path.
 fn dump_manifests_at_path(
@@ -2833,11 +2833,11 @@ struct StatusContext {
     git_branch: Option<String>,
     git_summary: GitWorkspaceSummary,
     sandbox_status: runtime::SandboxStatus,
-    /// #143: when `.claw.json` (or another loaded config file) fails to parse,
+    /// #143: when `.kraken.json` (or another loaded config file) fails to parse,
     /// we capture the parse error here and still populate every field that
     /// doesn't depend on runtime config (workspace, git, sandbox defaults,
     /// discovery counts). Top-level JSON output then reports
-    /// `status: "degraded"` so claws can distinguish "status ran but config
+    /// `status: "degraded"` so krakens can distinguish "status ran but config
     /// is broken" from "status ran cleanly".
     config_load_error: Option<String>,
 }
@@ -3014,7 +3014,7 @@ fn render_resume_usage() -> String {
     format!(
         "Resume
   Usage            /resume <session-path|session-id|{LATEST_SESSION_REFERENCE}>
-  Auto-save        .claw/sessions/<session-id>.{PRIMARY_SESSION_EXTENSION}
+  Auto-save        .kraken/sessions/<session-id>.{PRIMARY_SESSION_EXTENSION}
   Tip              use /session list to inspect saved sessions"
     )
 }
@@ -3212,7 +3212,7 @@ fn run_resume_command(
             Ok(ResumeCommandOutcome {
                 session: cleared,
                 message: Some(format!(
-                    "Session cleared\n  Mode             resumed session reset\n  Previous session {previous_session_id}\n  Backup           {}\n  Resume previous  claw --resume {}\n  New session      {new_session_id}\n  Session file     {}",
+                    "Session cleared\n  Mode             resumed session reset\n  Previous session {previous_session_id}\n  Backup           {}\n  Resume previous  kraken --resume {}\n  New session      {new_session_id}\n  Session file     {}",
                     backup_path.display(),
                     backup_path.display(),
                     session_path.display()
@@ -3373,7 +3373,7 @@ fn run_resume_command(
         SlashCommand::Skills { args } => {
             if let SkillSlashDispatch::Invoke(_) = classify_skills_slash_command(args.as_deref()) {
                 return Err(
-                    "resumed /skills invocations are interactive-only; start `claw` and run `/skills <skill>` in the REPL".into(),
+                    "resumed /skills invocations are interactive-only; start `kraken` and run `/skills <skill>` in the REPL".into(),
                 );
             }
             let cwd = env::current_dir()?;
@@ -3446,6 +3446,7 @@ fn run_resume_command(
             })
         }
         SlashCommand::Bughunter { .. }
+        | SlashCommand::Hunt { .. }
         | SlashCommand::Commit { .. }
         | SlashCommand::Pr { .. }
         | SlashCommand::Issue { .. }
@@ -3534,9 +3535,9 @@ fn enforce_broad_cwd_policy(
     if is_interactive {
         // Interactive mode: print warning and ask for confirmation
         eprintln!(
-            "Warning: claw is running from a very broad directory ({}).\n\
+            "Warning: kraken is running from a very broad directory ({}).\n\
              The agent can read and search everything under this path.\n\
-             Consider running from inside your project: cd /path/to/project && claw",
+             Consider running from inside your project: cd /path/to/project && kraken",
             cwd.display()
         );
         eprint!("Continue anyway? [y/N]: ");
@@ -3553,10 +3554,10 @@ fn enforce_broad_cwd_policy(
     } else {
         // Non-interactive mode: exit with error (JSON or text)
         let message = format!(
-            "claw is running from a very broad directory ({}). \
+            "kraken is running from a very broad directory ({}). \
              The agent can read and search everything under this path. \
              Use --allow-broad-cwd to proceed anyway, \
-             or run from inside your project: cd /path/to/project && claw",
+             or run from inside your project: cd /path/to/project && kraken",
             cwd.display()
         );
         match output_format {
@@ -4434,6 +4435,10 @@ impl LiveCli {
                 self.run_bughunter(scope.as_deref())?;
                 false
             }
+            SlashCommand::Hunt { scope, mode } => {
+                self.run_hunt(scope.as_deref(), mode.as_deref())?;
+                false
+            }
             SlashCommand::Commit => {
                 self.run_commit(None)?;
                 false
@@ -4880,7 +4885,7 @@ impl LiveCli {
         args: Option<&str>,
         output_format: CliOutputFormat,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        // `claw mcp serve` starts a stdio MCP server exposing claw's built-in
+        // `kraken mcp serve` starts a stdio MCP server exposing kraken's built-in
         // tools. All other `mcp` subcommands fall through to the existing
         // configured-server reporter (`list`, `status`, ...).
         if matches!(args.map(str::trim), Some("serve")) {
@@ -5182,7 +5187,223 @@ impl LiveCli {
     }
 
     fn run_bughunter(&self, scope: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::PathBuf;
+        use std::time::Instant;
+        use vulnscan::{Language, ScanConfig, Severity, VulnerabilityScanner};
+
+        let start = Instant::now();
+        let cwd = std::env::current_dir()?;
+        let mut config = ScanConfig::default();
+        config.enable_llm_agent = false;
+        config.enable_logic_analysis = true;
+        config.enable_crypto_analysis = true;
+        config.enable_secrets_detection = true;
+        config.enable_supply_chain = true;
+        config.enable_webapp_scan = true;
+
+        match scope {
+            Some(s) if !s.is_empty() && s != "repo" && s != "all" => {
+                let path = PathBuf::from(s);
+                if path.exists() {
+                    config.target_paths = vec![path];
+                } else {
+                    config.target_paths = vec![cwd.join(s)];
+                }
+            }
+            _ => {
+                config.target_paths = vec![cwd];
+            }
+        }
+
         println!("{}", format_bughunter_report(scope));
+        println!(
+            "Scanning {}...",
+            config
+                .target_paths
+                .first()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default()
+        );
+        println!();
+
+        let scanner = VulnerabilityScanner::new(config);
+        let findings = scanner.scan();
+        let elapsed = start.elapsed();
+
+        if findings.is_empty() {
+            println!(
+                "  No vulnerabilities found in {:.2}s",
+                elapsed.as_secs_f64()
+            );
+        } else {
+            vulnscan::generate_cli_report(&findings);
+            println!();
+            println!(
+                "  Scanned {} files in {:.2}s",
+                findings.len(),
+                elapsed.as_secs_f64()
+            );
+            println!();
+            println!("  Use --vulnscan or /vulnscan for deeper LLM-powered analysis");
+        }
+        Ok(())
+    }
+
+    fn run_hunt(
+        &self,
+        scope: Option<&str>,
+        mode: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::path::PathBuf;
+        use std::time::Instant;
+        use vulnscan::{HuntMode, HuntPipeline, ScanConfig};
+
+        let start = Instant::now();
+        let cwd = std::env::current_dir()?;
+        let mut config = ScanConfig::default();
+        config.enable_logic_analysis = true;
+        config.enable_crypto_analysis = true;
+        config.enable_secrets_detection = true;
+        config.enable_supply_chain = true;
+        config.enable_webapp_scan = true;
+
+        match scope {
+            Some(s) if !s.is_empty() && s != "repo" && s != "all" && !s.starts_with("--") => {
+                let path = PathBuf::from(s);
+                if path.exists() {
+                    config.target_paths = vec![path];
+                } else {
+                    config.target_paths = vec![cwd.join(s)];
+                }
+            }
+            _ => {
+                config.target_paths = vec![cwd];
+            }
+        }
+
+        let hunt_mode = match mode {
+            Some("--deep") | Some("-d") => HuntMode::Deep,
+            Some("--overnight") | Some("-o") => HuntMode::Overnight,
+            _ => HuntMode::Fast,
+        };
+
+        println!("\n  \x1b[1;36m=== Kraken Hunt: {:?} ===\x1b[0m", hunt_mode);
+        println!(
+            "  Target: {}",
+            config
+                .target_paths
+                .first()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default()
+        );
+        println!();
+
+        let mut pipeline = HuntPipeline::new(config);
+        let report = match hunt_mode {
+            HuntMode::Fast => pipeline.run(HuntMode::Fast),
+            HuntMode::Deep => pipeline.run_deep(),
+            HuntMode::Overnight => pipeline.run_overnight(),
+        };
+
+        let elapsed = start.elapsed();
+
+        println!("  \x1b[1;33mPhases completed:\x1b[0m");
+        for phase in &report.phases_completed {
+            println!("    ✓ {:?}", phase);
+        }
+        println!();
+
+        println!("  \x1b[1;33mResults:\x1b[0m");
+        println!("    Findings: {}", report.findings.len());
+        if !report.hypotheses.is_empty() {
+            println!("    Hypotheses: {}", report.hypotheses.len());
+        }
+        if !report.attack_paths.is_empty() {
+            println!("    Attack paths: {}", report.attack_paths.len());
+        }
+        if !report.deorphaned_findings.is_empty() {
+            println!("    Deorphaned: {}", report.deorphaned_findings.len());
+        }
+        println!();
+
+        if let Some(surface) = &report.attack_surface {
+            println!("  \x1b[1;33mAttack Surface:\x1b[0m");
+            println!("    Technologies: {}", surface.technologies.len());
+            println!("    Endpoints: {}", surface.endpoints.len());
+            println!("    Entry points: {}", surface.entry_points.len());
+            println!("    Dependencies: {}", surface.dependencies.len());
+            println!(
+                "    Files: {}, Lines: {}",
+                surface.total_files, surface.total_lines
+            );
+            println!();
+        }
+
+        if !report.findings.is_empty() {
+            println!("  \x1b[1;33mTop Findings:\x1b[0m");
+            let mut sorted = report.findings.clone();
+            sorted.sort_by(|a, b| b.severity.value().cmp(&a.severity.value()));
+            for f in sorted.iter().take(10) {
+                let severity_color = match f.severity {
+                    vulnscan::Severity::Critical => "\x1b[1;31m",
+                    vulnscan::Severity::High => "\x1b[0;31m",
+                    vulnscan::Severity::Medium => "\x1b[0;33m",
+                    vulnscan::Severity::Low => "\x1b[0;34m",
+                    vulnscan::Severity::Info => "\x1b[0;37m",
+                };
+                let path_str = f
+                    .file_path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default();
+                let line_str = f.line_number.map(|l| format!(":{}", l)).unwrap_or_default();
+                println!(
+                    "    {}{:8}\x1b[0m {} ({}{})",
+                    severity_color,
+                    format!("{:?}", f.severity),
+                    f.description,
+                    path_str,
+                    line_str
+                );
+            }
+            if sorted.len() > 10 {
+                println!("    ... and {} more", sorted.len() - 10);
+            }
+            println!();
+        }
+
+        if !report.hypotheses.is_empty() {
+            println!("  \x1b[1;33mHypotheses:\x1b[0m");
+            for h in &report.hypotheses {
+                println!("    • {} (p={:.1})", h.title, h.probability);
+            }
+            println!();
+        }
+
+        if !report.attack_paths.is_empty() {
+            println!("  \x1b[1;33mAttack Paths:\x1b[0m");
+            for (i, path) in report.attack_paths.iter().enumerate().take(3) {
+                println!(
+                    "    {}. {} (likelihood: {:.1})",
+                    i + 1,
+                    path.description,
+                    path.total_likelihood
+                );
+            }
+            println!();
+        }
+
+        let memory = pipeline.memory();
+        let sessions = memory.get_recent_sessions(3);
+        if !sessions.is_empty() {
+            println!("  \x1b[1;33mRecent sessions:\x1b[0m");
+            for s in sessions {
+                println!("    • {} → {} findings", s.id, s.total_findings);
+            }
+            println!();
+        }
+
+        println!("  \x1b[1;32mDone in {:.2}s\x1b[0m", elapsed.as_secs_f64());
         Ok(())
     }
 
@@ -5429,7 +5650,7 @@ fn render_repl_help() -> String {
         "  Tab                  Complete commands, modes, and recent sessions".to_string(),
         "  Ctrl-C               Clear input (or exit on empty prompt)".to_string(),
         "  Shift+Enter/Ctrl+J   Insert a newline".to_string(),
-        "  Auto-save            .claw/sessions/<session-id>.jsonl".to_string(),
+        "  Auto-save            .kraken/sessions/<session-id>.jsonl".to_string(),
         "  Resume latest        /resume latest".to_string(),
         "  Browse sessions      /session list".to_string(),
         "  Show prompt history  /history [count]".to_string(),
@@ -5504,7 +5725,7 @@ fn status_json_value(
     // case both new fields are omitted.
     provenance: Option<&ModelProvenance>,
 ) -> serde_json::Value {
-    // #143: top-level `status` marker so claws can distinguish
+    // #143: top-level `status` marker so krakens can distinguish
     // a clean run from a degraded run (config parse failed but other fields
     // are still populated). `config_load_error` carries the parse-error string
     // when present; it's a string rather than a typed object in Phase 1 and
@@ -5541,7 +5762,7 @@ fn status_json_value(
             "session": context.session_path.as_ref().map_or_else(|| "live-repl".to_string(), |path| path.display().to_string()),
             "session_id": context.session_path.as_ref().and_then(|path| {
                 // Session files are named <session-id>.jsonl directly under
-                // .claw/sessions/. Extract the stem (drop the .jsonl extension).
+                // .kraken/sessions/. Extract the stem (drop the .jsonl extension).
                 path.file_stem().map(|n| n.to_string_lossy().into_owned())
             }),
             "loaded_config_files": context.loaded_config_files,
@@ -5573,7 +5794,7 @@ fn status_context(
     let loader = ConfigLoader::default_for(&cwd);
     let discovered_config_files = loader.discover().len();
     // #143: degrade gracefully on config parse failure rather than hard-fail.
-    // `claw doctor` already does this; `claw status` now matches that contract
+    // `kraken doctor` already does this; `kraken status` now matches that contract
     // so that one malformed `mcpServers.*` entry doesn't take down the whole
     // health surface (workspace, git, model, permission, sandbox can still be
     // reported independently).
@@ -5585,7 +5806,7 @@ fn status_context(
         ),
         Err(err) => (
             0,
-            // Fall back to defaults for sandbox resolution so claws still see
+            // Fall back to defaults for sandbox resolution so krakens still see
             // a populated sandbox section instead of a missing field. Defaults
             // produce the same output as a runtime config with no sandbox
             // overrides, which is the right degraded-mode shape: we cannot
@@ -5634,7 +5855,7 @@ fn format_status_report(
     let mut blocks: Vec<String> = Vec::new();
     if let Some(err) = context.config_load_error.as_deref() {
         blocks.push(format!(
-            "Config load error\n  Status           fail\n  Summary          runtime config failed to load; reporting partial status\n  Details          {err}\n  Hint             `claw doctor` classifies config parse errors; fix the listed field and rerun"
+            "Config load error\n  Status           fail\n  Summary          runtime config failed to load; reporting partial status\n  Details          {err}\n  Hint             `kraken doctor` classifies config parse errors; fix the listed field and rerun"
         ));
     }
     // #148: render Model source line after Model, showing where the string
@@ -5814,85 +6035,85 @@ fn sandbox_json_value(status: &runtime::SandboxStatus) -> serde_json::Value {
 fn render_help_topic(topic: LocalHelpTopic) -> String {
     match topic {
         LocalHelpTopic::Status => "Status
-  Usage            claw status [--output-format <format>]
+  Usage            kraken status [--output-format <format>]
   Purpose          show the local workspace snapshot without entering the REPL
   Output           model, permissions, git state, config files, and sandbox status
   Formats          text (default), json
-  Related          /status · claw --resume latest /status"
+  Related          /status · kraken --resume latest /status"
             .to_string(),
         LocalHelpTopic::Sandbox => "Sandbox
-  Usage            claw sandbox [--output-format <format>]
+  Usage            kraken sandbox [--output-format <format>]
   Purpose          inspect the resolved sandbox and isolation state for the current directory
   Output           namespace, network, filesystem, and fallback details
   Formats          text (default), json
-  Related          /sandbox · claw status"
+  Related          /sandbox · kraken status"
             .to_string(),
         LocalHelpTopic::Doctor => "Doctor
-  Usage            claw doctor [--output-format <format>]
+  Usage            kraken doctor [--output-format <format>]
   Purpose          diagnose local auth, config, workspace, sandbox, and build metadata
   Output           local-only health report; no provider request or session resume required
   Formats          text (default), json
-  Related          /doctor · claw --resume latest /doctor"
+  Related          /doctor · kraken --resume latest /doctor"
             .to_string(),
         LocalHelpTopic::Acp => "ACP / Zed
-  Usage            claw acp [serve] [--output-format <format>]
-  Aliases          claw --acp · claw -acp
+  Usage            kraken acp [serve] [--output-format <format>]
+  Aliases          kraken --acp · kraken -acp
   Purpose          explain the current editor-facing ACP/Zed launch contract without starting the runtime
   Status           discoverability only; `serve` is a status alias and does not launch a daemon yet
   Formats          text (default), json
-  Related          ROADMAP #64a (discoverability) · ROADMAP #76 (real ACP support) · claw --help"
+  Related          ROADMAP #64a (discoverability) · ROADMAP #76 (real ACP support) · kraken --help"
             .to_string(),
         LocalHelpTopic::Init => "Init
-  Usage            claw init [--output-format <format>]
-  Purpose          create .claw/, .claw.json, .gitignore, and CLAUDE.md in the current project
+  Usage            kraken init [--output-format <format>]
+  Purpose          create .kraken/, .kraken.json, .gitignore, and CLAUDE.md in the current project
   Output           list of created vs. skipped files (idempotent: safe to re-run)
   Formats          text (default), json
-  Related          claw status · claw doctor"
+  Related          kraken status · kraken doctor"
             .to_string(),
         LocalHelpTopic::State => "State
-  Usage            claw state [--output-format <format>]
-  Purpose          read .claw/worker-state.json written by the interactive REPL or a one-shot prompt
+  Usage            kraken state [--output-format <format>]
+  Purpose          read .kraken/worker-state.json written by the interactive REPL or a one-shot prompt
   Output           worker id, model, permissions, session reference (text or json)
   Formats          text (default), json
-  Produces state   `claw` (interactive REPL) or `claw prompt <text>` (one non-interactive turn)
-  Observes state   `claw state` reads; clawhip/CI may poll this file without HTTP
+  Produces state   `kraken` (interactive REPL) or `kraken prompt <text>` (one non-interactive turn)
+  Observes state   `kraken state` reads; krakenhip/CI may poll this file without HTTP
   Exit codes       0 if state file exists and parses; 1 with actionable hint otherwise
-  Related          claw status · ROADMAP #139 (this worker-concept contract)"
+  Related          kraken status · ROADMAP #139 (this worker-concept contract)"
             .to_string(),
         LocalHelpTopic::Export => "Export
-  Usage            claw export [--session <id|latest>] [--output <path>] [--output-format <format>]
+  Usage            kraken export [--session <id|latest>] [--output <path>] [--output-format <format>]
   Purpose          serialize a managed session to JSON for review, transfer, or archival
-  Defaults         --session latest (most recent managed session in .claw/sessions/)
+  Defaults         --session latest (most recent managed session in .kraken/sessions/)
   Formats          text (default), json
-  Related          /session list · claw --resume latest"
+  Related          /session list · kraken --resume latest"
             .to_string(),
         LocalHelpTopic::Version => "Version
-  Usage            claw version [--output-format <format>]
-  Aliases          claw --version · claw -V
-  Purpose          print the claw CLI version and build metadata
+  Usage            kraken version [--output-format <format>]
+  Aliases          kraken --version · kraken -V
+  Purpose          print the kraken CLI version and build metadata
   Formats          text (default), json
-  Related          claw doctor (full build/auth/config diagnostic)"
+  Related          kraken doctor (full build/auth/config diagnostic)"
             .to_string(),
         LocalHelpTopic::SystemPrompt => "System Prompt
-  Usage            claw system-prompt [--cwd <path>] [--date YYYY-MM-DD] [--output-format <format>]
-  Purpose          render the resolved system prompt that `claw` would send for the given cwd + date
+  Usage            kraken system-prompt [--cwd <path>] [--date YYYY-MM-DD] [--output-format <format>]
+  Purpose          render the resolved system prompt that `kraken` would send for the given cwd + date
   Options          --cwd overrides the workspace dir · --date injects a deterministic date stamp
   Formats          text (default), json
-  Related          claw doctor · claw dump-manifests"
+  Related          kraken doctor · kraken dump-manifests"
             .to_string(),
         LocalHelpTopic::DumpManifests => "Dump Manifests
-  Usage            claw dump-manifests [--manifests-dir <path>] [--output-format <format>]
+  Usage            kraken dump-manifests [--manifests-dir <path>] [--output-format <format>]
   Purpose          emit every skill/agent/tool manifest the resolver would load for the current cwd
   Options          --manifests-dir scopes discovery to a specific directory
   Formats          text (default), json
-  Related          claw skills · claw agents · claw doctor"
+  Related          kraken skills · kraken agents · kraken doctor"
             .to_string(),
         LocalHelpTopic::BootstrapPlan => "Bootstrap Plan
-  Usage            claw bootstrap-plan [--output-format <format>]
+  Usage            kraken bootstrap-plan [--output-format <format>]
   Purpose          list the ordered startup phases the CLI would execute before dispatch
   Output           phase names (text) or structured phase list (json) — primary output is the plan itself
   Formats          text (default), json
-  Related          claw doctor · claw status"
+  Related          kraken doctor · kraken status"
             .to_string(),
     }
 }
@@ -5902,11 +6123,11 @@ fn print_help_topic(topic: LocalHelpTopic) {
 }
 
 fn print_acp_status(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::Error>> {
-    let message = "ACP/Zed editor integration is not implemented in claw-code yet. `claw acp serve` is only a discoverability alias today; it does not launch a daemon or Zed-specific protocol endpoint. Use the normal terminal surfaces for now and track ROADMAP #76 for real ACP support.";
+    let message = "ACP/Zed editor integration is not implemented in kraken-code yet. `kraken acp serve` is only a discoverability alias today; it does not launch a daemon or Zed-specific protocol endpoint. Use the normal terminal surfaces for now and track ROADMAP #76 for real ACP support.";
     match output_format {
         CliOutputFormat::Text => {
             println!(
-                "ACP / Zed\n  Status           discoverability only\n  Launch           `claw acp serve` / `claw --acp` / `claw -acp` report status only; no editor daemon is available yet\n  Today            use `claw prompt`, the REPL, or `claw doctor` for local verification\n  Tracking         ROADMAP #76\n  Message          {message}"
+                "ACP / Zed\n  Status           discoverability only\n  Launch           `kraken acp serve` / `kraken --acp` / `kraken -acp` report status only; no editor daemon is available yet\n  Today            use `kraken prompt`, the REPL, or `kraken doctor` for local verification\n  Tracking         ROADMAP #76\n  Message          {message}"
             );
         }
         CliOutputFormat::Json => {
@@ -5923,9 +6144,9 @@ fn print_acp_status(output_format: CliOutputFormat) -> Result<(), Box<dyn std::e
                     "discoverability_tracking": "ROADMAP #64a",
                     "tracking": "ROADMAP #76",
                     "recommended_workflows": [
-                        "claw prompt TEXT",
-                        "claw",
-                        "claw doctor"
+                        "kraken prompt TEXT",
+                        "kraken",
+                        "kraken doctor"
                     ],
                 }))?
             );
@@ -6137,7 +6358,7 @@ fn run_init(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::Er
 }
 
 /// #142: emit first-class structured fields alongside the legacy `message`
-/// string so claws can detect per-artifact state without substring matching.
+/// string so krakens can detect per-artifact state without substring matching.
 fn init_json_value(report: &crate::init::InitReport, message: &str) -> serde_json::Value {
     use crate::init::InitStatus;
     json!({
@@ -6368,10 +6589,13 @@ fn validate_no_args(
 
 fn format_bughunter_report(scope: Option<&str>) -> String {
     format!(
-        "Bughunter
+        "Bughunter — Kraken Vulnerability Scanner
   Scope            {}
-  Action           inspect the selected code for likely bugs and correctness issues
-  Output           findings should include file paths, severity, and suggested fixes",
+  Analysers        pattern matching (C, C++, Rust, Python, Ruby, JS, TS, Go, Java, Swift)
+  Checks           memory safety, injection flaws, crypto weaknesses, hardcoded secrets,
+                   supply chain, auth bypass, XSS, SQLi, command injection, path traversal
+  LLM Agent        optional multi-provider analysis (set --vulnscan or run /bughunter with agent mode)
+  Exploit gen      optional PoC generation for confirmed findings",
         scope.unwrap_or("the current repository")
     )
 }
@@ -6614,7 +6838,7 @@ fn render_version_report() -> String {
     let git_sha = GIT_SHA.unwrap_or("unknown");
     let target = BUILD_TARGET.unwrap_or("unknown");
     format!(
-        "Claw Code\n  Version          {VERSION}\n  Git SHA          {git_sha}\n  Target           {target}\n  Build date       {DEFAULT_DATE}"
+        "Kraken Code\n  Version          {VERSION}\n  Git SHA          {git_sha}\n  Target           {target}\n  Build date       {DEFAULT_DATE}"
     )
 }
 
@@ -7490,7 +7714,7 @@ impl AnthropicRuntimeClient {
         // reads `ANTHROPIC_BASE_URL` and is required for the local
         // mock-server test harness
         // (`crates/rusty-claude-cli/tests/compact_output.rs`) to point
-        // claw at its fake Anthropic endpoint. We also attach a
+        // kraken at its fake Anthropic endpoint. We also attach a
         // session-scoped prompt cache on the Anthropic path; the
         // prompt cache is Anthropic-only so non-Anthropic variants
         // skip it.
@@ -7857,7 +8081,7 @@ fn format_context_window_blocked_error(session_id: &str, error: &api::ApiError) 
     lines.push("Recovery".to_string());
     lines.push("  Compact          /compact".to_string());
     lines.push(format!(
-        "  Resume compact   claw --resume {session_id} /compact"
+        "  Resume compact   kraken --resume {session_id} /compact"
     ));
     lines.push("  Fresh session    /clear --confirm".to_string());
     lines.push(
@@ -8873,49 +9097,49 @@ fn convert_messages(messages: &[ConversationMessage]) -> Vec<InputMessage> {
 
 #[allow(clippy::too_many_lines)]
 fn print_help_to(out: &mut impl Write) -> io::Result<()> {
-    writeln!(out, "claw v{VERSION}")?;
+    writeln!(out, "kraken v{VERSION}")?;
     writeln!(out)?;
     writeln!(out, "Usage:")?;
     writeln!(
         out,
-        "  claw [--model MODEL] [--allowedTools TOOL[,TOOL...]]"
+        "  kraken [--model MODEL] [--allowedTools TOOL[,TOOL...]]"
     )?;
     writeln!(out, "      Start the interactive REPL")?;
     writeln!(
         out,
-        "  claw [--model MODEL] [--output-format text|json] prompt TEXT"
+        "  kraken [--model MODEL] [--output-format text|json] prompt TEXT"
     )?;
     writeln!(out, "      Send one prompt and exit")?;
     writeln!(
         out,
-        "  claw [--model MODEL] [--output-format text|json] TEXT"
+        "  kraken [--model MODEL] [--output-format text|json] TEXT"
     )?;
     writeln!(out, "      Shorthand non-interactive prompt mode")?;
     writeln!(
         out,
-        "  claw --resume [SESSION.jsonl|session-id|latest] [/status] [/compact] [...]"
+        "  kraken --resume [SESSION.jsonl|session-id|latest] [/status] [/compact] [...]"
     )?;
     writeln!(
         out,
         "      Inspect or maintain a saved session without entering the REPL"
     )?;
-    writeln!(out, "  claw help")?;
+    writeln!(out, "  kraken help")?;
     writeln!(out, "      Alias for --help")?;
-    writeln!(out, "  claw version")?;
+    writeln!(out, "  kraken version")?;
     writeln!(out, "      Alias for --version")?;
-    writeln!(out, "  claw status")?;
+    writeln!(out, "  kraken status")?;
     writeln!(
         out,
         "      Show the current local workspace status snapshot"
     )?;
-    writeln!(out, "  claw sandbox")?;
+    writeln!(out, "  kraken sandbox")?;
     writeln!(out, "      Show the current sandbox isolation snapshot")?;
-    writeln!(out, "  claw doctor")?;
+    writeln!(out, "  kraken doctor")?;
     writeln!(
         out,
         "      Diagnose local auth, config, workspace, and sandbox health"
     )?;
-    writeln!(out, "  claw acp [serve]")?;
+    writeln!(out, "  kraken acp [serve]")?;
     writeln!(
         out,
         "      Show ACP/Zed editor integration status (currently unsupported; aliases: --acp, -acp)"
@@ -8925,16 +9149,19 @@ fn print_help_to(out: &mut impl Write) -> io::Result<()> {
         out,
         "      Warning: do not `{DEPRECATED_INSTALL_COMMAND}` (deprecated stub)"
     )?;
-    writeln!(out, "  claw dump-manifests [--manifests-dir PATH]")?;
-    writeln!(out, "  claw bootstrap-plan")?;
-    writeln!(out, "  claw agents")?;
-    writeln!(out, "  claw mcp")?;
-    writeln!(out, "  claw skills")?;
-    writeln!(out, "  claw system-prompt [--cwd PATH] [--date YYYY-MM-DD]")?;
-    writeln!(out, "  claw init")?;
+    writeln!(out, "  kraken dump-manifests [--manifests-dir PATH]")?;
+    writeln!(out, "  kraken bootstrap-plan")?;
+    writeln!(out, "  kraken agents")?;
+    writeln!(out, "  kraken mcp")?;
+    writeln!(out, "  kraken skills")?;
     writeln!(
         out,
-        "  claw export [PATH] [--session SESSION] [--output PATH]"
+        "  kraken system-prompt [--cwd PATH] [--date YYYY-MM-DD]"
+    )?;
+    writeln!(out, "  kraken init")?;
+    writeln!(
+        out,
+        "  kraken export [PATH] [--session SESSION] [--output PATH]"
     )?;
     writeln!(
         out,
@@ -8984,7 +9211,7 @@ fn print_help_to(out: &mut impl Write) -> io::Result<()> {
     writeln!(out, "Session shortcuts:")?;
     writeln!(
         out,
-        "  REPL turns auto-save to .claw/sessions/<session-id>.{PRIMARY_SESSION_EXTENSION}"
+        "  REPL turns auto-save to .kraken/sessions/<session-id>.{PRIMARY_SESSION_EXTENSION}"
     )?;
     writeln!(
         out,
@@ -8995,33 +9222,33 @@ fn print_help_to(out: &mut impl Write) -> io::Result<()> {
         "  Use /session list in the REPL to browse managed sessions"
     )?;
     writeln!(out, "Examples:")?;
-    writeln!(out, "  claw --model claude-opus \"summarize this repo\"")?;
+    writeln!(out, "  kraken --model claude-opus \"summarize this repo\"")?;
     writeln!(
         out,
-        "  claw --output-format json prompt \"explain src/main.rs\""
+        "  kraken --output-format json prompt \"explain src/main.rs\""
     )?;
-    writeln!(out, "  claw --compact \"summarize Cargo.toml\" | wc -l")?;
+    writeln!(out, "  kraken --compact \"summarize Cargo.toml\" | wc -l")?;
     writeln!(
         out,
-        "  claw --allowedTools read,glob \"summarize Cargo.toml\""
+        "  kraken --allowedTools read,glob \"summarize Cargo.toml\""
     )?;
-    writeln!(out, "  claw --resume {LATEST_SESSION_REFERENCE}")?;
+    writeln!(out, "  kraken --resume {LATEST_SESSION_REFERENCE}")?;
     writeln!(
         out,
-        "  claw --resume {LATEST_SESSION_REFERENCE} /status /diff /export notes.txt"
+        "  kraken --resume {LATEST_SESSION_REFERENCE} /status /diff /export notes.txt"
     )?;
-    writeln!(out, "  claw agents")?;
-    writeln!(out, "  claw mcp show my-server")?;
-    writeln!(out, "  claw /skills")?;
-    writeln!(out, "  claw doctor")?;
+    writeln!(out, "  kraken agents")?;
+    writeln!(out, "  kraken mcp show my-server")?;
+    writeln!(out, "  kraken /skills")?;
+    writeln!(out, "  kraken doctor")?;
     writeln!(out, "  source of truth: {OFFICIAL_REPO_URL}")?;
     writeln!(
         out,
         "  do not run `{DEPRECATED_INSTALL_COMMAND}` — it installs a deprecated stub"
     )?;
-    writeln!(out, "  claw init")?;
-    writeln!(out, "  claw export")?;
-    writeln!(out, "  claw export conversation.md")?;
+    writeln!(out, "  kraken init")?;
+    writeln!(out, "  kraken export")?;
+    writeln!(out, "  kraken export conversation.md")?;
     Ok(())
 }
 
@@ -9189,7 +9416,7 @@ mod tests {
         );
         assert!(rendered.contains("Compact          /compact"), "{rendered}");
         assert!(
-            rendered.contains("Resume compact   claw --resume session-issue-32 /compact"),
+            rendered.contains("Resume compact   kraken --resume session-issue-32 /compact"),
             "{rendered}"
         );
         assert!(
@@ -9262,7 +9489,7 @@ mod tests {
         );
         assert!(rendered.contains("Compact          /compact"), "{rendered}");
         assert!(
-            rendered.contains("Resume compact   claw --resume session-issue-32 /compact"),
+            rendered.contains("Resume compact   kraken --resume session-issue-32 /compact"),
             "{rendered}"
         );
     }
@@ -9388,24 +9615,24 @@ mod tests {
         let root = temp_dir();
         let cwd = root.join("project");
         let config_home = root.join("config-home");
-        std::fs::create_dir_all(cwd.join(".claw")).expect("project config dir should exist");
+        std::fs::create_dir_all(cwd.join(".kraken")).expect("project config dir should exist");
         std::fs::create_dir_all(&config_home).expect("config home should exist");
         std::fs::write(
-            cwd.join(".claw").join("settings.json"),
+            cwd.join(".kraken").join("settings.json"),
             r#"{"permissionMode":"acceptEdits"}"#,
         )
         .expect("project config should write");
 
-        let original_config_home = std::env::var("CLAW_CONFIG_HOME").ok();
+        let original_config_home = std::env::var("KRAKEN_CONFIG_HOME").ok();
         let original_permission_mode = std::env::var("RUSTY_CLAUDE_PERMISSION_MODE").ok();
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
         std::env::remove_var("RUSTY_CLAUDE_PERMISSION_MODE");
 
         let resolved = with_current_dir(&cwd, super::default_permission_mode);
 
         match original_config_home {
-            Some(value) => std::env::set_var("CLAW_CONFIG_HOME", value),
-            None => std::env::remove_var("CLAW_CONFIG_HOME"),
+            Some(value) => std::env::set_var("KRAKEN_CONFIG_HOME", value),
+            None => std::env::remove_var("KRAKEN_CONFIG_HOME"),
         }
         match original_permission_mode {
             Some(value) => std::env::set_var("RUSTY_CLAUDE_PERMISSION_MODE", value),
@@ -9422,24 +9649,24 @@ mod tests {
         let root = temp_dir();
         let cwd = root.join("project");
         let config_home = root.join("config-home");
-        std::fs::create_dir_all(cwd.join(".claw")).expect("project config dir should exist");
+        std::fs::create_dir_all(cwd.join(".kraken")).expect("project config dir should exist");
         std::fs::create_dir_all(&config_home).expect("config home should exist");
         std::fs::write(
-            cwd.join(".claw").join("settings.json"),
+            cwd.join(".kraken").join("settings.json"),
             r#"{"permissionMode":"acceptEdits"}"#,
         )
         .expect("project config should write");
 
-        let original_config_home = std::env::var("CLAW_CONFIG_HOME").ok();
+        let original_config_home = std::env::var("KRAKEN_CONFIG_HOME").ok();
         let original_permission_mode = std::env::var("RUSTY_CLAUDE_PERMISSION_MODE").ok();
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
         std::env::set_var("RUSTY_CLAUDE_PERMISSION_MODE", "read-only");
 
         let resolved = with_current_dir(&cwd, super::default_permission_mode);
 
         match original_config_home {
-            Some(value) => std::env::set_var("CLAW_CONFIG_HOME", value),
-            None => std::env::remove_var("CLAW_CONFIG_HOME"),
+            Some(value) => std::env::set_var("KRAKEN_CONFIG_HOME", value),
+            None => std::env::remove_var("KRAKEN_CONFIG_HOME"),
         }
         match original_permission_mode {
             Some(value) => std::env::set_var("RUSTY_CLAUDE_PERMISSION_MODE", value),
@@ -9456,10 +9683,10 @@ mod tests {
         let config_home = temp_dir();
         std::fs::create_dir_all(&config_home).expect("config home should exist");
 
-        let original_config_home = std::env::var("CLAW_CONFIG_HOME").ok();
+        let original_config_home = std::env::var("KRAKEN_CONFIG_HOME").ok();
         let original_api_key = std::env::var("ANTHROPIC_API_KEY").ok();
         let original_auth_token = std::env::var("ANTHROPIC_AUTH_TOKEN").ok();
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
         std::env::remove_var("ANTHROPIC_API_KEY");
         std::env::remove_var("ANTHROPIC_AUTH_TOKEN");
 
@@ -9475,8 +9702,8 @@ mod tests {
             .expect_err("saved oauth should be ignored without env auth");
 
         match original_config_home {
-            Some(value) => std::env::set_var("CLAW_CONFIG_HOME", value),
-            None => std::env::remove_var("CLAW_CONFIG_HOME"),
+            Some(value) => std::env::set_var("KRAKEN_CONFIG_HOME", value),
+            None => std::env::remove_var("KRAKEN_CONFIG_HOME"),
         }
         match original_api_key {
             Some(value) => std::env::set_var("ANTHROPIC_API_KEY", value),
@@ -9696,16 +9923,16 @@ mod tests {
         let root = temp_dir();
         let cwd = root.join("project");
         let config_home = root.join("config-home");
-        std::fs::create_dir_all(cwd.join(".claw")).expect("project config dir should exist");
+        std::fs::create_dir_all(cwd.join(".kraken")).expect("project config dir should exist");
         std::fs::create_dir_all(&config_home).expect("config home should exist");
         std::fs::write(
-            cwd.join(".claw").join("settings.json"),
+            cwd.join(".kraken").join("settings.json"),
             r#"{"aliases":{"fast":"claude-haiku-4-5-20251213","smart":"opus","cheap":"grok-3-mini"}}"#,
         )
         .expect("project config should write");
 
-        let original_config_home = std::env::var("CLAW_CONFIG_HOME").ok();
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        let original_config_home = std::env::var("KRAKEN_CONFIG_HOME").ok();
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
 
         // when
         let direct = with_current_dir(&cwd, || resolve_model_alias_with_config("fast"));
@@ -9715,8 +9942,8 @@ mod tests {
         let builtin = with_current_dir(&cwd, || resolve_model_alias_with_config("haiku"));
 
         match original_config_home {
-            Some(value) => std::env::set_var("CLAW_CONFIG_HOME", value),
-            None => std::env::remove_var("CLAW_CONFIG_HOME"),
+            Some(value) => std::env::set_var("KRAKEN_CONFIG_HOME", value),
+            None => std::env::remove_var("KRAKEN_CONFIG_HOME"),
         }
         std::fs::remove_dir_all(root).expect("temp config root should clean up");
 
@@ -10240,9 +10467,9 @@ mod tests {
 
     #[test]
     fn status_degrades_gracefully_on_malformed_mcp_config_143() {
-        // #143: previously `claw status` hard-failed on any config parse error,
+        // #143: previously `kraken status` hard-failed on any config parse error,
         // taking down the entire health surface for one malformed MCP entry.
-        // `claw doctor` already degrades gracefully; this test locks `status`
+        // `kraken doctor` already degrades gracefully; this test locks `status`
         // to the same contract.
         let _guard = env_lock();
         let root = temp_dir();
@@ -10250,7 +10477,7 @@ mod tests {
         std::fs::create_dir_all(&cwd).expect("project dir should exist");
         // One valid server + one malformed entry missing `command`.
         std::fs::write(
-            cwd.join(".claw.json"),
+            cwd.join(".kraken.json"),
             r#"{
   "mcpServers": {
     "everything": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-everything"]},
@@ -10259,7 +10486,7 @@ mod tests {
 }
 "#,
         )
-        .expect("write malformed .claw.json");
+        .expect("write malformed .kraken.json");
 
         let context = with_current_dir(&cwd, || {
             super::status_context(None)
@@ -10350,8 +10577,8 @@ mod tests {
 
     #[test]
     fn state_error_surfaces_actionable_worker_commands_139() {
-        // #139: the error for missing `.claw/worker-state.json` must name
-        // the concrete commands that produce worker state, otherwise claws
+        // #139: the error for missing `.kraken/worker-state.json` must name
+        // the concrete commands that produce worker state, otherwise krakens
         // have no discoverable path from the error to a fix.
         let _guard = env_lock();
         let root = temp_dir();
@@ -10370,27 +10597,27 @@ mod tests {
         );
         // New actionable hints — this is what #139 is fixing.
         assert!(
-            message.contains("claw prompt"),
-            "error should name `claw prompt <text>` as a producer: {message}"
+            message.contains("kraken prompt"),
+            "error should name `kraken prompt <text>` as a producer: {message}"
         );
         assert!(
             message.contains("REPL"),
             "error should mention the interactive REPL as a producer: {message}"
         );
         assert!(
-            message.contains("claw state"),
+            message.contains("kraken state"),
             "error should tell the user what to rerun once state exists: {message}"
         );
         // And the State --help topic must document the worker relationship
-        // so claws can discover the contract without hitting the error first.
+        // so krakens can discover the contract without hitting the error first.
         let state_help = render_help_topic(LocalHelpTopic::State);
         assert!(
             state_help.contains("Produces state"),
             "state help must document how state is produced: {state_help}"
         );
         assert!(
-            state_help.contains("claw prompt"),
-            "state help must name `claw prompt <text>` as a producer: {state_help}"
+            state_help.contains("kraken prompt"),
+            "state help must name `kraken prompt <text>` as a producer: {state_help}"
         );
     }
 
@@ -10969,7 +11196,7 @@ mod tests {
         let error = parse_args(&["/status".to_string()])
             .expect_err("/status should remain REPL-only when invoked directly");
         assert!(error.contains("interactive-only"));
-        assert!(error.contains("claw --resume SESSION.jsonl /status"));
+        assert!(error.contains("kraken --resume SESSION.jsonl /status"));
     }
 
     #[test]
@@ -11082,7 +11309,7 @@ mod tests {
     #[test]
     fn punctuation_bearing_single_token_still_dispatches_to_prompt() {
         // #140: Guard against test pollution — isolate cwd + env so this test
-        // doesn't pick up a stale .claw/settings.json from other tests that
+        // doesn't pick up a stale .kraken/settings.json from other tests that
         // may have set `permissionMode: acceptEdits` in a shared cwd.
         let _guard = env_lock();
         let root = temp_dir();
@@ -11184,7 +11411,7 @@ mod tests {
         let error = parse_args(&["--resum".to_string()]).expect_err("unknown option should fail");
         assert!(error.contains("unknown option: --resum"));
         assert!(error.contains("Did you mean --resume?"));
-        assert!(error.contains("claw --help"));
+        assert!(error.contains("kraken --help"));
     }
 
     #[test]
@@ -11336,7 +11563,7 @@ mod tests {
         assert!(help.contains("/agents"));
         assert!(help.contains("/skills"));
         assert!(help.contains("/exit"));
-        assert!(help.contains("Auto-save            .claw/sessions/<session-id>.jsonl"));
+        assert!(help.contains("Auto-save            .kraken/sessions/<session-id>.jsonl"));
         assert!(help.contains("Resume latest        /resume latest"));
     }
 
@@ -11417,7 +11644,7 @@ mod tests {
         fs::create_dir_all(&root).expect("root dir");
         let config_home = root.join("config");
         fs::create_dir_all(&config_home).expect("config home dir");
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
         std::env::remove_var("ANTHROPIC_MODEL");
         std::env::set_var("ANTHROPIC_MODEL", "sonnet");
 
@@ -11426,7 +11653,7 @@ mod tests {
         assert_eq!(resolved, "claude-sonnet-4-6");
 
         std::env::remove_var("ANTHROPIC_MODEL");
-        std::env::remove_var("CLAW_CONFIG_HOME");
+        std::env::remove_var("KRAKEN_CONFIG_HOME");
         fs::remove_dir_all(root).expect("cleanup temp dir");
     }
 
@@ -11437,14 +11664,14 @@ mod tests {
         fs::create_dir_all(&root).expect("root dir");
         let config_home = root.join("config");
         fs::create_dir_all(&config_home).expect("config home dir");
-        std::env::set_var("CLAW_CONFIG_HOME", &config_home);
+        std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
         std::env::remove_var("ANTHROPIC_MODEL");
 
         let resolved = with_current_dir(&root, || resolve_repl_model(DEFAULT_MODEL.to_string()));
 
         assert_eq!(resolved, DEFAULT_MODEL);
 
-        std::env::remove_var("CLAW_CONFIG_HOME");
+        std::env::remove_var("KRAKEN_CONFIG_HOME");
         fs::remove_dir_all(root).expect("cleanup temp dir");
     }
 
@@ -11527,20 +11754,20 @@ mod tests {
         let mut help = Vec::new();
         print_help_to(&mut help).expect("help should render");
         let help = String::from_utf8(help).expect("help should be utf8");
-        assert!(help.contains("claw help"));
-        assert!(help.contains("claw version"));
-        assert!(help.contains("claw status"));
-        assert!(help.contains("claw sandbox"));
-        assert!(help.contains("claw init"));
-        assert!(help.contains("claw acp [serve]"));
-        assert!(help.contains("claw agents"));
-        assert!(help.contains("claw mcp"));
-        assert!(help.contains("claw skills"));
-        assert!(help.contains("claw /skills"));
-        assert!(help.contains("ultraworkers/claw-code"));
-        assert!(help.contains("cargo install claw-code"));
-        assert!(!help.contains("claw login"));
-        assert!(!help.contains("claw logout"));
+        assert!(help.contains("kraken help"));
+        assert!(help.contains("kraken version"));
+        assert!(help.contains("kraken status"));
+        assert!(help.contains("kraken sandbox"));
+        assert!(help.contains("kraken init"));
+        assert!(help.contains("kraken acp [serve]"));
+        assert!(help.contains("kraken agents"));
+        assert!(help.contains("kraken mcp"));
+        assert!(help.contains("kraken skills"));
+        assert!(help.contains("kraken /skills"));
+        assert!(help.contains("ultraworkers/kraken-code"));
+        assert!(help.contains("cargo install kraken-code"));
+        assert!(!help.contains("kraken login"));
+        assert!(!help.contains("kraken logout"));
     }
 
     #[test]
@@ -11657,7 +11884,7 @@ mod tests {
     fn runtime_slash_reports_describe_command_behavior() {
         let bughunter = format_bughunter_report(Some("runtime"));
         assert!(bughunter.contains("Scope            runtime"));
-        assert!(bughunter.contains("inspect the selected code for likely bugs"));
+        assert!(bughunter.contains("Kraken Vulnerability Scanner"));
 
         let ultraplan = format_ultraplan_report(Some("ship the release"));
         assert!(ultraplan.contains("Task             ship the release"));
@@ -11936,10 +12163,10 @@ UU conflicted.rs",
         let mut help = Vec::new();
         print_help_to(&mut help).expect("help should render");
         let help = String::from_utf8(help).expect("help should be utf8");
-        assert!(help.contains("claw --resume [SESSION.jsonl|session-id|latest]"));
+        assert!(help.contains("kraken --resume [SESSION.jsonl|session-id|latest]"));
         assert!(help.contains("Use `latest` with --resume, /resume, or /session switch"));
-        assert!(help.contains("claw --resume latest"));
-        assert!(help.contains("claw --resume latest /status /diff /export notes.txt"));
+        assert!(help.contains("kraken --resume latest"));
+        assert!(help.contains("kraken --resume latest /status /diff /export notes.txt"));
     }
 
     #[test]
@@ -11953,7 +12180,7 @@ UU conflicted.rs",
         let handle = create_managed_session_handle("session-alpha").expect("jsonl handle");
         assert!(handle.path.ends_with("session-alpha.jsonl"));
 
-        let legacy_path = workspace.join(".claw/sessions/legacy.json");
+        let legacy_path = workspace.join(".kraken/sessions/legacy.json");
         std::fs::create_dir_all(
             legacy_path
                 .parent()
@@ -12024,7 +12251,7 @@ UU conflicted.rs",
         let previous = std::env::current_dir().expect("cwd");
         std::env::set_current_dir(&workspace_b).expect("switch cwd");
 
-        let session_path = workspace_a.join(".claw/sessions/legacy-cross.jsonl");
+        let session_path = workspace_a.join(".kraken/sessions/legacy-cross.jsonl");
         std::fs::create_dir_all(
             session_path
                 .parent()
@@ -12081,7 +12308,7 @@ UU conflicted.rs",
     fn resume_usage_mentions_latest_shortcut() {
         let usage = render_resume_usage();
         assert!(usage.contains("/resume <session-path|session-id|latest>"));
-        assert!(usage.contains(".claw/sessions/<session-id>.jsonl"));
+        assert!(usage.contains(".kraken/sessions/<session-id>.jsonl"));
         assert!(usage.contains("/session list"));
     }
 
@@ -12113,7 +12340,7 @@ UU conflicted.rs",
             .duration_since(std::time::UNIX_EPOCH)
             .expect("system time should be after epoch")
             .as_nanos();
-        std::env::temp_dir().join(format!("claw-cli-{label}-{nanos}"))
+        std::env::temp_dir().join(format!("kraken-cli-{label}-{nanos}"))
     }
 
     #[test]
@@ -13126,7 +13353,7 @@ mod dump_manifests_tests {
     #[test]
     fn dump_manifests_shows_helpful_error_when_manifests_missing() {
         let root = std::env::temp_dir().join(format!(
-            "claw_test_missing_manifests_{}",
+            "kraken_test_missing_manifests_{}",
             std::process::id()
         ));
         let workspace = root.join("workspace");
@@ -13163,7 +13390,7 @@ mod dump_manifests_tests {
     #[test]
     fn dump_manifests_uses_explicit_manifest_dir() {
         let root = std::env::temp_dir().join(format!(
-            "claw_test_explicit_manifest_dir_{}",
+            "kraken_test_explicit_manifest_dir_{}",
             std::process::id()
         ));
         let workspace = root.join("workspace");

@@ -1,7 +1,12 @@
-#[allow(clippy::all, clippy::len_without_is_empty, clippy::unnecessary_map_or, clippy::field_reassign_with_default, clippy::manual_find)]
+#[allow(
+    clippy::all,
+    clippy::len_without_is_empty,
+    clippy::unnecessary_map_or,
+    clippy::field_reassign_with_default,
+    clippy::manual_find
+)]
 
 /// Performance optimizations: connection pooling, caching:
-
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

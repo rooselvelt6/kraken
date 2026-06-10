@@ -1,8 +1,11 @@
 pub mod c_cpp;
+pub mod go;
+pub mod java;
 pub mod os;
 pub mod python;
 pub mod ruby;
 pub mod rust;
+pub mod swift;
 pub mod web;
 
 use crate::{Finding, Language, ScanConfig};
@@ -27,6 +30,9 @@ pub fn load_all_analyzers() -> Vec<Box<dyn LanguageAnalyzer + Send + Sync>> {
         Box::new(os::LinuxKernelAnalyzer::default()),
         Box::new(os::OpenBSDAnalyzer::default()),
         Box::new(os::FreeBSDAnalyzer::default()),
+        Box::new(go::GoAnalyzer::default()),
+        Box::new(java::JavaAnalyzer::default()),
+        Box::new(swift::SwiftAnalyzer::default()),
     ]
 }
 
@@ -41,6 +47,9 @@ pub fn detect_language(file_path: &Path) -> Language {
         "ts" | "tsx" => Language::TypeScript,
         "py" => Language::Python,
         "rb" => Language::Ruby,
+        "go" => Language::Go,
+        "java" => Language::Java,
+        "swift" => Language::Swift,
         "sh" | "bash" => Language::Shell,
         _ => Language::Other,
     }

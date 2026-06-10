@@ -150,7 +150,7 @@ impl SessionIdentity {
 pub struct LaneOwnership {
     /// Owner/assignee identity
     pub owner: String,
-    /// Workflow scope (e.g., claw-code-dogfood, external-git-maintenance)
+    /// Workflow scope (e.g., kraken-code-dogfood, external-git-maintenance)
     pub workflow_scope: String,
     /// Whether the watcher is expected to act, observe, or ignore
     pub watcher_action: WatcherAction,
@@ -945,13 +945,13 @@ mod tests {
     #[test]
     fn lane_ownership_binding_includes_workflow_scope() {
         let ownership = LaneOwnership {
-            owner: "claw-1".to_string(),
-            workflow_scope: "claw-code-dogfood".to_string(),
+            owner: "kraken-1".to_string(),
+            workflow_scope: "kraken-code-dogfood".to_string(),
             watcher_action: WatcherAction::Act,
         };
 
-        assert_eq!(ownership.owner, "claw-1");
-        assert_eq!(ownership.workflow_scope, "claw-code-dogfood");
+        assert_eq!(ownership.owner, "kraken-1");
+        assert_eq!(ownership.workflow_scope, "kraken-code-dogfood");
         assert_eq!(ownership.watcher_action, WatcherAction::Act);
     }
 

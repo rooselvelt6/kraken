@@ -37,6 +37,7 @@ impl super::LanguageAnalyzer for RustAnalyzer {
                     remediation: Some("Review unsafe".to_string()),
                     confidence: 0.9,
                     discovery_method: DiscoveryMethod::StaticPatternMatching,
+                    ..Default::default()
                 });
             }
         }

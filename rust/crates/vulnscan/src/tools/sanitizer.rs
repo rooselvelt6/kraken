@@ -7,7 +7,9 @@ impl Default for ASAN {
 }
 
 impl ASAN {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     pub fn run(&self, path: &std::path::Path) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
@@ -38,6 +40,7 @@ impl ASAN {
                         remediation: Some("Compile with RUSTFLAGS=-Zsanitizer=address".to_string()),
                         confidence: 0.5,
                         discovery_method: crate::DiscoveryMethod::Sanitizer,
+                        ..Default::default()
                     });
                 }
             }

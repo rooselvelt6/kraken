@@ -11,7 +11,6 @@
 /// - Distributed tracing
 /// - Performance optimizations
 /// - Enterprise audit and rate limiting
-
 pub mod circuit_breaker;
 pub mod enterprise_features;
 pub mod graceful_degradation;

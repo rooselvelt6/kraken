@@ -25,4 +25,3 @@ pub enum ConnectionState {
     Offline,
     Syncing,
 }
-

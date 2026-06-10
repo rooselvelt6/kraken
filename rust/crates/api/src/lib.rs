@@ -1,4 +1,9 @@
-#![allow(clippy::all, clippy::match_same_arms, clippy::map_unwrap_or, clippy::doc_markdown)]
+#![allow(
+    clippy::all,
+    clippy::match_same_arms,
+    clippy::map_unwrap_or,
+    clippy::doc_markdown
+)]
 
 mod client;
 mod error;

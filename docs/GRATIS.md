@@ -1,6 +1,6 @@
 # Modelos Gratuitos para Venezuela
 
-Esta guía te ayuda a configurar modelos de IA gratuitos o económicos en Claw Code para usuarios en Venezuela.
+Esta guía te ayuda a configurar modelos de IA gratuitos o económicos en Kraken Code para usuarios en Venezuela.
 
 ## Tabla de Comparación
 
@@ -28,13 +28,13 @@ Esta guía te ayuda a configurar modelos de IA gratuitos o económicos en Claw C
 export DEEPSEEK_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 # Usa DeepSeek V3 (chat)
-claw --model deepseek prompt "hola mundo"
+kraken --model deepseek prompt "hola mundo"
 
 # Usa DeepSeek R1 (razonamiento)
-claw --model r1 prompt "resuelve este problema de algoritmos"
+kraken --model r1 prompt "resuelve este problema de algoritmos"
 
 # Usa DeepSeek Coder
-claw --model deepseek-coder prompt "escribe una función en Rust"
+kraken --model deepseek-coder prompt "escribe una función en Rust"
 ```
 
 ### Alias disponibles
@@ -61,7 +61,7 @@ Big Pickle es un modelo gratuito creado por OpenCode. Es GLM-4.6 optimizado para
 export OPENCODE_API_KEY="tu-api-key"
 
 # Usar Big Pickle
-claw --model big-pickle prompt "crea un API REST en Python"
+kraken --model big-pickle prompt "crea un API REST en Python"
 ```
 
 ### Notas
@@ -101,7 +101,7 @@ export OPENAI_BASE_URL="http://localhost:11434/v1"
 export OPENAI_API_KEY="ollama"  # Ollama no requiere clave real
 
 # Usar modelo local
-claw --model qwen2.5-coder:7b prompt "hola"
+kraken --model qwen2.5-coder:7b prompt "hola"
 ```
 
 ---
@@ -119,10 +119,10 @@ claw --model qwen2.5-coder:7b prompt "hola"
 export DASHSCOPE_API_KEY="sk-xxxxxxxxxxxxxxxx"
 
 # Usar Qwen
-claw --model qwen-max prompt "explica esto"
+kraken --model qwen-max prompt "explica esto"
 
 # Usar Kimi
-claw --model kimi prompt "ayúdame con este código"
+kraken --model kimi prompt "ayúdame con este código"
 ```
 
 ---
