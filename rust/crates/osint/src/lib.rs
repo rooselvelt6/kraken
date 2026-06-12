@@ -1,6 +1,7 @@
 pub mod collector;
 pub mod dns;
 pub mod email;
+pub mod person;
 pub mod search;
 pub mod social;
 
@@ -47,7 +48,7 @@ pub enum Reliability {
     Untrusted,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FindingKind {
     Email,
     Url,
