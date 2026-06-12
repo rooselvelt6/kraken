@@ -226,22 +226,65 @@ pipeline, using specialized system prompts per vulnerability class.
 
 ---
 
-## ✅ Phase 7 — OSINT Foundation (partial)
+## ✅ Phase 7 — OSINT Foundation
 
 **Goal**: Build a data collection framework for open-source intelligence — email
 extraction, DNS/WHOIS resolution, web scraping, search aggregation, and Shodan
 intelligence gathering. This is the base layer for all person and infrastructure
 OSINT phases.
 
-### Shodan Intelligence (implemented)
+### New crate (`rust/crates/osint/`)
 
-- New tool `ShodanSearch` in `tools/src/lib.rs` (input struct, spec, dispatch,
-  handler) with 8 actions: search, host, dns_resolve, dns_reverse, myip, info,
-  ports, protocols
-- System prompt section `get_shodan_section()` in `runtime/src/prompt.rs`
-  describing Shodan usage patterns, filters, and integration with /hunt
-- Requires `SHODAN_API_KEY` environment variable
-- Permission: `ReadOnly` (read-only internet queries, no local writes)
+- `Cargo.toml` — `regex`, `reqwest` (blocking), `scraper`, `url`, `hickory-resolver`, `chrono`
+- `src/lib.rs` — core types: `OsintTarget`, `OsintSource`, `OsintFinding`,
+  `OsintReport`, `FindingKind`, `Reliability`, `TargetKind`
+- `src/collector.rs` — `DataCollector`: regex-based extraction of emails,
+  usernames, URLs, IPs, phone numbers from HTML/plaintext; HTML mailto: link
+  parsing via scraper
+- `src/dns.rs` — `DnsResolver`: DNS record queries via hickory-resolver (A,
+  AAAA, MX, TXT, NS, SOA, CNAME), WHOIS lookup via TCP to IANA-resolved
+  whois servers
+- `src/search.rs` — `SearchAggregator`: DuckDuckGo HTML search via scraper,
+  deduplication, ranking by HTTPS/title/snippet
+
+### New tools (`rust/crates/tools/src/lib.rs`)
+
+- `OsintCollect { target, kind?, sources? }` — collect public data on a target
+  (web fetch + extraction), with optional web search for emails
+- `DnsLookup { domain, record_type? }` — query DNS records (default A)
+- `WhoisQuery { domain }` — WHOIS information via raw TCP
+
+### Shodan Intelligence (integrated)
+
+- `ShodanSearch` tool with 8 actions (search, host, dns_resolve, dns_reverse,
+  myip, info, ports, protocols)
+- System prompt section with Shodan usage patterns
+- Cross-referenced in OSINT methodology: "Pass IPs to ShodanSearch"
+
+### System prompt (`rust/crates/runtime/src/prompt.rs`)
+
+```
+## OSINT Intelligence Gathering
+## OSINT Methodology
+1. Collect: gather raw data from public sources (DNS, WHOIS, web, search)
+2. Normalize: clean and standardize collected data into structured fields
+3. Correlate: cross-reference findings across sources, resolve conflicts
+4. Report: present findings with source attribution and confidence levels
+```
+
+### Recon workflow documented:
+1. WhoisQuery domain (ownership)
+2. DnsLookup A, MX, NS, TXT (infrastructure mapping)
+3. OsintCollect domain (emails, URLs)
+4. Emails → OsintCollect for further discovery
+5. IPs → ShodanSearch for device/service enumeration
+6. Findings → /hunt for vulnerability scanning
+
+### Tests (22 total, all pass)
+
+- DataCollector: email, URL, IP, phone extraction; deduplication; HTML mailto
+- DnsResolver: A record resolution, RecordType roundtrip
+- SearchAggregator: deduplication, ranking, percent-encoding
 
 ### New crate (`rust/crates/osint/`)
 

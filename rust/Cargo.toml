@@ -1,5 +1,14 @@
 [workspace]
-members = ["crates/*", "crates/security", "crates/sandbox", "crates/enterprise", "crates/localmodels", "crates/offline", "crates/cache"]
+members = [
+  "crates/*",
+  "crates/security",
+  "crates/sandbox",
+  "crates/enterprise",
+  "crates/localmodels",
+  "crates/offline",
+  "crates/cache",
+  "crates/osint",
+]
 resolver = "2"
 
 [workspace.package]

@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 api = { path = "../api" }
 commands = { path = "../commands" }
+osint = { path = "../osint" }
 flate2 = "1"
 plugins = { path = "../plugins" }
 runtime = { path = "../runtime" }

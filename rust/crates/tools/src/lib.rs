@@ -1264,6 +1264,60 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
             required_permission: PermissionMode::ReadOnly,
         },
         ToolSpec {
+            name: "OsintCollect",
+            description: concat!(
+                "Collect open-source intelligence about a target. ",
+                "Extracts emails, URLs, IPs, and phone numbers from web pages and text. ",
+                "Target kinds: domain, email, ip, username, url, org."
+            ),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "target": { "type": "string", "description": "Target to investigate" },
+                    "kind": { "type": "string", "enum": ["domain", "email", "ip", "username", "url", "org"], "description": "Target kind (auto-detected if omitted)" },
+                    "sources": { "type": "array", "items": { "type": "string", "enum": ["web", "search"] }, "description": "Sources to query (default: all)" }
+                },
+                "required": ["target"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
+            name: "DnsLookup",
+            description: concat!(
+                "Query DNS records for a domain. ",
+                "Supports: A, AAAA, MX, TXT, NS, SOA, CNAME. ",
+                "Returns resolved IPs and record values."
+            ),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain to query" },
+                    "record_type": { "type": "string", "enum": ["A", "AAAA", "MX", "TXT", "NS", "SOA", "CNAME"], "description": "DNS record type (default: A)" }
+                },
+                "required": ["domain"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
+            name: "WhoisQuery",
+            description: concat!(
+                "Query WHOIS information for a domain. ",
+                "Returns registrar, creation/expiration dates, ",
+                "name servers, and contact info."
+            ),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "domain": { "type": "string", "description": "Domain to query" }
+                },
+                "required": ["domain"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
             name: "TestingPermission",
             description: "Test-only tool for verifying permission enforcement behavior.",
             input_schema: json!({
@@ -1334,6 +1388,9 @@ fn execute_tool_with_enforcer(
         "WebFetch" => from_value::<WebFetchInput>(input).and_then(run_web_fetch),
         "WebSearch" => from_value::<WebSearchInput>(input).and_then(run_web_search),
         "ShodanSearch" => from_value::<ShodanSearchInput>(input).and_then(run_shodan_search),
+        "OsintCollect" => from_value::<OsintCollectInput>(input).and_then(run_osint_collect),
+        "DnsLookup" => from_value::<DnsLookupInput>(input).and_then(run_dns_lookup),
+        "WhoisQuery" => from_value::<WhoisQueryInput>(input).and_then(run_whois_query),
         "TodoWrite" => from_value::<TodoWriteInput>(input).and_then(run_todo_write),
         "Skill" => from_value::<SkillInput>(input).and_then(run_skill),
         "Agent" => from_value::<AgentInput>(input).and_then(run_agent),
@@ -2422,6 +2479,74 @@ fn urlencode(s: &str) -> String {
     result
 }
 
+fn run_osint_collect(input: OsintCollectInput) -> Result<String, String> {
+    use osint::collector::DataCollector;
+
+    let kind = input.kind.as_deref().unwrap_or("domain");
+    let sources: Vec<&str> = input.sources.as_deref().map(|s| s.iter().map(String::as_str).collect()).unwrap_or_default();
+    let mut all_findings = Vec::new();
+
+    let use_web = sources.is_empty() || sources.contains(&"web");
+    let use_search = sources.is_empty() || sources.contains(&"search");
+
+    if use_web {
+        let url = format!("https://{}", input.target.trim_start_matches("https://").trim_start_matches("http://"));
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| format!("http client: {e}"))?;
+        if let Ok(resp) = client.get(&url).send().and_then(|r| r.text()) {
+            let findings = DataCollector::extract_from_html(&resp, Some(&url));
+            all_findings.extend(findings);
+        }
+    }
+
+    if use_search && kind == "email" {
+        let results = osint::search::SearchAggregator::search(&input.target, &["web"]);
+        all_findings.extend(results);
+    }
+
+    let report = osint::OsintReport::new(
+        osint::OsintTarget {
+            value: input.target.clone(),
+            kind: osint::TargetKind::Domain,
+        },
+        all_findings,
+    );
+
+    to_pretty_json(report)
+}
+
+fn run_dns_lookup(input: DnsLookupInput) -> Result<String, String> {
+    use osint::dns::{DnsResolver, RecordType};
+
+    let rt = input.record_type.as_deref().and_then(RecordType::from_str).unwrap_or(RecordType::A);
+    let findings = DnsResolver::resolve_all(&input.domain, &[rt.clone()]);
+    let ips = DnsResolver::resolve_a(&input.domain);
+
+    let result = serde_json::json!({
+        "domain": input.domain,
+        "record_type": rt.as_str(),
+        "resolved_ips": ips,
+        "findings": findings,
+    });
+
+    to_pretty_json(result)
+}
+
+fn run_whois_query(input: WhoisQueryInput) -> Result<String, String> {
+    use osint::dns::DnsResolver;
+
+    let whois_text = DnsResolver::whois_lookup(&input.domain)?;
+
+    let result = serde_json::json!({
+        "domain": input.domain,
+        "whois": whois_text,
+    });
+
+    to_pretty_json(result)
+}
+
 fn run_todo_write(input: TodoWriteInput) -> Result<String, String> {
     to_pretty_json(execute_todo_write(input)?)
 }
@@ -2643,6 +2768,24 @@ struct ShodanSearchInput {
     hostnames: Option<Vec<String>>,
     ips: Option<Vec<String>>,
     limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OsintCollectInput {
+    target: String,
+    kind: Option<String>,
+    sources: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DnsLookupInput {
+    domain: String,
+    record_type: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WhoisQueryInput {
+    domain: String,
 }
 
 #[derive(Debug, Deserialize)]

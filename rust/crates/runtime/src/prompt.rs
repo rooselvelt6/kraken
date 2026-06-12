@@ -161,6 +161,7 @@ impl SystemPromptBuilder {
         sections.push(get_multi_agent_section());
         sections.push(get_migration_protocol_section());
         sections.push(get_shodan_section());
+        sections.push(get_osint_section());
         if self.reasoning_effort.as_deref() == Some("high") {
             sections.push(get_self_validation_section());
         }
@@ -628,6 +629,37 @@ fn get_shodan_section() -> String {
         "When hunting targets, first use ShodanSearch to gather initial intelligence, ".to_string(),
         "then pass findings (IPs, ports, services) into the vulnscan pipeline via /hunt.".to_string(),
         "Combine Shodan recon with surface recon for comprehensive attack surface mapping.".to_string(),
+    ]
+    .join("\n")
+}
+
+fn get_osint_section() -> String {
+    [
+        "# OSINT Intelligence Gathering".to_string(),
+        "You have access to OsintCollect, DnsLookup, and WhoisQuery for open-source intelligence.".to_string(),
+        "Use these tools to gather public information about targets.".to_string(),
+        "".to_string(),
+        "## OSINT Methodology".to_string(),
+        "1. **Collect**: gather raw data from public sources (DNS, WHOIS, web, search)".to_string(),
+        "2. **Normalize**: clean and standardize collected data into structured fields".to_string(),
+        "3. **Correlate**: cross-reference findings across sources, resolve conflicts".to_string(),
+        "4. **Report**: present findings with source attribution and confidence levels".to_string(),
+        "".to_string(),
+        "### Tool usage:".to_string(),
+        "- **OsintCollect**: Given a domain/email/username, fetches the web page and".to_string(),
+        "  extracts emails, URLs, IPs, and phone numbers via regex + HTML parsing.".to_string(),
+        "  Can also search the web for email addresses.".to_string(),
+        "- **DnsLookup**: Query any DNS record type (A, AAAA, MX, TXT, NS, SOA, CNAME)".to_string(),
+        "  for a domain. Returns resolved IPs and record values.".to_string(),
+        "- **WhoisQuery**: Get registrar, dates, name servers, and contacts for a domain.".to_string(),
+        "".to_string(),
+        "### Recon workflow:".to_string(),
+        "1. WhoisQuery the target domain for ownership info".to_string(),
+        "2. DnsLookup with A, MX, NS, TXT to map infrastructure".to_string(),
+        "3. OsintCollect on the domain to find emails and related URLs".to_string(),
+        "4. Use identified emails with OsintCollect for further discovery".to_string(),
+        "5. Pass IPs and domains to ShodanSearch for device/service enumeration".to_string(),
+        "6. Feed findings into /hunt for vulnerability scanning".to_string(),
     ]
     .join("\n")
 }
