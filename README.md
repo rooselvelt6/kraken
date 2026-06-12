@@ -4,15 +4,15 @@
   <a href="https://github.com/rooselvelt6/kraken">
     <img src="https://img.shields.io/badge/Rust-100%25-b84100?style=for-the-badge&logo=rust" alt="Rust"/>
   </a>
-  <img src="https://img.shields.io/badge/tests-1138%20pasaron-2ea44f?style=for-the-badge" alt="Tests"/>
-  <img src="https://img.shields.io/badge/commits-950-0052cc?style=for-the-badge" alt="Commits"/>
+  <img src="https://img.shields.io/badge/tests-1200%20pasaron-2ea44f?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/commits-960-0052cc?style=for-the-badge" alt="Commits"/>
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT"/>
   <img src="https://img.shields.io/badge/status-production-green?style=for-the-badge" alt="Production"/>
 </p>
 
 <p align="center">
   <b>Agente de IA autónomo + escáner de vulnerabilidades + generador de exploits.</b><br>
-  <b>100% Rust. 17 crates. 95,374 líneas. 1,138 tests. Multi-provider. 0% Python. 0% USD.</b>
+  <b>100% Rust. 18 crates. 97,000+ líneas. 1,200+ tests. Multi-provider. 0% Python. 0% USD.</b>
 </p>
 
 ---
@@ -197,7 +197,7 @@ Kraken construye un **grafo de ataque** donde cada hallazgo es un nodo y las rel
 
 ## 🧪 Pruebas
 
-Kraken cuenta con **1,138 tests** (1,137 pasan, 1 fallo pre-existente no relacionado con el código). Distribución por crate:
+Kraken cuenta con **1,200+ tests**. Distribución por crate:
 
 | Crate | Tests |
 |---|---|
@@ -209,6 +209,7 @@ Kraken cuenta con **1,138 tests** (1,137 pasan, 1 fallo pre-existente no relacio
 | `commands` | Tests de parseo de comandos slash |
 | `security` | Tests de cifrado, derivación de claves |
 | `enterprise` | Tests de circuit breaker, retry, health checks |
+| `osint` | **66 tests** (DNS, email, social, personas, infra, reportes) |
 | `compat-harness` | Tests de paridad con Anthropic |
 | `mock-anthropic-service` | Tests del mock determinista |
 | Otros | Tests de plugins, offline, optimización, etc. |
@@ -221,6 +222,35 @@ cargo test --workspace          # Todas las pruebas
 cargo test -p vulnscan          # Solo escáner de vulnerabilidades
 cargo test -p tools             # Solo herramientas
 cargo test -p runtime           # Solo runtime
+cargo test -p osint             # Solo OSINT
+```
+
+---
+
+## 🕵️ OSINT Framework
+
+El crate `osint` (~3,800 líneas, 8 módulos) es el motor de inteligencia de fuentes abiertas de Kraken. Proporciona capacidades de recolección, análisis y correlación de información pública.
+
+| Módulo | Propósito | Métodos Clave |
+|--------|-----------|---------------|
+| **`collector`** | Extracción de datos de texto | Emails, URLs, IPs, teléfonos, mailto |
+| **`dns`** | Resolución DNS y WHOIS | A, AAAA, MX, TXT, NS, SOA, CNAME, whois |
+| **`search`** | Búsqueda en motores y dorking | Google Dork (20+ dorks), Bing, ranking |
+| **`email`** | Enriquecimiento de emails | Validación MX, detección de proveedor, HIBP API v3 |
+| **`social`** | OSINT en redes sociales | 70+ plataformas, `SocialSearcher`, `ProfileExtractor` |
+| **`person`** | OSINT de personas | `NameParser`, `PhoneOSINT` (100+ países), `PersonSearcher`, `IdentityCorrelator` |
+| **`infra`** | OSINT de infraestructura | `PortScanner`, `CertTransparency` (crt.sh), `ASNLookup`, `TechFingerprinter`, `IPEnricher` (Shodan, ipinfo, rDNS) |
+| **`report`** | Generación de reportes | JSON, HTML (dark-mode), Markdown, CSV, Text |
+
+```rust
+use osint::{analyze_ip, analyze_domain, infra::*, person::*, social::*, email::*};
+
+let findings = analyze_ip("8.8.8.8");                    // rDNS + ipinfo + Shodan + ASN
+let findings = analyze_domain("example.com");            // crt.sh + SSL + IP + rDNS
+let profiles = SocialSearcher::search_username("jdoe", &Platform::all()); // 70+ plataformas
+let breaches = EmailEnricher::check_breaches("u@e.com"); // HIBP API v3
+let phone = PhoneOSINT::validate("+584121234567");       // 100+ países + carrier
+let report = ReportGenerator::to_html(&report);          // HTML dark-mode
 ```
 
 ---
@@ -244,7 +274,7 @@ cargo test -p runtime           # Solo runtime
 
 ## 🗺️ Roadmap
 
-**25 fases planificadas — 6 completadas, 19 futuras.**
+**25 fases planificadas — 11 completadas, 14 futuras.**
 
 | Fase | Capacidad | Estado |
 |------|-----------|--------|
@@ -254,21 +284,21 @@ cargo test -p runtime           # Solo runtime
 | 4 | Advanced Multi-Agent Orchestration | ✅ Completada |
 | 5 | Autonomous Codebase Migrations | ✅ Completada |
 | 6 | Enhanced Security Analysis (vulnscan) | ✅ Completada |
-| 7 | OSINT Foundation | ⬜ Futura |
-| 8 | Social Media OSINT | ⬜ Futura |
-| 9 | Person Identity Correlation | ⬜ Futura |
-| 10 | Dark & Surface Web Recon | ⬜ Futura |
-| 11 | Network Attack Surface | ⬜ Futura |
-| 12 | System Security Audit | ⬜ Futura |
-| 13 | System Hardening Engine | ⬜ Futura |
-| 14 | Threat Detection & Monitoring | ⬜ Futura |
-| 15 | Advanced Exploitation Chain | ⬜ Futura |
-| 16 | Automated Defense & IR | ⬜ Futura |
-| 17-20 | Process, Storage, Network, Package Control | ⬜ Futura |
-| 21 | Multi-Agent Debate & Consensus | ⬜ Futura |
-| 22 | Self-Healing Auto-Recovery | ⬜ Futura |
-| 23 | Autonomous Research Pipeline | ⬜ Futura |
-| 24 | Code Self-Reflection & Improvement | ⬜ Futura |
+| 7 | **OSINT Foundation** | ✅ **Completada** |
+| 8 | **Social Media OSINT** | ✅ **Completada** |
+| 9 | **Person Identity Correlation** | ✅ **Completada** |
+| 10 | **Infrastructure OSINT** | ✅ **Completada** |
+| 11 | **Report Generation** | ✅ **Completada** |
+| 12 | Dark & Surface Web Recon | ⬜ Futura |
+| 13 | Network Attack Surface | ⬜ Futura |
+| 14 | System Security Audit | ⬜ Futura |
+| 15 | System Hardening Engine | ⬜ Futura |
+| 16 | Threat Detection & Monitoring | ⬜ Futura |
+| 17 | Advanced Exploitation Chain | ⬜ Futura |
+| 18 | Automated Defense & IR | ⬜ Futura |
+| 19-22 | Process, Storage, Network, Package Control | ⬜ Futura |
+| 23 | Multi-Agent Debate & Consensus | ⬜ Futura |
+| 24 | Self-Healing Auto-Recovery | ⬜ Futura |
 | 25 | Full Self-Improvement Autonomy | ⬜ Futura |
 
 **Cifras planeadas**: 9 crates nuevos, ~90 archivos, ~75 herramientas nuevas
@@ -324,7 +354,7 @@ kraken> dime qué vulnerabilidades hay en este código
 
 ## 🏗️ Arquitectura
 
-**17 crates**, **95,374 líneas de Rust**, **146 archivos fuente**.
+**18 crates**, **97,000+ líneas de Rust**, **150+ archivos fuente**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -344,6 +374,12 @@ kraken> dime qué vulnerabilidades hay en este código
 │    ├── Exploit Generator + Chaining                             │
 │    └── Reportes (CLI, JSON, HTML)                               │
 ├─────────────────────────────────────────────────────────────────┤
+│  osint (~3,800 líneas, 8 módulos)                               │
+│    ├── dns / email / search — recolección                        │
+│    ├── social / person — identidades                             │
+│    ├── infra — infraestructura (Shodan, crt.sh, ASN)             │
+│    └── report — 5 formatos de salida                             │
+├─────────────────────────────────────────────────────────────────┤
 │  cache (mem+SQLite, LRU/LFU/FIFO/TTL)     offline (SQLite sync) │
 │  localmodels (Ollama, LM Studio)           optimization (PSO,   │
 │                                            GA, ACO, SA)         │
@@ -355,13 +391,14 @@ kraken> dime qué vulnerabilidades hay en este código
 ### Detalle de Crates
 
 | Crate | Propósito | Líneas |
-|---|---|---|
+|---|---|---|---|
 | `rusty-claude-cli` | Binario principal — REPL, CLI, parser de args | ~13,600 |
 | `tools` | 44+ herramientas del agente (read, write, edit, bash, search, plan, etc.) | ~10,000 |
 | `vulnscan` | Escáner 9 lenguajes, LLM analyst, BFS, exploits, reportes | ~6,500 |
 | `runtime` | Sesiones, config, permisos, MCP, prompts, workers | ~4,100 |
 | `api` | Clientes multi-provider (Anthropic, OpenAI, DeepSeek, xAI, Ollama) | ~3,500 |
 | `commands` | 140+ comandos slash, parseo, ayuda | ~5,900 |
+| `osint` | OSINT: DNS, email, social, personas, infra, reportes | ~3,800 |
 | `enterprise` | Circuit breaker, retry, health checks, métricas, tracing | ~1,800 |
 | `optimization` | PSO, GA, ACO, Simulated Annealing | ~1,500 |
 | `cache` | Caché multi-nivel (mem+SQLite), LRU/LFU/FIFO/TTL, zlib | ~1,200 |
@@ -394,5 +431,5 @@ MIT — uso libre, modificación y distribución.
 
 <p align="center">
   <b>100% Rust. 0% Python. 0% USD. Proveedores gratuitos. Sin bloqueo.</b><br>
-  <sub>17 crates · 95,374 líneas · 1,138 tests · 950 commits · 24 user stories completadas</sub>
+  <sub>18 crates · 97,000+ líneas · 1,200+ tests · 960+ commits · 35 user stories completadas</sub>
 </p>
