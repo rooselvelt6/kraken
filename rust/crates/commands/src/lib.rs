@@ -1055,6 +1055,13 @@ const SLASH_COMMAND_SPECS: &[SlashCommandSpec] = &[
         argument_hint: Some("[path] [--fast|--deep|--overnight]"),
         resume_supported: false,
     },
+    SlashCommandSpec {
+        name: "shodan",
+        aliases: &[],
+        summary: "Search Shodan for internet-connected devices, services, and vulnerabilities. Use ShodanSearch tool. Requires SHODAN_API_KEY.",
+        argument_hint: Some("[search <query> | host <ip> | myip | info]"),
+        resume_supported: false,
+    },
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]

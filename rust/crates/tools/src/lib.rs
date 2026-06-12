@@ -1237,6 +1237,33 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
             required_permission: PermissionMode::ReadOnly,
         },
         ToolSpec {
+            name: "ShodanSearch",
+            description: concat!(
+                "Search Shodan for internet-connected devices, services, and vulnerabilities. ",
+                "Requires SHODAN_API_KEY env var. Actions: search (query hosts), ",
+                "host (IP details), dns_resolve (hostnames -> IPs), ",
+                "dns_reverse (IPs -> hostnames), myip, info, ports, protocols."
+            ),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["search", "host", "dns_resolve", "dns_reverse", "myip", "info", "ports", "protocols"],
+                        "description": "Action to perform"
+                    },
+                    "query": { "type": "string", "description": "Search query (required for search action)" },
+                    "ip": { "type": "string", "description": "IP address (required for host action)" },
+                    "hostnames": { "type": "array", "items": { "type": "string" }, "description": "Hostnames to resolve (dns_resolve)" },
+                    "ips": { "type": "array", "items": { "type": "string" }, "description": "IPs to reverse-resolve (dns_reverse)" },
+                    "limit": { "type": "integer", "minimum": 1, "maximum": 100, "description": "Max results (search, default 10)" }
+                },
+                "required": ["action"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
             name: "TestingPermission",
             description: "Test-only tool for verifying permission enforcement behavior.",
             input_schema: json!({
@@ -1306,6 +1333,7 @@ fn execute_tool_with_enforcer(
         }
         "WebFetch" => from_value::<WebFetchInput>(input).and_then(run_web_fetch),
         "WebSearch" => from_value::<WebSearchInput>(input).and_then(run_web_search),
+        "ShodanSearch" => from_value::<ShodanSearchInput>(input).and_then(run_shodan_search),
         "TodoWrite" => from_value::<TodoWriteInput>(input).and_then(run_todo_write),
         "Skill" => from_value::<SkillInput>(input).and_then(run_skill),
         "Agent" => from_value::<AgentInput>(input).and_then(run_agent),
@@ -2272,6 +2300,128 @@ fn run_web_search(input: WebSearchInput) -> Result<String, String> {
     to_pretty_json(execute_web_search(&input)?)
 }
 
+fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
+    let api_key = std::env::var("SHODAN_API_KEY")
+        .map_err(|_| "SHODAN_API_KEY environment variable is not set".to_string())?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("failed to build HTTP client: {e}"))?;
+
+    match input.action.as_str() {
+        "search" => {
+            let query = input.query.as_deref().unwrap_or("*");
+            let limit = input.limit.unwrap_or(10).min(100);
+            let url = format!(
+                "https://api.shodan.io/shodan/host/search?key={}&query={}&limit={}",
+                api_key, urlencode(query), limit
+            );
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan search request failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan search parse failed: {e}"))?;
+            let matches = resp.get("matches").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
+            let total = resp.get("total").and_then(|t| t.as_u64()).unwrap_or(0);
+            Ok(to_pretty_json(json!({
+                "total": total,
+                "matches_shown": matches,
+                "results": resp.get("matches"),
+                "query": query,
+            }))?)
+        }
+        "host" => {
+            let ip = input.ip.as_deref().ok_or("ip is required for host action")?;
+            let url = format!("https://api.shodan.io/shodan/host/{}?key={}", ip, api_key);
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan host request failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan host parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        "dns_resolve" => {
+            let hostnames = input.hostnames.as_deref().ok_or("hostnames is required for dns_resolve")?;
+            let joined = hostnames.join(",");
+            let url = format!("https://api.shodan.io/dns/resolve?key={}&hostnames={}", api_key, urlencode(&joined));
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan DNS resolve failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan DNS resolve parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        "dns_reverse" => {
+            let ips = input.ips.as_deref().ok_or("ips is required for dns_reverse")?;
+            let joined = ips.join(",");
+            let url = format!("https://api.shodan.io/dns/reverse?key={}&ips={}", api_key, urlencode(&joined));
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan DNS reverse failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan DNS reverse parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        "myip" => {
+            let url = format!("https://api.shodan.io/tools/myip?key={}", api_key);
+            let resp = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan myip failed: {e}"))?
+                .text()
+                .map_err(|e| format!("Shodan myip parse failed: {e}"))?;
+            Ok(json!({ "ip": resp.trim() }).to_string())
+        }
+        "info" => {
+            let url = format!("https://api.shodan.io/api-info?key={}", api_key);
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan info request failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan info parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        "ports" => {
+            let url = format!("https://api.shodan.io/shodan/ports?key={}", api_key);
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan ports request failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan ports parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        "protocols" => {
+            let url = format!("https://api.shodan.io/shodan/protocols?key={}", api_key);
+            let resp: serde_json::Value = client
+                .get(&url)
+                .send()
+                .map_err(|e| format!("Shodan protocols request failed: {e}"))?
+                .json()
+                .map_err(|e| format!("Shodan protocols parse failed: {e}"))?;
+            Ok(to_pretty_json(resp)?)
+        }
+        _ => Err(format!("unknown Shodan action: {}", input.action)),
+    }
+}
+
+fn urlencode(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => result.push(byte as char),
+            b' ' => result.push_str("%20"),
+            _ => result.push_str(&format!("%{:02X}", byte)),
+        }
+    }
+    result
+}
+
 fn run_todo_write(input: TodoWriteInput) -> Result<String, String> {
     to_pretty_json(execute_todo_write(input)?)
 }
@@ -2483,6 +2633,16 @@ struct WebSearchInput {
     query: String,
     allowed_domains: Option<Vec<String>>,
     blocked_domains: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ShodanSearchInput {
+    action: String,
+    query: Option<String>,
+    ip: Option<String>,
+    hostnames: Option<Vec<String>>,
+    ips: Option<Vec<String>>,
+    limit: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]

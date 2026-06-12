@@ -160,6 +160,7 @@ impl SystemPromptBuilder {
         sections.push(get_memory_usage_section());
         sections.push(get_multi_agent_section());
         sections.push(get_migration_protocol_section());
+        sections.push(get_shodan_section());
         if self.reasoning_effort.as_deref() == Some("high") {
             sections.push(get_self_validation_section());
         }
@@ -602,6 +603,31 @@ fn get_migration_protocol_section() -> String {
         "PlanMigration analyzes the specified files and generates a risk assessment.".to_string(),
         "BatchEdit applies multiple file edits and reports per-file results.".to_string(),
         "VerifyMigration runs a command and reports success/failure with full output.".to_string(),
+    ]
+    .join("\n")
+}
+
+fn get_shodan_section() -> String {
+    [
+        "# Shodan Intelligence Gathering".to_string(),
+        "You have access to the ShodanSearch tool for internet-wide reconnaissance. ".to_string(),
+        "Set SHODAN_API_KEY environment variable to enable it.".to_string(),
+        "Usage patterns:".to_string(),
+        "".to_string(),
+        "- **search**: Query Shodan's host database for devices/services (e.g., \"product:nginx country:VE\")".to_string(),
+        "  Use Shodan search filters: country, city, port, org, hostname, product, os, vuln, before/after".to_string(),
+        "  Results include IP, ports, banners, CVEs, geolocation, and hostnames.".to_string(),
+        "- **host**: Get full details for a single IP (open ports, services, banners, CVEs)".to_string(),
+        "- **dns_resolve**: Resolve hostname(s) to IP address(es)".to_string(),
+        "- **dns_reverse**: Reverse-resolve IP(s) to hostname(s)".to_string(),
+        "- **myip**: Show the current public IP".to_string(),
+        "- **info**: Show Shodan API plan and credits".to_string(),
+        "- **ports**: List all ports Shodan is currently tracking".to_string(),
+        "- **protocols**: List all protocols Shodan supports".to_string(),
+        "".to_string(),
+        "When hunting targets, first use ShodanSearch to gather initial intelligence, ".to_string(),
+        "then pass findings (IPs, ports, services) into the vulnscan pipeline via /hunt.".to_string(),
+        "Combine Shodan recon with surface recon for comprehensive attack surface mapping.".to_string(),
     ]
     .join("\n")
 }

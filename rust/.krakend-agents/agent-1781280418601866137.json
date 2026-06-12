@@ -1,0 +1,70 @@
+{
+  "agentId": "agent-1781280418601866137",
+  "name": "complete-task",
+  "description": "Complete the task",
+  "subagentType": "Explore",
+  "model": "claude-sonnet-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781280418601866137.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781280418601866137.json",
+  "createdAt": "1781280418",
+  "startedAt": "1781280418",
+  "completedAt": "1781280418",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781280418",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418888
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781280418",
+      "detail": "Finished successfully in commit abc1234",
+      "data": {
+        "artifactProvenance": {
+          "commitSha": "abc1234",
+          "sourceLanes": [
+            "complete-task"
+          ]
+        },
+        "qualityFloorApplied": false,
+        "rawSummary": "Finished successfully in commit abc1234",
+        "reasons": [],
+        "wordCount": 5
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418888
+      }
+    },
+    {
+      "event": "lane.commit.created",
+      "status": "completed",
+      "emittedAt": "1781280418",
+      "detail": "commit abc1234",
+      "data": {
+        "branch": "main",
+        "canonicalCommit": "abc1234",
+        "commit": "abc1234",
+        "lineage": [
+          "abc1234"
+        ],
+        "worktree": "/home/tdy/Escritorio/claw-vzla/rust/crates/tools"
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418891
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable",
+  "output": "Finished successfully in commit abc1234"
+}

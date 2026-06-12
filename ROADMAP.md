@@ -226,11 +226,22 @@ pipeline, using specialized system prompts per vulnerability class.
 
 ---
 
-## Phase 7 — OSINT Foundation
+## ✅ Phase 7 — OSINT Foundation (partial)
 
 **Goal**: Build a data collection framework for open-source intelligence — email
-extraction, DNS/WHOIS resolution, web scraping, search aggregation. This is the
-base layer for all person and infrastructure OSINT phases.
+extraction, DNS/WHOIS resolution, web scraping, search aggregation, and Shodan
+intelligence gathering. This is the base layer for all person and infrastructure
+OSINT phases.
+
+### Shodan Intelligence (implemented)
+
+- New tool `ShodanSearch` in `tools/src/lib.rs` (input struct, spec, dispatch,
+  handler) with 8 actions: search, host, dns_resolve, dns_reverse, myip, info,
+  ports, protocols
+- System prompt section `get_shodan_section()` in `runtime/src/prompt.rs`
+  describing Shodan usage patterns, filters, and integration with /hunt
+- Requires `SHODAN_API_KEY` environment variable
+- Permission: `ReadOnly` (read-only internet queries, no local writes)
 
 ### New crate (`rust/crates/osint/`)
 

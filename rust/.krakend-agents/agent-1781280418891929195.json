@@ -1,0 +1,55 @@
+{
+  "agentId": "agent-1781280418891929195",
+  "name": "fail-task",
+  "description": "Fail the task",
+  "subagentType": "Verification",
+  "model": "claude-opus-4-6",
+  "status": "failed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781280418891929195.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781280418891929195.json",
+  "createdAt": "1781280418",
+  "startedAt": "1781280418",
+  "completedAt": "1781280418",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781280418",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418918
+      }
+    },
+    {
+      "event": "lane.blocked",
+      "status": "blocked",
+      "emittedAt": "1781280418",
+      "failureClass": "tool_runtime",
+      "detail": "tool failed: simulated failure",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418918
+      }
+    },
+    {
+      "event": "lane.failed",
+      "status": "failed",
+      "emittedAt": "1781280418",
+      "failureClass": "tool_runtime",
+      "detail": "tool failed: simulated failure",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781280418918
+      }
+    }
+  ],
+  "currentBlocker": {
+    "failureClass": "tool_runtime",
+    "detail": "tool failed: simulated failure"
+  },
+  "derivedState": "truly_idle",
+  "error": "tool failed: simulated failure"
+}

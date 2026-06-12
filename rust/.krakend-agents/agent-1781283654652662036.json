@@ -1,0 +1,50 @@
+{
+  "agentId": "agent-1781283654652662036",
+  "name": "recovery-lane",
+  "description": "Recover the stalled audit lane",
+  "subagentType": "Explore",
+  "model": "claude-opus-4-6",
+  "status": "completed",
+  "outputFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781283654652662036.md",
+  "manifestFile": "/home/tdy/Escritorio/claw-vzla/rust/.krakend-agents/agent-1781283654652662036.json",
+  "createdAt": "1781283654",
+  "startedAt": "1781283654",
+  "completedAt": "1781283654",
+  "laneEvents": [
+    {
+      "event": "lane.started",
+      "status": "running",
+      "emittedAt": "1781283654",
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781283654676
+      }
+    },
+    {
+      "event": "lane.finished",
+      "status": "completed",
+      "emittedAt": "1781283654",
+      "detail": "Completed lane `recovery-lane` for target: Recover the stalled audit lane. Status: completed. Recovery handoff observed via tmux reinjection (cause: `tmux_reinject_after_idle`). Target lane: `read-only-audit-only-for-roadm`.",
+      "data": {
+        "qualityFloorApplied": true,
+        "rawSummary": "Team read-only-audit-only-for-roadm: worker panes stalled, no progress 2m30s. Next: omx team status read-only-audit-only-for-roadm; read worker messages; unblock/reassign or shutdown. [OMX_TMUX_INJECT]",
+        "reasons": [
+          "recovery_control_prose"
+        ],
+        "recoveryOutcome": {
+          "cause": "tmux_reinject_after_idle",
+          "targetLane": "read-only-audit-only-for-roadm"
+        },
+        "wordCount": 23
+      },
+      "metadata": {
+        "seq": 0,
+        "provenance": "live_lane",
+        "timestamp_ms": 1781283654677
+      }
+    }
+  ],
+  "derivedState": "finished_cleanable",
+  "output": "Team read-only-audit-only-for-roadm: worker panes stalled, no progress 2m30s. Next: omx team status read-only-audit-only-for-roadm; read worker messages; unblock/reassign or shutdown. [OMX_TMUX_INJECT]"
+}
