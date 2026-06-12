@@ -1,6 +1,8 @@
 pub mod collector;
 pub mod dns;
+pub mod email;
 pub mod search;
+pub mod social;
 
 use serde::{Deserialize, Serialize};
 
