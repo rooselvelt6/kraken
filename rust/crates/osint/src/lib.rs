@@ -3,6 +3,7 @@ pub mod dns;
 pub mod email;
 pub mod infra;
 pub mod person;
+pub mod report;
 pub mod search;
 pub mod social;
 
