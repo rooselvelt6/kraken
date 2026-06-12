@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use crate::throttle::backoff_delay;
 use crate::{FindingKind, OsintFinding, OsintSource, Reliability};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,15 +65,31 @@ impl SearchAggregator {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .map_err(|e| e.to_string())?;
-        let resp = client
-            .get(&url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-            .send()
-            .map_err(|e| format!("search request failed: {e}"))?
-            .text()
-            .map_err(|e| format!("search response: {e}"))?;
 
-        let document = scraper::Html::parse_document(&resp);
+        let mut last_error = String::new();
+        for attempt in 0..3 {
+            match client
+                .get(&url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .send()
+            {
+                Ok(resp) => {
+                    let body = resp.text().map_err(|e| format!("search response: {e}"))?;
+                    return Self::parse_results(&body);
+                }
+                Err(e) => {
+                    last_error = format!("search request failed: {e}");
+                    if attempt < 2 {
+                        std::thread::sleep(backoff_delay(attempt, 500));
+                    }
+                }
+            }
+        }
+        Err(last_error)
+    }
+
+    fn parse_results(html: &str) -> Result<Vec<SearchResult>, String> {
+        let document = scraper::Html::parse_document(html);
         let result_selector = scraper::Selector::parse(".result").map_err(|e| format!("result selector: {e}"))?;
         let link_selector = scraper::Selector::parse("a.result__a").map_err(|e| format!("link selector: {e}"))?;
         let snippet_selector = scraper::Selector::parse(".result__snippet").map_err(|e| format!("snippet selector: {e}"))?;

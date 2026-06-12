@@ -272,37 +272,28 @@ let report = ReportGenerator::to_html(&report);          // HTML dark-mode
 
 ---
 
-## 🗺️ Roadmap
+## 🗺️ Roadmap 2027 — Kraken Hardened
 
-**25 fases planificadas — 11 completadas, 14 futuras.**
+**Defense-in-Depth Enterprise Edition.** Convertir Kraken en un sistema inmune: detecta, contiene, recupera y aprende automáticamente.
 
-| Fase | Capacidad | Estado |
-|------|-----------|--------|
-| 1 | Vision / Image Input | ✅ Completada |
-| 2 | Persistent Memory / Note-taking | ✅ Completada |
-| 3 | Self-Validation (High-Effort) | ✅ Completada |
-| 4 | Advanced Multi-Agent Orchestration | ✅ Completada |
-| 5 | Autonomous Codebase Migrations | ✅ Completada |
-| 6 | Enhanced Security Analysis (vulnscan) | ✅ Completada |
-| 7 | **OSINT Foundation** | ✅ **Completada** |
-| 8 | **Social Media OSINT** | ✅ **Completada** |
-| 9 | **Person Identity Correlation** | ✅ **Completada** |
-| 10 | **Infrastructure OSINT** | ✅ **Completada** |
-| 11 | **Report Generation** | ✅ **Completada** |
-| 12 | Dark & Surface Web Recon | ⬜ Futura |
-| 13 | Network Attack Surface | ⬜ Futura |
-| 14 | System Security Audit | ⬜ Futura |
-| 15 | System Hardening Engine | ⬜ Futura |
-| 16 | Threat Detection & Monitoring | ⬜ Futura |
-| 17 | Advanced Exploitation Chain | ⬜ Futura |
-| 18 | Automated Defense & IR | ⬜ Futura |
-| 19-22 | Process, Storage, Network, Package Control | ⬜ Futura |
-| 23 | Multi-Agent Debate & Consensus | ⬜ Futura |
-| 24 | Self-Healing Auto-Recovery | ⬜ Futura |
-| 25 | Full Self-Improvement Autonomy | ⬜ Futura |
+| Fase | Capacidad | Área | KPI |
+|------|-----------|------|-----|
+| 1 | Fortaleza Criptográfica y Zero Trust Secrets | Seguridad | 0 secretos en texto plano |
+| 2 | Input Fortress: Validación + Fuzzing | Seguridad | 0 path traversal bypass |
+| 3 | Heuristic Anomaly Engine (HAE) | ML/Heurísticas | >95% detección, <5% FP |
+| 4 | Circuit Breakers + Rate Limiting Adaptativo | Robustez | 0 fallos en cascada |
+| 5 | Audit Fort Knox: Inmutabilidad + Forensics | Seguridad | 100% tool calls auditadas |
+| 6 | Sandbox Real (Seccomp + Landlock + NSJail) | Seguridad | 0 escapes de sandbox |
+| 7 | ML Local para Detección de Amenazas | ML | >90% recall en ataques |
+| 8 | Supply Chain Fortress + SBOM (SLSA 3+) | Robustez | 0 advisories críticos |
+| 9 | Self-Healing Immune System | Robustez | Recovery <1s |
+| 10 | Adaptive Security Engine (Auto-Defensa con ML) | ML/Seguridad | FP <3%, mejora semanal |
 
-**Cifras planeadas**: 9 crates nuevos, ~90 archivos, ~75 herramientas nuevas
-Ver [`ROADMAP.md`](ROADMAP.md) para el detalle completo.
+**Tecnologías clave:** XChaCha20Poly1305 + Argon2id, TPM 2.0, Seccomp BPF, Landlock, NSJail, cgroup2, tract/candle (ONNX), LoRA, cargo-deny + cargo-vet, CycloneDX SBOM, chaosd/litmus, AlienVault OTX.
+
+**Métricas globales:** MTBF, MTTR, latencia añadida <100ms, 0 pérdida de datos en fallos.
+
+Ver [`ROADMAP-2027.md`](ROADMAP-2027.md) para el detalle completo de las 10 fases con KPIs, penetration tests y arquitectura.
 
 ---
 

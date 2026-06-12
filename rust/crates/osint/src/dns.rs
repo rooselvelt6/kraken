@@ -1,14 +1,19 @@
 use std::io::{BufReader, Read, Write};
 use std::net::TcpStream;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use chrono::Utc;
 use hickory_resolver::proto::rr::RData;
 use hickory_resolver::TokioResolver;
 use serde::{Deserialize, Serialize};
-use tokio;
 
 use crate::{FindingKind, OsintFinding, OsintSource, Reliability};
+
+fn runtime() -> &'static tokio::runtime::Runtime {
+    static RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    RT.get_or_init(|| tokio::runtime::Runtime::new().expect("failed to create tokio runtime"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DnsRecord {
@@ -117,27 +122,27 @@ impl DnsResolver {
         findings
     }
 
-    fn resolve_with_hickory(domain: &str, rt: &RecordType) -> Result<Vec<String>, String> {
-        let hickory_rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-        hickory_rt.block_on(async {
+    fn resolve_with_hickory(domain: &str, record_type: &RecordType) -> Result<Vec<String>, String> {
+        let rt = runtime();
+        rt.block_on(async {
             let resolver = TokioResolver::builder_tokio()
                 .map_err(|e| format!("dns builder: {e}"))?
                 .build()
                 .map_err(|e| format!("dns build: {e}"))?;
 
-            if matches!(rt, RecordType::CNAME) {
+            if matches!(record_type, RecordType::CNAME) {
                 return Self::lookup_cname(&resolver, domain).await;
             }
 
             let response = resolver
-                .lookup(domain, rt.to_hickory())
+                .lookup(domain, record_type.to_hickory())
                 .await
-                .map_err(|e| format!("dns lookup {}: {e}", rt.as_str()))?;
+                .map_err(|e| format!("dns lookup {}: {e}", record_type.as_str()))?;
 
             let values: Vec<String> = response
                 .answers()
                 .iter()
-                .filter_map(|record| Self::rdata_to_string(&record.data, rt))
+                .filter_map(|record| Self::rdata_to_string(&record.data, record_type))
                 .collect();
 
             Ok(values)

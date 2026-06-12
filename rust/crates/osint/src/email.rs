@@ -1,7 +1,14 @@
+use std::sync::OnceLock;
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::{FindingKind, OsintFinding, OsintSource, Reliability};
+
+fn runtime() -> &'static tokio::runtime::Runtime {
+    static RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+    RT.get_or_init(|| tokio::runtime::Runtime::new().expect("failed to create tokio runtime"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreachEntry {
@@ -136,7 +143,7 @@ impl EmailEnricher {
     fn check_mx(domain: &str) -> Option<Vec<String>> {
         use hickory_resolver::proto::rr::RData;
         use hickory_resolver::TokioResolver;
-        let rt = tokio::runtime::Runtime::new().ok()?;
+        let rt = runtime();
         rt.block_on(async {
             let resolver = TokioResolver::builder_tokio().ok()?.build().ok()?;
             let response = resolver.mx_lookup(domain).await.ok()?;
@@ -271,6 +278,7 @@ mod tests {
         assert!(findings.iter().any(|f| f.value.contains("Gmail")));
     }
 
+    #[cfg_attr(not(feature = "network-tests"), ignore = "requires network")]
     #[test]
     fn enriches_email_with_mx_check() {
         let findings = EmailEnricher::enrich("test@example.org");

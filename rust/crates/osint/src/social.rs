@@ -1,6 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
+use crate::throttle::SemaphoreLimiter;
 use crate::{FindingKind, OsintFinding, OsintSource, Reliability};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -301,6 +302,11 @@ impl Platform {
 pub struct SocialSearcher;
 
 impl SocialSearcher {
+    fn concurrent_limiter() -> &'static SemaphoreLimiter {
+        static LIMITER: std::sync::OnceLock<SemaphoreLimiter> = std::sync::OnceLock::new();
+        LIMITER.get_or_init(|| SemaphoreLimiter::new(10))
+    }
+
     pub fn search_username(username: &str, platforms: &[Platform]) -> Vec<OsintFinding> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
@@ -308,20 +314,42 @@ impl SocialSearcher {
             .build()
             .ok();
 
-        let mut findings = Vec::new();
+        let limiter = Self::concurrent_limiter();
+        let rt = {
+            static RT: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+            RT.get_or_init(|| tokio::runtime::Runtime::new().expect("failed to create tokio runtime"))
+        };
+
+        let mut handles = Vec::new();
         for platform in platforms {
             if let Some(url) = platform.profile_url(username) {
-                let exists = client.as_ref().map_or(false, |c| {
-                    check_profile_exists(c, &url)
-                });
+                let permit = rt.block_on(limiter.acquire());
+                let url_c = url.clone();
+                let plat_name = platform.as_str().to_string();
+                let user = username.to_string();
+                let client_c = client.clone();
+
+                handles.push(std::thread::spawn(move || {
+                    let _p = permit;
+                    let exists = client_c.as_ref().map_or(false, |c| {
+                        check_profile_exists(c, &url_c)
+                    });
+                    (plat_name, user, url_c, exists)
+                }));
+            }
+        }
+
+        let mut findings = Vec::new();
+        for handle in handles {
+            if let Ok((plat_name, user, url, exists)) = handle.join() {
                 findings.push(OsintFinding {
                     source: OsintSource {
-                        name: format!("social/{}", platform.as_str()),
+                        name: format!("social/{}", plat_name),
                         reliability: Reliability::Medium,
                         url: Some(url.clone()),
                     },
                     kind: FindingKind::SocialProfile,
-                    value: format!("{} profile: {}", platform.as_str(), username),
+                    value: format!("{} profile: {}", plat_name, user),
                     context: if exists {
                         Some(format!("Profile exists at {}", url))
                     } else {
@@ -332,6 +360,8 @@ impl SocialSearcher {
                 });
             }
         }
+
+        findings.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
         findings
     }
 }

@@ -102,6 +102,8 @@ Primary artifacts:
 | Plugin management surfaces | ✅ |
 | Skills inventory / install surfaces | ✅ |
 | Machine-readable JSON output across core CLI surfaces | ✅ |
+| OSINT engine (DNS, WHOIS, email, infra, social, darkweb) | ✅ |
+| Vulnerability scanning (CVE/NVD, CPE, port scan) | ✅ |
 
 ## Model Aliases
 
@@ -186,11 +188,13 @@ rust/
     ├── commands/           # Shared slash-command registry + help rendering
     ├── compat-harness/     # TS manifest extraction harness
     ├── mock-anthropic-service/ # Deterministic local Anthropic-compatible mock
+    ├── osint/              # OSINT engine: DNS, email, infra, social, darkweb, search
     ├── plugins/            # Plugin metadata, manager, install/enable/disable surfaces
     ├── runtime/            # Session, config, permissions, MCP, prompts, auth/runtime loop
     ├── rusty-claude-cli/   # Main CLI binary (`kraken`)
     ├── telemetry/          # Session tracing and usage telemetry types
-    └── tools/              # Built-in tools, skill resolution, tool search, agent runtime surfaces
+    ├── tools/              # Built-in tools, skill resolution, tool search, agent runtime surfaces
+    └── vulnscan/           # Vulnerability scanning engine
 ```
 
 ### Crate Responsibilities
@@ -199,19 +203,25 @@ rust/
 - **commands** — slash command definitions, parsing, help text generation, JSON/text command rendering
 - **compat-harness** — extracts tool/prompt manifests from upstream TS source
 - **mock-anthropic-service** — deterministic `/v1/messages` mock for CLI parity tests and local harness runs
+- **osint** — open-source intelligence engine: DNS resolution (A/AAAA/MX/TXT/NS/SOA/CNAME via hickory-resolver), WHOIS lookups, email breach checking (HIBP), IP/domain infrastructure analysis (ASN, reverse DNS, Shodan, Censys, ThreatFox), port scanning, technology fingerprinting, social media username search across 75+ platforms (with concurrent rate-limited semaphore), darkweb/Tor reconnaissance (.onion validation, Pastebin/psbdmp.ws searches, Telegram channel discovery), and DuckDuckGo web search with exponential-backoff retry
 - **plugins** — plugin metadata, install/enable/disable/update flows, plugin tool definitions, hook integration surfaces
 - **runtime** — `ConversationRuntime`, config loading, session persistence, permission policy, MCP client lifecycle, system prompt assembly, usage tracking
 - **rusty-claude-cli** — REPL, one-shot prompt, direct CLI subcommands, streaming display, tool call rendering, CLI argument parsing
 - **telemetry** — session trace events and supporting telemetry payloads
 - **tools** — tool specs + execution: Bash, ReadFile, WriteFile, EditFile, GlobSearch, GrepSearch, WebSearch, WebFetch, Agent, TodoWrite, NotebookEdit, Skill, ToolSearch, and runtime-facing tool discovery
+- **vulnscan** — vulnerability scanning: CVE lookup, CPE matching, NVD integration, service detection, port scanning
 
 ## Stats
 
-- **~20K lines** of Rust
-- **9 crates** in workspace
+- **~25K lines** of Rust
+- **11 crates** in workspace
 - **Binary name:** `kraken`
 - **Default model:** `claude-opus-4-6`
 - **Default permissions:** `danger-full-access`
+
+## Roadmap
+
+See [`ROADMAP-2027.md`](../ROADMAP-2027.md) for the upcoming security, AI/ML, and robustness roadmap.
 
 ## License
 

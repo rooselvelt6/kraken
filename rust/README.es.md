@@ -1,60 +1,60 @@
-# 🦞 Kraken Code — Implementación en Rust
+# 🦞 Kraken Code — Rust Implementation
 
-Una reescritura de alto rendimiento en Rust del harness del agente CLI Kraken Code. Construido para velocidad, seguridad y ejecución nativa de herramientas.
+A high-performance Rust rewrite of the Kraken Code CLI agent harness. Built for speed, safety, and native tool execution.
 
-Para una guía orientada a tareas con ejemplos de copiar y pegar, consulta [`../USAGE.md`](../USAGE.md).
+For a task-oriented guide with copy/paste examples, see [`../USAGE.md`](../USAGE.md).
 
-## Inicio Rápido
+## Quick Start
 
 ```bash
-# Inspeccionar comandos disponibles
+# Inspect available commands
 cd rust/
 cargo run -p rusty-claude-cli -- --help
 
-# Construir el workspace
+# Build the workspace
 cargo build --workspace
 
-# Ejecutar el REPL interactivo
+# Run the interactive REPL
 cargo run -p rusty-claude-cli -- --model claude-opus-4-6
 
-# Prompt de un solo uso
-cargo run -p rusty-claude-cli -- prompt "explica esta base de código"
+# One-shot prompt
+cargo run -p rusty-claude-cli -- prompt "explain this codebase"
 
-# Salida JSON para automatización
-cargo run -p rusty-claude-cli -- --output-format json prompt "resumir src/main.rs"
+# JSON output for automation
+cargo run -p rusty-claude-cli -- --output-format json prompt "summarize src/main.rs"
 ```
 
-## Configuración
+## Configuration
 
-Configura tus credenciales API:
+Set your API credentials:
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
-# O usar un proxy
-export ANTHROPIC_BASE_URL="https://tu-proxy.com"
+# Or use a proxy
+export ANTHROPIC_BASE_URL="https://your-proxy.com"
 ```
 
-O proporciona un token bearer OAuth directamente:
+Or provide an OAuth bearer token directly:
 
 ```bash
-export ANTHROPIC_AUTH_TOKEN="token-bearer-de-oauth-o-proxy"
+export ANTHROPIC_AUTH_TOKEN="anthropic-oauth-or-proxy-bearer-token"
 ```
 
-## Harness de paridad mock
+## Mock parity harness
 
-El workspace ahora incluye un servicio mock determinista compatible con Anthropic y un harness CLI de entorno limpio para verificaciones de paridad end-to-end.
+The workspace now includes a deterministic Anthropic-compatible mock service and a clean-environment CLI harness for end-to-end parity checks.
 
 ```bash
 cd rust/
 
-# Ejecutar el harness scriptado de entorno limpio
+# Run the scripted clean-environment harness
 ./scripts/run_mock_parity_harness.sh
 
-# O iniciar el servicio mock manualmente para ejecuciones CLI ad hoc
+# Or start the mock service manually for ad hoc CLI runs
 cargo run -p mock-anthropic-service -- --bind 127.0.0.1:0
 ```
 
-Cobertura del harness:
+Harness coverage:
 
 - `streaming_text`
 - `read_file_roundtrip`
@@ -67,55 +67,57 @@ Cobertura del harness:
 - `bash_permission_prompt_denied`
 - `plugin_tool_roundtrip`
 
-Artefactos principales:
+Primary artifacts:
 
-- `crates/mock-anthropic-service/` — servicio mock reutilizable compatible con Anthropic
-- `crates/rusty-claude-cli/tests/mock_parity_harness.rs` — harness CLI de entorno limpio
-- `scripts/run_mock_parity_harness.sh` — wrapper reproducible
-- `scripts/run_mock_parity_diff.py` — lista de verificación de escenarios + ejecutor de mapeo PARITY
-- `mock_parity_scenarios.json` — manifest de escenario a PARITY
+- `crates/mock-anthropic-service/` — reusable mock Anthropic-compatible service
+- `crates/rusty-claude-cli/tests/mock_parity_harness.rs` — clean-env CLI harness
+- `scripts/run_mock_parity_harness.sh` — reproducible wrapper
+- `scripts/run_mock_parity_diff.py` — scenario checklist + PARITY mapping runner
+- `mock_parity_scenarios.json` — scenario-to-PARITY manifest
 
-## Características
+## Features
 
-| Característica | Estado |
-|----------------|--------|
-| Flujos compatibles con Anthropic / OpenAI + streaming | ✅ |
-| Autenticación directa con token bearer vía `ANTHROPIC_AUTH_TOKEN` | ✅ |
-| REPL interactivo (rustyline) | ✅ |
-| Sistema de herramientas (bash, read, write, edit, grep, glob) | ✅ |
-| Herramientas web (search, fetch) | ✅ |
-| Superficies de sub-agente / agente | ✅ |
-| Seguimiento de tareas | ✅ |
-| Edición de notebooks | ✅ |
-| CLAUDE.md / memoria del proyecto | ✅ |
-| Jerarquía de archivos de configuración (`.kraken.json` + secciones de config fusionadas) | ✅ |
-| Sistema de permisos | ✅ |
-| Ciclo de vida de servidor MCP + inspección | ✅ |
-| Persistencia y resumen de sesiones | ✅ |
-| Superficies de costo / uso / estadísticas | ✅ |
-| Integración con Git | ✅ |
-| Renderizado de terminal markdown (ANSI) | ✅ |
-| Alias de modelo (opus/sonnet/haiku) | ✅ |
-| Subcomandos CLI directos (`status`, `sandbox`, `agents`, `mcp`, `skills`, `doctor`) | ✅ |
-| Comandos slash (incluyendo `/skills`, `/agents`, `/mcp`, `/doctor`, `/plugin`, `/subagent`) | ✅ |
-| Hooks (`/hooks`, hooks de ciclo de vida respaldados por configuración) | ✅ |
-| Superficies de gestión de plugins | ✅ |
-| Superficie de inventario/instalación de skills | ✅ |
-| Salida JSON legible por máquina a través de las superficies CLI principales | ✅ |
+| Feature | Status |
+|---------|--------|
+| Anthropic / OpenAI-compatible provider flows + streaming | ✅ |
+| Direct bearer-token auth via `ANTHROPIC_AUTH_TOKEN` | ✅ |
+| Interactive REPL (rustyline) | ✅ |
+| Tool system (bash, read, write, edit, grep, glob) | ✅ |
+| Web tools (search, fetch) | ✅ |
+| Sub-agent / agent surfaces | ✅ |
+| Todo tracking | ✅ |
+| Notebook editing | ✅ |
+| CLAUDE.md / project memory | ✅ |
+| Config file hierarchy (`.kraken.json` + merged config sections) | ✅ |
+| Permission system | ✅ |
+| MCP server lifecycle + inspection | ✅ |
+| Session persistence + resume | ✅ |
+| Cost / usage / stats surfaces | ✅ |
+| Git integration | ✅ |
+| Markdown terminal rendering (ANSI) | ✅ |
+| Model aliases (opus/sonnet/haiku) | ✅ |
+| Direct CLI subcommands (`status`, `sandbox`, `agents`, `mcp`, `skills`, `doctor`) | ✅ |
+| Slash commands (including `/skills`, `/agents`, `/mcp`, `/doctor`, `/plugin`, `/subagent`) | ✅ |
+| Hooks (`/hooks`, config-backed lifecycle hooks) | ✅ |
+| Plugin management surfaces | ✅ |
+| Skills inventory / install surfaces | ✅ |
+| Machine-readable JSON output across core CLI surfaces | ✅ |
+| OSINT engine (DNS, WHOIS, email, infra, social, darkweb) | ✅ |
+| Vulnerability scanning (CVE/NVD, CPE, port scan) | ✅ |
 
-## Alias de Modelo
+## Model Aliases
 
-Los nombres cortos se resuelven a las últimas versiones de modelo:
+Short names resolve to the latest model versions:
 
-| Alias | Se Resuelve a |
-|-------|---------------|
+| Alias | Resolves To |
+|-------|------------|
 | `opus` | `claude-opus-4-6` |
 | `sonnet` | `claude-sonnet-4-6` |
 | `haiku` | `claude-haiku-4-5-20251213` |
 
-## Flags y Comandos CLI
+## CLI Flags and Commands
 
-Superficie actual representativa:
+Representative current surface:
 
 ```text
 kraken [OPTIONS] [COMMAND]
@@ -129,7 +131,7 @@ Flags:
   --resume [SESSION.jsonl|session-id|latest]
   --version, -V
 
-Comandos de nivel superior:
+Top-level commands:
   prompt <text>
   help
   version
@@ -145,27 +147,27 @@ Comandos de nivel superior:
   init
 ```
 
-`kraken acp` es una superficie de descubrimiento local para usuarios editor-first: reporta el estado actual de ACP/Zed sin iniciar el runtime. A partir del 16 de abril de 2026, kraken-code **todavía no** incluye un punto de entrada de daemon ACP/Zed, y `kraken acp serve` es solo un alias de estado hasta que la superficie real del protocolo llegue.
+`kraken acp` is a local discoverability surface for editor-first users: it reports the current ACP/Zed status without starting the runtime. As of April 16, 2026, kraken-code does **not** ship an ACP/Zed daemon entrypoint yet, and `kraken acp serve` is only a status alias until the real protocol surface lands.
 
-La superficie de comandos está cambiando rápidamente. Para el texto de ayuda canónico en vivo, ejecuta:
+The command surface is moving quickly. For the canonical live help text, run:
 
 ```bash
 cargo run -p rusty-claude-cli -- --help
 ```
 
-## Comandos Slash (REPL)
+## Slash Commands (REPL)
 
-La tabulación completa expande comandos slash, alias de modelo, modos de permisos y IDs de sesión recientes.
+Tab completion expands slash commands, model aliases, permission modes, and recent session IDs.
 
-El REPL ahora expone una superficie mucho más amplia que el shell original mínimo:
+The REPL now exposes a much broader surface than the original minimal shell:
 
-- sesión / visibilidad: `/help`, `/status`, `/sandbox`, `/cost`, `/resume`, `/session`, `/version`, `/usage`, `/stats`
+- session / visibility: `/help`, `/status`, `/sandbox`, `/cost`, `/resume`, `/session`, `/version`, `/usage`, `/stats`
 - workspace / git: `/compact`, `/clear`, `/config`, `/memory`, `/init`, `/diff`, `/commit`, `/pr`, `/issue`, `/export`, `/hooks`, `/files`, `/release-notes`
-- descubrimiento / depuración: `/mcp`, `/agents`, `/skills`, `/doctor`, `/tasks`, `/context`, `/desktop`
-- automatización / análisis: `/review`, `/advisor`, `/insights`, `/security-review`, `/subagent`, `/team`, `/telemetry`, `/providers`, `/cron`, y más
-- gestión de plugins: `/plugin` (con alias `/plugins`, `/marketplace`)
+- discovery / debugging: `/mcp`, `/agents`, `/skills`, `/doctor`, `/tasks`, `/context`, `/desktop`
+- automation / analysis: `/review`, `/advisor`, `/insights`, `/security-review`, `/subagent`, `/team`, `/telemetry`, `/providers`, `/cron`, and more
+- plugin management: `/plugin` (with aliases `/plugins`, `/marketplace`)
 
-Superficies kraken-first notables ahora disponibles directamente en forma slash:
+Notable kraken-first surfaces now available directly in slash form:
 - `/skills [list|install <path>|help]`
 - `/agents [list|help]`
 - `/mcp [list|show <server>|help]`
@@ -173,46 +175,54 @@ Superficies kraken-first notables ahora disponibles directamente en forma slash:
 - `/plugin [list|install <path>|enable <name>|disable <name>|uninstall <id>|update <id>]`
 - `/subagent [list|steer <target> <msg>|kill <id>]`
 
-Consulta [`../USAGE.md`](../USAGE.md) para ejemplos de uso y ejecuta `cargo run -p rusty-claude-cli -- --help` para la lista canónica de comandos en vivo.
+See [`../USAGE.md`](../USAGE.md) for usage examples and run `cargo run -p rusty-claude-cli -- --help` for the live canonical command list.
 
-## Estructura del Workspace
+## Workspace Layout
 
 ```text
 rust/
-├── Cargo.toml              # Raíz del workspace
+├── Cargo.toml              # Workspace root
 ├── Cargo.lock
 └── crates/
-    ├── api/                # Clientes de provider + streaming + prefiltro de solicitud
-    ├── commands/           # Registro compartido de comandos slash + renderizado de ayuda
-    ├── compat-harness/     # Harness de extracción de manifestos TS
-    ├── mock-anthropic-service/ # Mock determinista compatible con Anthropic
-    ├── plugins/            # Metadatos de plugins, manager, superficies de install/enable/disable
-    ├── runtime/            # Sesión, config, permisos, MCP, prompts, bucle de auth/runtime
-    ├── rusty-claude-cli/   # Binario CLI principal (`kraken`)
-    ├── telemetry/          # Tipos de trazado de sesión y telemetría
-    └── tools/              # Herramientas integradas, resolución de skills, búsqueda de herramientas, superficies de runtime de agente
+    ├── api/                # Provider clients + streaming + request preflight
+    ├── commands/           # Shared slash-command registry + help rendering
+    ├── compat-harness/     # TS manifest extraction harness
+    ├── mock-anthropic-service/ # Deterministic local Anthropic-compatible mock
+    ├── osint/              # OSINT engine: DNS, email, infra, social, darkweb, search
+    ├── plugins/            # Plugin metadata, manager, install/enable/disable surfaces
+    ├── runtime/            # Session, config, permissions, MCP, prompts, auth/runtime loop
+    ├── rusty-claude-cli/   # Main CLI binary (`kraken`)
+    ├── telemetry/          # Session tracing and usage telemetry types
+    ├── tools/              # Built-in tools, skill resolution, tool search, agent runtime surfaces
+    └── vulnscan/           # Vulnerability scanning engine
 ```
 
-### Responsabilidades de los Crates
+### Crate Responsibilities
 
-- **api** — clientes de providers, streaming SSE, tipos de request/response, autenticación (`ANTHROPIC_API_KEY` + soporte de token bearer), prefiltro de tamaño de solicitud/ventana de contexto
-- **commands** — definiciones de comandos slash, parsing, generación de texto de ayuda, renderizado de comandos JSON/texto
-- **compat-harness** — extrae tool/prompt manifests desde la fuente TS upstream
-- **mock-anthropic-service** — mock determinista de `/v1/messages` para tests de paridad CLI y ejecuciones de harness local
-- **plugins** — metadatos de plugins, flujos de install/enable/disable/update, definiciones de herramientas de plugin, superficies de integración de hooks
-- **runtime** — `ConversationRuntime`, carga de configuración, persistencia de sesiones, política de permisos, ciclo de vida del cliente MCP, ensamblaje de prompts del sistema, seguimiento de uso
-- **rusty-claude-cli** — REPL, prompt de un solo uso, subcomandos CLI directos, display de streaming, renderizado de llamadas de herramientas, parsing de argumentos CLI
-- **telemetry** — eventos de trace de sesión y payloads de telemetría soportados
-- **tools** — specs + ejecución de herramientas: Bash, ReadFile, WriteFile, EditFile, GlobSearch, GrepSearch, WebSearch, WebFetch, Agent, TodoWrite, NotebookEdit, Skill, ToolSearch, y descubrimiento de herramientas orientado al runtime
+- **api** — provider clients, SSE streaming, request/response types, auth (`ANTHROPIC_API_KEY` + bearer-token support), request-size/context-window preflight
+- **commands** — slash command definitions, parsing, help text generation, JSON/text command rendering
+- **compat-harness** — extracts tool/prompt manifests from upstream TS source
+- **mock-anthropic-service** — deterministic `/v1/messages` mock for CLI parity tests and local harness runs
+- **osint** — open-source intelligence engine: DNS resolution (A/AAAA/MX/TXT/NS/SOA/CNAME via hickory-resolver), WHOIS lookups, email breach checking (HIBP), IP/domain infrastructure analysis (ASN, reverse DNS, Shodan, Censys, ThreatFox), port scanning, technology fingerprinting, social media username search across 75+ platforms (with concurrent rate-limited semaphore), darkweb/Tor reconnaissance (.onion validation, Pastebin/psbdmp.ws searches, Telegram channel discovery), and DuckDuckGo web search with exponential-backoff retry
+- **plugins** — plugin metadata, install/enable/disable/update flows, plugin tool definitions, hook integration surfaces
+- **runtime** — `ConversationRuntime`, config loading, session persistence, permission policy, MCP client lifecycle, system prompt assembly, usage tracking
+- **rusty-claude-cli** — REPL, one-shot prompt, direct CLI subcommands, streaming display, tool call rendering, CLI argument parsing
+- **telemetry** — session trace events and supporting telemetry payloads
+- **tools** — tool specs + execution: Bash, ReadFile, WriteFile, EditFile, GlobSearch, GrepSearch, WebSearch, WebFetch, Agent, TodoWrite, NotebookEdit, Skill, ToolSearch, and runtime-facing tool discovery
+- **vulnscan** — vulnerability scanning: CVE lookup, CPE matching, NVD integration, service detection, port scanning
 
-## Estadísticas
+## Stats
 
-- **~20K líneas** de Rust
-- **9 crates** en el workspace
-- **Nombre del binario:** `kraken`
-- **Modelo por defecto:** `claude-opus-4-6`
-- **Permisos por defecto:** `danger-full-access`
+- **~25K lines** of Rust
+- **11 crates** in workspace
+- **Binary name:** `kraken`
+- **Default model:** `claude-opus-4-6`
+- **Default permissions:** `danger-full-access`
 
-## Licencia
+## Roadmap
 
-Ver raíz del repositorio.
+See [`ROADMAP-2027.md`](../ROADMAP-2027.md) for the upcoming security, AI/ML, and robustness roadmap.
+
+## License
+
+See repository root.
