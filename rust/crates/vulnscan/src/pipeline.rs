@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::hypothesis::{GeneratedHypothesis, HypothesisGenerator};
 use crate::lateral::{AttackGraph, AttackPath, LateralMovement};
+use crate::llm_analyst::{LlmAnalyst, LlmAnalystConfig, LlmAnalysisReport};
 use crate::memory::HuntMemory;
 use crate::recon::{AttackSurface, SurfaceRecon};
 use crate::resume::{Checkpointer, ScanCheckpoint, ScanPhase, ScanState};
@@ -33,6 +34,7 @@ pub struct HuntReport {
     pub hypotheses: Vec<GeneratedHypothesis>,
     pub deorphaned_findings: Vec<String>,
     pub phases_completed: Vec<ScanPhase>,
+    pub llm_analysis: Option<LlmAnalysisReport>,
 }
 
 pub struct HuntPipeline {
@@ -136,6 +138,7 @@ impl HuntPipeline {
             hypotheses,
             deorphaned_findings: deorphaned,
             phases_completed: phases,
+            llm_analysis: None,
         }
     }
 
@@ -164,6 +167,63 @@ impl HuntPipeline {
         let attack_paths = LateralMovement::find_attack_paths(&attack_graph);
         let deorphaned = LateralMovement::deorphan_findings(&attack_graph);
         phases.push(ScanPhase::Chaining);
+
+        let llm_analysis = if self.config.enable_llm_validation {
+            let analyst = LlmAnalyst::new(LlmAnalystConfig {
+                model: self.config.model.clone(),
+                ..Default::default()
+            });
+            match analyst {
+                Ok(analyst) => {
+                    let findings_for_llm = findings.clone();
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build();
+                    match runtime {
+                        Ok(rt) => {
+                            let result = rt.block_on(async {
+                                let mut validations = Vec::new();
+
+                                let mut by_file: std::collections::HashMap<std::path::PathBuf, Vec<Finding>> =
+                                    std::collections::HashMap::new();
+                                for f in &findings_for_llm {
+                                    if let Some(ref path) = f.file_path {
+                                        by_file.entry(path.clone()).or_default().push(f.clone());
+                                    }
+                                }
+
+                                for (path, file_findings) in &by_file {
+                                    if let Ok(content) = std::fs::read_to_string(path) {
+                                        let lang = crate::analyzers::detect_language(path);
+                                        let v = analyst
+                                            .cross_validate(path, &content, lang, file_findings)
+                                            .await;
+                                        validations.extend(v);
+                                    }
+                                }
+
+                                let rankings = analyst.rank_findings(&findings_for_llm).await;
+
+                                Some(LlmAnalysisReport {
+                                    validations,
+                                    rankings,
+                                    exploit_primitives: Vec::new(),
+                                    bughunt_summary: String::new(),
+                                })
+                            });
+                            result
+                        }
+                        Err(_) => None,
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] Failed to create LLM analyst: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         let mut all_hypotheses = HypothesisGenerator::generate_from_findings(&findings);
 
@@ -211,6 +271,7 @@ impl HuntPipeline {
             hypotheses: all_hypotheses,
             deorphaned_findings: deorphaned,
             phases_completed: phases,
+            llm_analysis,
         }
     }
 
@@ -286,6 +347,97 @@ impl HuntPipeline {
         let deorphaned = LateralMovement::deorphan_findings(&attack_graph);
         let hypotheses = HypothesisGenerator::generate_from_findings(&findings);
 
+        let llm_analysis = if self.config.enable_llm_validation || self.config.enable_bughunt_pipeline {
+            let analyst = LlmAnalyst::new(LlmAnalystConfig {
+                model: self.config.model.clone(),
+                ..Default::default()
+            });
+            match analyst {
+                Ok(analyst) => {
+                    let findings_for_llm = findings.clone();
+                    let attack_paths_for_llm = attack_paths.clone();
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build();
+                    match runtime {
+                        Ok(rt) => {
+                            let result = rt.block_on(async {
+                                let mut validations = Vec::new();
+
+                                let mut by_file: std::collections::HashMap<
+                                    std::path::PathBuf,
+                                    Vec<Finding>,
+                                > = std::collections::HashMap::new();
+                                for f in &findings_for_llm {
+                                    if let Some(ref path) = f.file_path {
+                                        by_file.entry(path.clone()).or_default().push(f.clone());
+                                    }
+                                }
+
+                                for (path, file_findings) in &by_file {
+                                    if let Ok(content) = std::fs::read_to_string(path) {
+                                        let lang = crate::analyzers::detect_language(path);
+                                        let v = analyst
+                                            .cross_validate(path, &content, lang, file_findings)
+                                            .await;
+                                        validations.extend(v);
+                                    }
+                                }
+
+                                let rankings = analyst.rank_findings(&findings_for_llm).await;
+
+                                let mut exploit_primitives = Vec::new();
+                                if self.config.enable_bughunt_pipeline {
+                                    let validated: Vec<&Finding> = findings_for_llm
+                                        .iter()
+                                        .filter(|f| {
+                                            validations
+                                                .iter()
+                                                .any(|v| v.finding_id == f.id && v.validated)
+                                        })
+                                        .collect();
+                                    for finding in validated.iter().take(5) {
+                                        if let Some(code) =
+                                            analyst.generate_exploit_primitive(finding).await
+                                        {
+                                            exploit_primitives
+                                                .push((finding.id.clone(), code));
+                                        }
+                                    }
+                                }
+
+                                let bughunt_summary = if self.config.enable_bughunt_pipeline {
+                                    analyst
+                                        .generate_bughunt_summary(
+                                            &findings_for_llm,
+                                            &attack_paths_for_llm,
+                                        )
+                                        .await
+                                } else {
+                                    String::new()
+                                };
+
+                                Some(LlmAnalysisReport {
+                                    validations,
+                                    rankings,
+                                    exploit_primitives,
+                                    bughunt_summary,
+                                })
+                            });
+                            result
+                        }
+                        Err(_) => None,
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[pipeline] Failed to create LLM analyst: {e}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         self.checkpointer.delete_checkpoint(&hunt_id);
 
         HuntReport {
@@ -307,6 +459,7 @@ impl HuntPipeline {
                 ScanPhase::Chaining,
                 ScanPhase::Complete,
             ],
+            llm_analysis,
         }
     }
 

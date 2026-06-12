@@ -8,6 +8,7 @@ pub mod exploit;
 pub mod fuzz;
 pub mod hypothesis;
 pub mod lateral;
+pub mod llm_analyst;
 pub mod logic;
 pub mod memory;
 pub mod mitigation;
@@ -177,6 +178,8 @@ pub struct ScanConfig {
     pub enable_crypto_analysis: bool,
     pub enable_exploit_generation: bool,
     pub enable_chaining: bool,
+    pub enable_llm_validation: bool,
+    pub enable_bughunt_pipeline: bool,
     pub enable_secrets_detection: bool,
     pub enable_webapp_scan: bool,
     pub enable_supply_chain: bool,
@@ -211,6 +214,8 @@ impl Default for ScanConfig {
             enable_crypto_analysis: false,
             enable_exploit_generation: false,
             enable_chaining: false,
+            enable_llm_validation: true,
+            enable_bughunt_pipeline: false,
             enable_secrets_detection: true,
             enable_webapp_scan: false,
             enable_supply_chain: false,
@@ -409,6 +414,7 @@ pub use exploit::ExploitGenerator;
 pub use fuzz::FuzzGuide;
 pub use hypothesis::{GeneratedHypothesis, HypothesisGenerator};
 pub use lateral::{AttackGraph, AttackPath, LateralMovement};
+pub use llm_analyst::{class_for_finding, matches_class, LlmAnalyst, LlmAnalystConfig, LlmAnalysisReport, LlmValidation};
 pub use logic::LogicAnalyzer;
 pub use memory::HuntMemory;
 pub use mitigation::MitigationChecker;

@@ -160,7 +160,7 @@ Use Agent tool with clear objective and scope.
 
 ---
 
-## Phase 5 — Autonomous Codebase Migrations
+## ✅ Phase 5 — Autonomous Codebase Migrations
 
 **Goal**: Plan and execute large-scale refactors across multiple files with
 verification and rollback.
@@ -192,7 +192,7 @@ verification and rollback.
 
 ---
 
-## Phase 6 — Enhanced Security Analysis (vulnscan)
+## ✅ Phase 6 — Enhanced Security Analysis (vulnscan)
 
 **Goal**: Leverage Big Pickle LLM analysis inside the vulnerability scanning
 pipeline, using specialized system prompts per vulnerability class.

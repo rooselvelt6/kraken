@@ -159,6 +159,7 @@ impl SystemPromptBuilder {
         sections.push(get_actions_section());
         sections.push(get_memory_usage_section());
         sections.push(get_multi_agent_section());
+        sections.push(get_migration_protocol_section());
         if self.reasoning_effort.as_deref() == Some("high") {
             sections.push(get_self_validation_section());
         }
@@ -582,6 +583,25 @@ fn get_multi_agent_section() -> String {
         "Use RunParallel to execute multiple sub-agents concurrently.".to_string(),
         "Use TeamCreate to organize agents into named teams for coordinated work.".to_string(),
         "Pass relevant context (files, notes, images) to sub-agents via the context field.".to_string(),
+    ]
+    .join("\n")
+}
+
+fn get_migration_protocol_section() -> String {
+    [
+        "# Migration Protocol".to_string(),
+        "For large-scale refactors across multiple files, follow this protocol:".to_string(),
+        "".to_string(),
+        "1. Map: identify all files and dependencies using read_file and glob".to_string(),
+        "2. Plan: use PlanMigration with a description and file list to produce a structured plan".to_string(),
+        "3. Preview: review the plan and each BatchEdit diff before executing".to_string(),
+        "4. Execute: use BatchEdit to apply edits with old_string/new_string replacements".to_string(),
+        "5. Verify: use VerifyMigration to run compile, test, or lint commands".to_string(),
+        "6. Only commit all changes once verification passes".to_string(),
+        "".to_string(),
+        "PlanMigration analyzes the specified files and generates a risk assessment.".to_string(),
+        "BatchEdit applies multiple file edits and reports per-file results.".to_string(),
+        "VerifyMigration runs a command and reports success/failure with full output.".to_string(),
     ]
     .join("\n")
 }

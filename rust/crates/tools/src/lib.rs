@@ -1186,6 +1186,57 @@ pub fn mvp_tool_specs() -> Vec<ToolSpec> {
             required_permission: PermissionMode::DangerFullAccess,
         },
         ToolSpec {
+            name: "PlanMigration",
+            description: "Analyze and plan multi-file codebase changes. Given a description and list of files, produces a structured plan with file order, dependencies, and risk assessment.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "description": { "type": "string" },
+                    "files": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["description", "files"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
+            name: "BatchEdit",
+            description: "Apply multiple file edits atomically with preview. Each edit is an old_string -> new_string replacement. All edits are attempted and results reported per-file.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "edits": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": { "type": "string" },
+                                "old_string": { "type": "string" },
+                                "new_string": { "type": "string" }
+                            },
+                            "required": ["path", "old_string", "new_string"]
+                        }
+                    }
+                },
+                "required": ["edits"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::WorkspaceWrite,
+        },
+        ToolSpec {
+            name: "VerifyMigration",
+            description: "Run a compile, test, or lint command to verify changes after a migration. Returns the command output and a success/failure summary.",
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "command": { "type": "string" }
+                },
+                "required": ["command"],
+                "additionalProperties": false
+            }),
+            required_permission: PermissionMode::ReadOnly,
+        },
+        ToolSpec {
             name: "TestingPermission",
             description: "Test-only tool for verifying permission enforcement behavior.",
             input_schema: json!({
@@ -1314,6 +1365,18 @@ fn execute_tool_with_enforcer(
         "McpAuth" => from_value::<McpAuthInput>(input).and_then(run_mcp_auth),
         "RemoteTrigger" => from_value::<RemoteTriggerInput>(input).and_then(run_remote_trigger),
         "MCP" => from_value::<McpToolInput>(input).and_then(run_mcp_tool),
+        "PlanMigration" => {
+            maybe_enforce_permission_check(enforcer, name, input)?;
+            from_value::<PlanMigrationInput>(input).and_then(run_plan_migration)
+        }
+        "BatchEdit" => {
+            maybe_enforce_permission_check(enforcer, name, input)?;
+            from_value::<BatchEditInput>(input).and_then(run_batch_edit)
+        }
+        "VerifyMigration" => {
+            maybe_enforce_permission_check(enforcer, name, input)?;
+            from_value::<VerifyMigrationInput>(input).and_then(run_verify_migration)
+        }
         "TestingPermission" => {
             from_value::<TestingPermissionInput>(input).and_then(run_testing_permission)
         }
@@ -1865,6 +1928,82 @@ fn run_testing_permission(input: TestingPermissionInput) -> Result<String, Strin
         "message": "Testing permission tool stub"
     }))
 }
+
+fn run_plan_migration(input: PlanMigrationInput) -> Result<String, String> {
+    let mut files_info = Vec::new();
+    for file in &input.files {
+        let output = match read_file(file, None, None) {
+            Ok(c) => c,
+            Err(e) => return Err(format!("Cannot read {file}: {}", e)),
+        };
+        files_info.push(json!({
+            "path": file,
+            "size_bytes": output.file.content.len(),
+            "preview": output.file.content.chars().take(200).collect::<String>(),
+        }));
+    }
+    to_pretty_json(json!({
+        "description": input.description,
+        "total_files": input.files.len(),
+        "files": files_info,
+        "risk_level": if input.files.len() > 10 { "high" }
+                      else if input.files.len() > 5 { "medium" }
+                      else { "low" },
+        "order": input.files,
+        "instructions": "Review the plan above. Use BatchEdit to apply changes, then VerifyMigration to confirm."
+    }))
+}
+
+fn run_batch_edit(input: BatchEditInput) -> Result<String, String> {
+    let mut results = Vec::new();
+    let mut all_ok = true;
+    for edit in &input.edits {
+        match edit_file(&edit.path, &edit.old_string, &edit.new_string, false) {
+            Ok(_) => results.push(json!({
+                "path": edit.path,
+                "status": "applied",
+            })),
+            Err(e) => {
+                all_ok = false;
+                results.push(json!({
+                    "path": edit.path,
+                    "status": "failed",
+                    "error": e.to_string(),
+                }));
+            }
+        }
+    }
+    to_pretty_json(json!({
+        "success": all_ok,
+        "total": input.edits.len(),
+        "applied": results.iter().filter(|r| r["status"] == "applied").count(),
+        "failed": results.iter().filter(|r| r["status"] == "failed").count(),
+        "results": results,
+    }))
+}
+
+fn run_verify_migration(input: VerifyMigrationInput) -> Result<String, String> {
+    let bash_input = BashCommandInput {
+        command: input.command,
+        timeout: None,
+        description: None,
+        run_in_background: None,
+        dangerously_disable_sandbox: None,
+        namespace_restrictions: None,
+        isolate_network: None,
+        filesystem_mode: None,
+        allowed_mounts: None,
+    };
+    let output = execute_bash(bash_input).map_err(|e| format!("Verification error: {e}"))?;
+    let success = output.return_code_interpretation.is_none();
+    to_pretty_json(json!({
+        "success": success,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
+        "summary": if success { "All checks passed." } else { "Verification failed. Review output and revise." },
+    }))
+}
+
 fn from_value<T: for<'de> Deserialize<'de>>(input: &Value) -> Result<T, String> {
     serde_json::from_value(input.clone()).map_err(|error| error.to_string())
 }
@@ -2371,6 +2510,29 @@ enum TodoStatus {
 struct SkillInput {
     skill: String,
     args: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PlanMigrationInput {
+    description: String,
+    files: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BatchEditInput {
+    edits: Vec<BatchEditItem>,
+}
+
+#[derive(Debug, Deserialize)]
+struct BatchEditItem {
+    path: String,
+    old_string: String,
+    new_string: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct VerifyMigrationInput {
+    command: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
