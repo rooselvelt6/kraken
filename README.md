@@ -21,9 +21,6 @@
 
 - [¿Qué es Kraken?](#qué-es-kraken)
 - [Arquitectura](#arquitectura)
-- [Roadmap](#roadmap)
-  - [Fases 1–10 (Fundación)](#fases-110-fundación)
-  - [Fases 11–14 (Ultra)](#fases-1114-ultra)
 - [Seguridad & Criptografía](#seguridad--criptografía)
 - [Sandbox](#sandbox)
 - [ML & Detección de Amenazas](#ml--detección-de-amenazas)
@@ -103,17 +100,9 @@ Está construido completamente en Rust con `unsafe` prohibido a nivel workspace,
 
 ---
 
-## Roadmap — Todo completado ✅
-
-| Fase | Área |
-|------|------|
-| 01–10 | Fundación: CLI, LLM providers, sandbox, permisos, trust, streaming, vulnscan, OSINT, plugins, multi-agente |
-| 11 | Performance & Binary Size — LTO, stripping, panic=abort, binary ~40 MB |
-| 12 | IaC + Container Scanning — Docker, K8s, Terraform, CloudFormation |
-| 13 | Secret Scanning — 17 patrones canónicos, entropía Shannon, git history |
-| 14 | Property-Based Testing — 23 proptests, 0 regresiones |
-
 ---
+
+## Seguridad & Criptografía
 
 ## Seguridad & Criptografía
 
@@ -312,7 +301,6 @@ kraken/
 │   ├── _kraken                # Completado Zsh
 │   ├── kraken.bash            # Completado Bash
 │   └── kraken.fish            # Completado Fish
-├── ROADMAP-2030.md             # Roadmap Fases 11–14 (completadas)
 ├── SUPPLY-CHAIN.md             # Política SLSA 3, cargo-deny, SBOM
 ├── Containerfile               # Docker build environment (multi-arch)
 ├── deny.toml                   # cargo-deny: licencias, fuentes, bans
