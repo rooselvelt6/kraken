@@ -103,31 +103,15 @@ Está construido completamente en Rust con `unsafe` prohibido a nivel workspace,
 
 ---
 
-## Roadmap
+## Roadmap — Todo completado ✅
 
-### Fases 1–10 (Fundación)
-
-| Fase | Área | Estado |
-|------|------|--------|
-| 01 | Estructura workspace + CLI básico | ✅ |
-| 02 | Configuración y detección de proveedores LLM | ✅ |
-| 03 | Bucle de conversación y ejecución de herramientas | ✅ |
-| 04 | Sistema de permisos granular (ReadOnly → Allow) | ✅ |
-| 05 | Sandbox con Seccomp + Landlock + namespaces | ✅ |
-| 06 | Sistema de confianza (trust) y sesiones | ✅ |
-| 07 | Renderizado de streaming y modo REPL | ✅ |
-| 08 | Escaneo de vulnerabilidades (vulnscan) | ✅ |
-| 09 | OSINT, caché, modo offline, plugins | ✅ |
-| 10 | Modo agente autónomo y multi-agente | ✅ |
-
-### Fases 11–14 (Ultra)
-
-| Fase | Área | Tests | Archivos | Detalle |
-|------|------|-------|----------|---------|
-| 11 | **Performance & Binary Size** | 5 benchmarks | `Cargo.toml`, `kraken_bench.rs` | `lto=fat`, `strip=symbols`, `panic=abort`, `codegen-units=1`, `opt-level=z`, binary ~40 MB |
-| 12 | **IaC + Container Scanning** | 52 | 4 analizadores + scan | Docker (9 detecciones), K8s (8), Terraform (7), CloudFormation (5), content-sniffing |
-| 13 | **Secret Scanning Unificado** | 72 | `secrets.rs`, pre-commit hook | 17 patrones canónicos, entropía Shannon (>5.0 bits/byte), git history, binarios |
-| 14 | **Property-Based Testing** | 23 proptests | 4 archivos `runtime/tests/` | Sanitizer, path traversal, permisos, fingerprint. 0 regresiones. |
+| Fase | Área |
+|------|------|
+| 01–10 | Fundación: CLI, LLM providers, sandbox, permisos, trust, streaming, vulnscan, OSINT, plugins, multi-agente |
+| 11 | Performance & Binary Size — LTO, stripping, panic=abort, binary ~40 MB |
+| 12 | IaC + Container Scanning — Docker, K8s, Terraform, CloudFormation |
+| 13 | Secret Scanning — 17 patrones canónicos, entropía Shannon, git history |
+| 14 | Property-Based Testing — 23 proptests, 0 regresiones |
 
 ---
 
