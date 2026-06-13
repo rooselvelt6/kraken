@@ -1,0 +1,60 @@
+[package]
+name = "kraken-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+
+[dependencies.runtime]
+path = "../crates/runtime"
+
+[dependencies.sandbox]
+path = "../crates/sandbox"
+
+[dependencies.localmodels]
+path = "../crates/localmodels"
+
+# Prevent optimising fuzz targets individually so it shares build caches
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "fuzz_sanitizer"
+path = "fuzz_targets/fuzz_sanitizer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_path_traversal"
+path = "fuzz_targets/fuzz_path_traversal.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_bash_validation"
+path = "fuzz_targets/fuzz_bash_validation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_feature_extraction"
+path = "fuzz_targets/fuzz_feature_extraction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_json_config"
+path = "fuzz_targets/fuzz_json_config.rs"
+test = false
+doc = false
+bench = false

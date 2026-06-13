@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::json::{JsonError, JsonValue};
 use crate::usage::TokenUsage;
+use security::redact_secrets;
 
 const SESSION_VERSION: u32 = 1;
 const ROTATE_AFTER_BYTES: u64 = 256 * 1024;
@@ -810,6 +811,40 @@ impl ContentBlock {
             }
         }
         JsonValue::Object(object)
+    }
+
+    #[must_use]
+    pub fn redacted(&self) -> Self {
+        match self {
+            Self::Text { text } => Self::Text {
+                text: text.clone(),
+            },
+            Self::ToolUse { id, name, input } => Self::ToolUse {
+                id: id.clone(),
+                name: name.clone(),
+                input: redact_secrets(input),
+            },
+            Self::ToolResult {
+                tool_use_id,
+                tool_name,
+                output,
+                is_error,
+            } => Self::ToolResult {
+                tool_use_id: tool_use_id.clone(),
+                tool_name: tool_name.clone(),
+                output: redact_secrets(output),
+                is_error: *is_error,
+            },
+            Self::Image {
+                media_type,
+                data,
+                source_type,
+            } => Self::Image {
+                media_type: media_type.clone(),
+                data: data.clone(),
+                source_type: source_type.clone(),
+            },
+        }
     }
 
     fn from_json(value: &JsonValue) -> Result<Self, SessionError> {

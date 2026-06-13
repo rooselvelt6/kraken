@@ -98,3 +98,78 @@ jobs:
           workspaces: rust -> target
       - name: Run workspace clippy
         run: cargo clippy --workspace
+
+  cargo-deny:
+    name: cargo deny
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        checks:
+          - advisories
+          - licenses
+          - bans
+          - sources
+    continue-on-error: ${{ matrix.checks == 'advisories' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check ${{ matrix.checks }}
+          arguments: --config ../deny.toml
+          manifest-path: rust/Cargo.toml
+
+  cargo-audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: Run audit
+        run: cargo audit --config ../audit.toml
+        working-directory: rust
+
+  unsafe-audit:
+    name: unsafe code audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit unsafe blocks
+        run: |
+          echo "## Unsafe code report" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          total=$(grep -rn "unsafe\b" --include="*.rs" rust/crates/ \
+            | grep -v "unsafe_code\b" \
+            | grep -v "#\[deny(unsafe" \
+            | grep -v "//.*unsafe" \
+            | wc -l)
+          echo "**Total unsafe occurrences:** $total" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -rn "unsafe\b" --include="*.rs" rust/crates/ \
+            | grep -v "unsafe_code\b" \
+            | grep -v "#\[deny(unsafe" \
+            | grep -v "//.*unsafe" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "Unsafe audit complete. See job summary for details."
+
+  sbom:
+    name: generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx --locked
+      - name: Generate CycloneDX SBOM
+        run: |
+          cargo cyclonedx --all --output-dir ../sbom/
+          echo "## SBOM generated" >> $GITHUB_STEP_SUMMARY
+          ls -la ../sbom/ >> $GITHUB_STEP_SUMMARY
+        working-directory: rust
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/

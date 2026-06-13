@@ -9,6 +9,7 @@ members = [
   "crates/cache",
   "crates/osint",
 ]
+exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]

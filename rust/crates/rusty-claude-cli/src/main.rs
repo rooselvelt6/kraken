@@ -75,9 +75,11 @@ use init::initialize_repo;
 use plugins::{PluginHooks, PluginManager, PluginManagerConfig, PluginRegistry};
 use render::{MarkdownStreamState, Spinner, TerminalRenderer};
 use runtime::{
+    adaptive_engine::{init_adaptive_engine, with_adaptive},
     check_base_commit, format_stale_base_warning, format_usd, load_oauth_credentials,
     load_system_prompt, load_system_prompt_with_effort, pricing_for_model, resolve_expected_base,
     resolve_sandbox_status,
+    self_healing::{global_heartbeat, global_shutdown, init_global_self_healing},
     ApiClient, ApiRequest, AssistantEvent, CompactionConfig, ConfigLoader, ConfigSource,
     ContentBlock, ConversationMessage, ConversationRuntime, McpServer, McpServerManager,
     McpServerSpec, McpTool, MessageRole, ModelPricing, PermissionMode, PermissionPolicy,
@@ -442,6 +444,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             let mut cli = LiveCli::new(model, true, allowed_tools, permission_mode)?;
             cli.set_reasoning_effort(reasoning_effort);
             cli.run_turn_with_output(&effective_prompt, output_format, compact)?;
+            with_adaptive(|a| a.cleanup());
+            global_shutdown("prompt done");
         }
         CliAction::Doctor { output_format } => run_doctor(output_format)?,
         CliAction::Acp { output_format } => print_acp_status(output_format)?,
@@ -3623,6 +3627,8 @@ fn run_repl(
                 }
                 if matches!(trimmed.as_str(), "/exit" | "/quit") {
                     cli.persist_session()?;
+                    with_adaptive(|a| a.cleanup());
+                    global_shutdown("repl /exit");
                     break;
                 }
                 match SlashCommand::parse(&trimmed) {
@@ -3655,11 +3661,15 @@ fn run_repl(
             input::ReadOutcome::Cancel => {}
             input::ReadOutcome::Exit => {
                 cli.persist_session()?;
+                with_adaptive(|a| a.cleanup());
+                global_shutdown("repl EOF");
                 break;
             }
         }
     }
 
+    with_adaptive(|a| a.cleanup());
+    global_shutdown("repl done");
     Ok(())
 }
 
@@ -4188,6 +4198,15 @@ impl LiveCli {
             permission_mode,
             None,
         )?;
+        // Initialize the global self-healing orchestrator
+        let cwd = std::env::current_dir().unwrap_or_default();
+        let checkpoint_dir = cwd.join(".kraken").join("checkpoints");
+        init_global_self_healing(&checkpoint_dir);
+
+        // Initialize the global adaptive security engine
+        let snapshot_dir = cwd.join(".kraken").join("incidents");
+        init_adaptive_engine(&cwd, Some(&snapshot_dir));
+
         let cli = Self {
             model,
             allowed_tools,
@@ -4291,6 +4310,7 @@ impl LiveCli {
     }
 
     fn run_turn(&mut self, input: &str) -> Result<(), Box<dyn std::error::Error>> {
+        global_heartbeat("runtime");
         let (mut runtime, hook_abort_monitor) = self.prepare_turn_runtime(true)?;
         let mut spinner = Spinner::new();
         let mut stdout = io::stdout();
@@ -4318,6 +4338,7 @@ impl LiveCli {
                     );
                 }
                 self.persist_session()?;
+                global_heartbeat("runtime");
                 Ok(())
             }
             Err(error) => {

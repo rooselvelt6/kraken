@@ -36,10 +36,11 @@ pub enum PermissionOverride {
 }
 
 /// Additional permission context supplied by hooks or higher-level orchestration.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PermissionContext {
     override_decision: Option<PermissionOverride>,
     override_reason: Option<String>,
+    risk_score: Option<f64>,
 }
 
 impl PermissionContext {
@@ -51,7 +52,14 @@ impl PermissionContext {
         Self {
             override_decision,
             override_reason,
+            risk_score: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_risk_score(mut self, risk_score: f64) -> Self {
+        self.risk_score = Some(risk_score);
+        self
     }
 
     #[must_use]
@@ -62,6 +70,11 @@ impl PermissionContext {
     #[must_use]
     pub fn override_reason(&self) -> Option<&str> {
         self.override_reason.as_deref()
+    }
+
+    #[must_use]
+    pub fn risk_score(&self) -> Option<f64> {
+        self.risk_score
     }
 }
 

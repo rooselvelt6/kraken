@@ -1,14 +1,20 @@
-//! Security Crate - Encryption and Secure Storage
+//! Security Crate - Encryption, Secure Storage, Secret Redaction, and Hardening
 //!
-//! Provides encryption, secure config storage, and audit logging.
+//! Provides encryption, secure credential vault, audit logging, secret redaction,
+//! and memory hardening primitives.
 
 pub mod audit;
 pub mod config;
 pub mod crypto;
+pub mod hardening;
+pub mod secrets;
+pub mod vault;
 
-pub use audit::{AuditAction, AuditEntry, AuditLog};
+pub use audit::{AuditAction, AuditEntry, AuditLog, SignedBlock, generate_audit_keypair};
 pub use config::SecureConfig;
 pub use crypto::{Encryptor, Key};
+pub use secrets::{redact_secrets, SecretsRedactor};
+pub use vault::{open_credential_vault, CredentialVault, MasterKey, vault_path};
 
 #[cfg(test)]
 mod tests {

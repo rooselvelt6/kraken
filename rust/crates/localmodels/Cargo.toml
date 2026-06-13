@@ -1,12 +1,22 @@
 [package]
 name = "localmodels"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Claw Code Venezuela"]
-description = "Proveedores de modelos locales"
+description = "ML Local Threat Detection — Classifier, Sequence Analysis, Ensemble Scoring"
 
 [dependencies]
-reqwest = { version = "0.12", features = ["json"] }
+log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+
+[features]
+default = ["classifier", "sequence"]
+classifier = []
+sequence = []
+ensemble = []
+online-learning = []
+
+[dev-dependencies]
+tempfile = "3"

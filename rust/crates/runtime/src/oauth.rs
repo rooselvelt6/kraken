@@ -9,6 +9,8 @@ use sha2::{Digest, Sha256};
 
 use crate::config::OAuthConfig;
 
+use security::vault::{open_credential_vault, CredentialVault, MasterKey};
+
 /// Persisted OAuth access token bundle used by the CLI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuthTokenSet {
@@ -266,7 +268,25 @@ pub fn credentials_path() -> io::Result<PathBuf> {
     Ok(credentials_home_dir()?.join("credentials.json"))
 }
 
+fn try_init_vault() -> Result<Option<CredentialVault>, String> {
+    let master_key = match MasterKey::from_env() {
+        Some(k) => k,
+        None => return Ok(None),
+    };
+    let vault = open_credential_vault(&master_key)?;
+    Ok(Some(vault))
+}
+
 pub fn load_oauth_credentials() -> io::Result<Option<OAuthTokenSet>> {
+    if let Ok(Some(vault)) = try_init_vault() {
+        let oauth = vault.get("oauth").cloned().unwrap_or(Value::Null);
+        if oauth.is_null() {
+            return Ok(None);
+        }
+        return serde_json::from_value::<StoredOAuthCredentials>(oauth)
+            .map(|s| Some(s.into()))
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e));
+    }
     let path = credentials_path()?;
     let root = read_credentials_root(&path)?;
     let Some(oauth) = root.get("oauth") else {
@@ -281,17 +301,32 @@ pub fn load_oauth_credentials() -> io::Result<Option<OAuthTokenSet>> {
 }
 
 pub fn save_oauth_credentials(token_set: &OAuthTokenSet) -> io::Result<()> {
+    let stored = StoredOAuthCredentials::from(token_set.clone());
+    let value = serde_json::to_value(stored)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+    if let Ok(Some(mut vault)) = try_init_vault() {
+        vault.set("oauth", value);
+        if let Some(mk) = MasterKey::from_env() {
+            vault.save(&mk).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        }
+        return Ok(());
+    }
+
     let path = credentials_path()?;
     let mut root = read_credentials_root(&path)?;
-    root.insert(
-        "oauth".to_string(),
-        serde_json::to_value(StoredOAuthCredentials::from(token_set.clone()))
-            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?,
-    );
+    root.insert("oauth".to_string(), value);
     write_credentials_root(&path, &root)
 }
 
 pub fn clear_oauth_credentials() -> io::Result<()> {
+    if let Ok(Some(mut vault)) = try_init_vault() {
+        vault.remove("oauth");
+        if let Some(mk) = MasterKey::from_env() {
+            vault.save(&mk).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        }
+        return Ok(());
+    }
     let path = credentials_path()?;
     let mut root = read_credentials_root(&path)?;
     root.remove("oauth");

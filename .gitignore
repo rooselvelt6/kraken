@@ -14,3 +14,5 @@ status-help.txt
 # Coverage reports
 rust/tarpaulin-report.html
 *.html
+# Test artifacts
+rust/crates/runtime/post-mortem-*.json

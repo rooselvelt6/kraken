@@ -10,6 +10,7 @@
 
 use std::path::Path;
 
+use crate::heuristic_engine::get_heuristic_engine;
 use crate::permissions::PermissionMode;
 
 /// Result of validating a bash command before execution.
@@ -24,7 +25,7 @@ pub enum ValidationResult {
 }
 
 /// Semantic classification of a bash command's intent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CommandIntent {
     /// Read-only operations: ls, cat, grep, find, etc.
     ReadOnly,
@@ -41,6 +42,34 @@ pub enum CommandIntent {
     /// System administration: sudo, chmod, chown, mount, etc.
     SystemAdmin,
     /// Unknown or unclassifiable command.
+    Unknown,
+}
+
+/// Granular intent classification (16 categories) for the Heuristic Anomaly Engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DetailedIntent {
+    FileRead,
+    FileSearch,
+    FileWrite,
+    FileEdit,
+    Destructive,
+    NetworkDownload,
+    NetworkUpload,
+    NetworkShell,
+    CodeGeneration,
+    Compile,
+    Test,
+    GitRead,
+    GitWrite,
+    Container,
+    Database,
+    Compress,
+    PermissionChange,
+    SystemConfig,
+    ServiceManagement,
+    ProcessManagement,
+    PackageManagement,
+    Monitoring,
     Unknown,
 }
 
@@ -584,6 +613,172 @@ fn classify_git_command(command: &str) -> CommandIntent {
 }
 
 // ---------------------------------------------------------------------------
+// Detailed Intent Classification (16+ categories for HAE)
+// ---------------------------------------------------------------------------
+
+/// Granular intent classifier used by the Heuristic Anomaly Engine.
+#[must_use]
+pub fn classify_detailed(command: &str) -> DetailedIntent {
+    let first = extract_first_command(command);
+    let trimmed = command.trim();
+
+    match first.as_str() {
+        // File operations
+        "cat" | "head" | "tail" | "less" | "more" | "wc" | "od" | "xxd" | "hexdump" | "strings"
+        | "readlink" | "realpath" | "basename" | "dirname" | "file" | "stat" => {
+            DetailedIntent::FileRead
+        }
+        "grep" | "egrep" | "fgrep" | "find" | "locate" | "which" | "whereis" | "whatis"
+        | "rg" | "ripgrep" | "ag" | "ack" => {
+            DetailedIntent::FileSearch
+        }
+        "cp" | "mv" | "mkdir" | "rmdir" | "touch" | "ln" | "install" | "tee" | "truncate"
+        | "dd" | "mkfifo" | "mknod" => {
+            DetailedIntent::FileWrite
+        }
+        "rm" | "shred" | "wipefs" => {
+            DetailedIntent::Destructive
+        }
+        "sed" if trimmed.contains(" -i") => DetailedIntent::FileEdit,
+        "sed" => DetailedIntent::FileRead,
+        "awk" => {
+            // awk with in-place edit (gawk -i inplace)
+            if trimmed.contains("-i") || trimmed.contains("inplace") {
+                DetailedIntent::FileEdit
+            } else {
+                DetailedIntent::FileRead
+            }
+        }
+
+        // Network
+        "curl" | "wget" | "ftp" | "nc" | "ncat" => {
+            if trimmed.contains("-o") || trimmed.contains("--output") || trimmed.contains(">") {
+                DetailedIntent::NetworkDownload
+            } else if trimmed.contains("-d") || trimmed.contains("--data") || trimmed.contains("--post") {
+                DetailedIntent::NetworkUpload
+            } else {
+                DetailedIntent::NetworkDownload
+            }
+        }
+        "ssh" | "telnet" | "rsh" | "mosh" => {
+            DetailedIntent::NetworkShell
+        }
+        "scp" | "rsync" | "sftp" => {
+            DetailedIntent::NetworkUpload
+        }
+        "ping" | "traceroute" | "dig" | "nslookup" | "host" | "whois" | "nmap" | "netstat"
+        | "ss" | "ifconfig" | "ip" => {
+            DetailedIntent::NetworkDownload
+        }
+
+        // Code Generation
+        "cargo" if trimmed.contains("init") || trimmed.contains("new") => {
+            DetailedIntent::CodeGeneration
+        }
+        "npm" if trimmed.contains("init") => DetailedIntent::CodeGeneration,
+        "go" if trimmed.contains("mod init") => DetailedIntent::CodeGeneration,
+        "npx" if trimmed.contains("create-") => DetailedIntent::CodeGeneration,
+        "dotnet" if trimmed.contains("new") => DetailedIntent::CodeGeneration,
+
+        // Compile
+        "cargo" if trimmed.contains("build") || trimmed.contains("check") => {
+            DetailedIntent::Compile
+        }
+        "gcc" | "g++" | "clang" | "clang++" | "rustc" | "go build" | "tsc" | "babel" | "webpack"
+        | "esbuild" | "swc" | "make" | "cmake" | "ninja" => {
+            DetailedIntent::Compile
+        }
+
+        // Test
+        "cargo" if trimmed.contains("test") => DetailedIntent::Test,
+        "npm" if trimmed.contains("test") => DetailedIntent::Test,
+        "pytest" | "mocha" | "jest" | "vitest" | "go test" | "rspec" | "cabal test" => {
+            DetailedIntent::Test
+        }
+
+        // Git
+        "git" => {
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            let sub = parts.iter().skip(1).find(|p| !p.starts_with('-'));
+            match sub {
+                Some(&"status") | Some(&"log") | Some(&"diff") | Some(&"show")
+                | Some(&"branch") | Some(&"tag") | Some(&"remote") | Some(&"ls-files")
+                | Some(&"ls-tree") | Some(&"cat-file") | Some(&"rev-parse") | Some(&"describe")
+                | Some(&"shortlog") | Some(&"blame") | Some(&"bisect") | Some(&"reflog") => {
+                    DetailedIntent::GitRead
+                }
+                Some(&"stash") => DetailedIntent::GitRead,
+                Some(&"config") => DetailedIntent::GitRead,
+                Some(_) => DetailedIntent::GitWrite,
+                None => DetailedIntent::GitRead,
+            }
+        }
+
+        // Container
+        "docker" | "podman" | "nerdctl" | "containerd" => {
+            DetailedIntent::Container
+        }
+
+        // Database
+        "psql" | "mysql" | "sqlite3" | "sqlite" | "mongosh" | "redis-cli" | "pg_dump"
+        | "pg_restore" | "createdb" | "dropdb" => {
+            DetailedIntent::Database
+        }
+
+        // Compress
+        "tar" | "gzip" | "gunzip" | "bzip2" | "bunzip2" | "xz" | "unxz" | "zip" | "unzip"
+        | "7z" | "rar" | "unrar" | "zstd" | "unzstd" => {
+            DetailedIntent::Compress
+        }
+
+        // Permission change
+        "chmod" | "chown" | "chgrp" => {
+            DetailedIntent::PermissionChange
+        }
+
+        // System config
+        "sysctl" | "modprobe" | "insmod" | "rmmod" | "dmesg" | "iptables" | "ufw"
+        | "firewall-cmd" | "fdisk" | "parted" | "lsblk" | "blkid" | "mount" | "umount" => {
+            DetailedIntent::SystemConfig
+        }
+
+        // Service management
+        "systemctl" | "service" | "journalctl" => {
+            DetailedIntent::ServiceManagement
+        }
+
+        // Process management
+        "kill" | "pkill" | "killall" | "ps" | "top" | "htop" | "bg" | "fg" | "jobs"
+        | "nohup" | "disown" | "wait" | "nice" | "renice" => {
+            DetailedIntent::ProcessManagement
+        }
+
+        // Package management
+        "apt" | "apt-get" | "yum" | "dnf" | "pacman" | "brew" | "pip" | "pip3" | "npm"
+        | "yarn" | "pnpm" | "bun" | "cargo" | "gem" | "go" | "rustup" | "snap" | "flatpak" => {
+            DetailedIntent::PackageManagement
+        }
+
+        // Monitoring
+        "watch" | "inotifywait" | "inotifywatch" | "strace" | "dtrace" | "perf" | "lsof"
+        | "fuser" | "iostat" | "vmstat" | "mpstat" | "sar" => {
+            DetailedIntent::Monitoring
+        }
+
+        // Default
+        _ => {
+            if first == "sudo" {
+                let inner = extract_sudo_inner(trimmed);
+                if !inner.is_empty() {
+                    return classify_detailed(inner);
+                }
+            }
+            DetailedIntent::Unknown
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Pipeline: run all validations
 // ---------------------------------------------------------------------------
 
@@ -591,7 +786,24 @@ fn classify_git_command(command: &str) -> CommandIntent {
 ///
 /// Returns the first non-Allow result, or Allow if all validations pass.
 #[must_use]
-pub fn validate_command(command: &str, mode: PermissionMode, workspace: &Path) -> ValidationResult {
+pub fn validate_command(
+    command: &str,
+    mode: PermissionMode,
+    workspace: &Path,
+) -> ValidationResult {
+    validate_command_full(command, "bash", mode, workspace)
+}
+
+/// Run the full validation pipeline with heuristic anomaly engine.
+///
+/// Extends `validate_command` with HAE risk scoring after standard checks pass.
+#[must_use]
+pub fn validate_command_full(
+    command: &str,
+    tool: &str,
+    mode: PermissionMode,
+    workspace: &Path,
+) -> ValidationResult {
     // 1. Mode-level validation (includes read-only checks).
     let result = validate_mode(command, mode);
     if result != ValidationResult::Allow {
@@ -611,7 +823,51 @@ pub fn validate_command(command: &str, mode: PermissionMode, workspace: &Path) -
     }
 
     // 4. Path validation.
-    validate_paths(command, workspace)
+    let result = validate_paths(command, workspace);
+    if result != ValidationResult::Allow {
+        return result;
+    }
+
+    // 5. Heuristic Anomaly Engine scoring.
+    if let Ok(mut engine) = get_heuristic_engine().lock() {
+        let intent = classify_command(command);
+        let risk_score = engine.evaluate(command, tool, intent, mode);
+
+        if risk_score.risk_level.as_u8() >= 4 {
+            // Critical risk — block the command
+            return ValidationResult::Block {
+                reason: format!(
+                    "Heuristic Anomaly Engine blocked this command (score: {:.2}): {}",
+                    risk_score.total,
+                    risk_score.triggered_rules.join(", ")
+                ),
+            };
+        }
+
+        if risk_score.risk_level.as_u8() >= 3 {
+            // High risk — warn and prompt
+            return ValidationResult::Warn {
+                message: format!(
+                    "Heuristic Anomaly Engine flagged this command (score: {:.2}): {}",
+                    risk_score.total,
+                    risk_score.triggered_rules.join(", ")
+                ),
+            };
+        }
+
+        if risk_score.risk_level.as_u8() >= 2 {
+            // Medium risk — warn
+            return ValidationResult::Warn {
+                message: format!(
+                    "Heuristic Anomaly Engine detected unusual pattern (score: {:.2}): {}",
+                    risk_score.total,
+                    risk_score.triggered_rules.join(", ")
+                ),
+            };
+        }
+    }
+
+    ValidationResult::Allow
 }
 
 // ---------------------------------------------------------------------------

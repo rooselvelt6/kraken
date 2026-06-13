@@ -272,6 +272,21 @@ pub struct EnterpriseConfig {
     pub audit_retention_days: u32,
     pub enable_sso: bool,
     pub sso_provider: Option<String>,
+    pub enable_heuristic_engine: bool,
+    pub hae_critical_threshold: f64,
+    pub hae_high_threshold: f64,
+    pub hae_medium_threshold: f64,
+    pub circuit_breaker_failure_threshold: u32,
+    pub circuit_breaker_recovery_timeout_ms: u64,
+    pub circuit_breaker_success_threshold: u32,
+    pub enable_health_probes: bool,
+    pub health_probe_interval_ms: u64,
+    pub health_probe_timeout_threshold_ms: f64,
+    pub adaptive_rate_limiting: bool,
+    pub rate_limiter_base_capacity: f64,
+    pub rate_limiter_refill_rate: f64,
+    pub rate_limiter_max_capacity: f64,
+    pub rate_limiter_min_capacity: f64,
 }
 
 impl Default for EnterpriseConfig {
@@ -284,6 +299,21 @@ impl Default for EnterpriseConfig {
             audit_retention_days: 90,
             enable_sso: false,
             sso_provider: None,
+            enable_heuristic_engine: true,
+            hae_critical_threshold: 0.95,
+            hae_high_threshold: 0.80,
+            hae_medium_threshold: 0.60,
+            circuit_breaker_failure_threshold: 5,
+            circuit_breaker_recovery_timeout_ms: 30_000,
+            circuit_breaker_success_threshold: 2,
+            enable_health_probes: true,
+            health_probe_interval_ms: 5_000,
+            health_probe_timeout_threshold_ms: 10_000.0,
+            adaptive_rate_limiting: true,
+            rate_limiter_base_capacity: 60.0,
+            rate_limiter_refill_rate: 1.0,
+            rate_limiter_max_capacity: 120.0,
+            rate_limiter_min_capacity: 10.0,
         }
     }
 }
