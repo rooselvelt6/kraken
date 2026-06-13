@@ -28,7 +28,6 @@
 - [Inicio Rápido](#inicio-rápido)
 - [Comandos](#comandos)
 - [Estructura del Proyecto](#estructura-del-proyecto)
-- [Licencia](#licencia)
 
 ---
 
@@ -309,14 +308,6 @@ kraken/
 
 ---
 
-## Licencia
-
-MIT © 2026 Kraken Contributors
-
----
-
 <p align="center">
-  <sub>Hecho en Rust, con ❤️ y paranoia.</sub>
-  <br>
-  <sub>~1500 tests · 0 unsafe · 40 MB binary · 22 horas de implementación roadmap</sub>
+  <sub>Hecho con Rust 🦀</sub>
 </p>
