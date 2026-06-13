@@ -73,7 +73,11 @@ pub enum Language {
     Go,
     Java,
     Swift,
+    Lua,
     Shell,
+    Docker,
+    Kubernetes,
+    Terraform,
     Other,
 }
 
@@ -88,10 +92,21 @@ impl Language {
             Language::Python => &["py", "pyw"],
             Language::Ruby => &["rb"],
             Language::Go => &["go"],
+            Language::Lua => &["lua"],
             Language::Java => &["java"],
             Language::Swift => &["swift"],
             Language::Shell => &["sh", "bash", "zsh"],
+            Language::Docker => &["dockerfile"],
+            Language::Kubernetes => &["yaml", "yml"],
+            Language::Terraform => &["tf"],
             Language::Other => &[],
+        }
+    }
+
+    pub fn filenames(&self) -> &'static [&'static str] {
+        match self {
+            Language::Docker => &["Dockerfile", "Dockerfile.*", "Containerfile"],
+            _ => &[],
         }
     }
 }
@@ -205,6 +220,10 @@ impl Default for ScanConfig {
                 Language::TypeScript,
                 Language::Python,
                 Language::Ruby,
+                Language::Lua,
+                Language::Docker,
+                Language::Kubernetes,
+                Language::Terraform,
             ],
             enable_llm_agent: true,
             enable_fuzzing: false,

@@ -194,7 +194,7 @@ impl HuntPipeline {
 
                                 for (path, file_findings) in &by_file {
                                     if let Ok(content) = std::fs::read_to_string(path) {
-                                        let lang = crate::analyzers::detect_language(path);
+                                        let lang = crate::analyzers::detect_language(path, Some(&content));
                                         let v = analyst
                                             .cross_validate(path, &content, lang, file_findings)
                                             .await;
@@ -376,7 +376,7 @@ impl HuntPipeline {
 
                                 for (path, file_findings) in &by_file {
                                     if let Ok(content) = std::fs::read_to_string(path) {
-                                        let lang = crate::analyzers::detect_language(path);
+                                        let lang = crate::analyzers::detect_language(path, Some(&content));
                                         let v = analyst
                                             .cross_validate(path, &content, lang, file_findings)
                                             .await;

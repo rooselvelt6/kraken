@@ -200,7 +200,7 @@ File: {:?}",
         let mut all_findings = vec![];
 
         for (file, _score) in &ranked {
-            let lang = crate::analyzers::detect_language(file);
+            let lang = crate::analyzers::detect_language(file, None);
             if !config.languages.contains(&lang) && lang != Language::Other {
                 continue;
             }

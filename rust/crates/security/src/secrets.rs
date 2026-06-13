@@ -1,3 +1,12 @@
+//! Secret redaction utilities.
+//!
+//! The canonical secret detection and scanning module is in `vulnscan/src/secrets.rs`.
+//! This crate re-exports the `SecretsRedactor` for use by other crates that need
+//! redaction without the full `vulnscan` dependency.
+//!
+//! For unified detection (entropy, git history, binary scanning), use:
+//!   vulnscan::secrets::SecretsDetector
+
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -128,14 +137,14 @@ mod tests {
     #[test]
     fn redacts_github_token() {
         let redacted = SecretsRedactor::default()
-            .redact("ghp_abc123def456ghi789jkl012mno345pqr678st");
+            .redact("ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
         assert!(redacted.contains("[REDACTED]"));
     }
 
     #[test]
     fn redacts_ssh_key() {
         let redacted = SecretsRedactor::default()
-            .redact("-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...");
+            .redact("-----BEGIN RSA PRIVATE KEY-----\nFAKE_DATA_FOR_UNIT_TEST...");
         assert!(redacted.contains("[REDACTED]"));
     }
 

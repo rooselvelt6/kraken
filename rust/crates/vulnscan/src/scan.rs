@@ -1,6 +1,6 @@
 use crate::{
     analyzers::{self, LanguageAnalyzer},
-    Finding, FindingStatus, Language, ScanConfig,
+    DiscoveryMethod, Finding, FindingStatus, Language, ScanConfig, Severity,
 };
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -58,16 +58,16 @@ impl VulnerabilityScanner {
         analyzers: &[Box<dyn LanguageAnalyzer + Send + Sync>],
         findings: &mut Vec<Finding>,
     ) {
-        let language = analyzers::detect_language(file_path);
-
-        if !self.config.languages.contains(&language) && language != Language::Other {
-            return;
-        }
-
         let content = match std::fs::read_to_string(file_path) {
             Ok(c) => c,
             Err(_) => return,
         };
+
+        let language = analyzers::detect_language(file_path, Some(&content));
+
+        if !self.config.languages.contains(&language) && language != Language::Other {
+            return;
+        }
 
         for analyzer in analyzers {
             if analyzer.language() == language || language == Language::Other {
@@ -171,6 +171,93 @@ impl VulnerabilityScanner {
                 f.clone()
             })
             .collect()
+    }
+
+    pub fn scan_container_image(image_ref: &str) -> Vec<Finding> {
+        let mut findings = Vec::new();
+
+        if image_ref.is_empty() {
+            return findings;
+        }
+
+        let lower = image_ref.to_lowercase();
+
+        if !lower.contains(':') || lower.ends_with(":latest") {
+            findings.push(Finding {
+                id: crate::new_finding_id(),
+                severity: Severity::Medium,
+                cwe: Some("CWE-1104".to_string()),
+                cve: None,
+                description: format!("Unpinned container image tag — {}", image_ref),
+                file_path: None,
+                line_number: None,
+                vulnerable_code_snippet: Some(image_ref.to_string()),
+                remediation: Some(
+                    "Pin container image to a specific digest \
+                     (e.g. `ubuntu@sha256:abc123...`) or a version tag (e.g. `nginx:1.25.0`)"
+                        .to_string(),
+                ),
+                confidence: 0.85,
+                discovery_method: DiscoveryMethod::DependencyScan,
+                ..Default::default()
+            });
+        }
+
+        let known_vulnerable = [
+            ("nginx:1.22", "nginx 1.22 has known vulnerabilities (CVE-2023-44487, CVE-2023-25584)"),
+            ("nginx:1.23", "nginx 1.23 has known vulnerabilities"),
+            ("node:14", "Node.js 14 is EOL (end of life) since April 2023"),
+            ("node:16", "Node.js 16 is EOL since September 2023"),
+            ("python:3.8", "Python 3.8 is EOL since October 2024"),
+            ("python:3.9", "Python 3.9 is EOL since October 2025"),
+            ("ubuntu:20.04", "Ubuntu 20.04 (Focal) is in ESM phase: standard support ended May 2025"),
+            ("debian:10", "Debian 10 (Buster) is EOL since June 2024"),
+            ("alpine:3.15", "Alpine 3.15 is EOL since November 2023"),
+        ];
+
+        for &(vulnerable_tag, advisory) in &known_vulnerable {
+            if lower.contains(vulnerable_tag) {
+                findings.push(Finding {
+                    id: crate::new_finding_id(),
+                    severity: Severity::High,
+                    cwe: Some("CWE-1104".to_string()),
+                    cve: None,
+                    description: format!("Known vulnerable image tag: {} — {}", image_ref, advisory),
+                    file_path: None,
+                    line_number: None,
+                    vulnerable_code_snippet: Some(image_ref.to_string()),
+                    remediation: Some(format!(
+                        "Upgrade to a supported version. {}", advisory
+                    )),
+                    confidence: 0.9,
+                    discovery_method: DiscoveryMethod::DependencyScan,
+                    ..Default::default()
+                });
+            }
+        }
+
+        if lower.contains("/") && !lower.contains("docker.io") && !lower.contains("ghcr.io") && !lower.contains("quay.io") && !lower.contains("gcr.io") {
+            findings.push(Finding {
+                id: crate::new_finding_id(),
+                severity: Severity::Info,
+                cwe: Some("CWE-1104".to_string()),
+                cve: None,
+                description: format!("Container image from non-standard registry — {}", image_ref),
+                file_path: None,
+                line_number: None,
+                vulnerable_code_snippet: Some(image_ref.to_string()),
+                    remediation: Some(
+                        "Verify the image registry is trusted. Consider mirroring images to a \
+                         known registry to ensure supply chain integrity."
+                            .to_string(),
+                    ),
+                confidence: 0.4,
+                discovery_method: DiscoveryMethod::DependencyScan,
+                ..Default::default()
+            });
+        }
+
+        findings
     }
 
     pub fn prioritize_exploitable(&self, findings: &[Finding]) -> Vec<Finding> {

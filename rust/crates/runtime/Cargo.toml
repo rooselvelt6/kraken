@@ -19,5 +19,8 @@ telemetry = { path = "../telemetry" }
 tokio = { version = "1", features = ["io-std", "io-util", "macros", "process", "rt", "rt-multi-thread", "sync", "time"] }
 walkdir = "2"
 
+[dev-dependencies]
+proptest = "1"
+
 [lints]
 workspace = true
