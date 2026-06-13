@@ -1,0 +1,90 @@
+.TH KRAKEN 1 "2026-06-13" "0.1.0" "Kraken Manual"
+.SH NAME
+kraken \- Autonomous coding agent and security tool
+.SH SYNOPSIS
+.B kraken
+[OPTIONS] [COMMAND]
+.SH DESCRIPTION
+Kraken is an autonomous coding agent with offensive security capabilities:
+vulnerability scanning, OSINT, secret detection, and LLM-powered automation.
+.PP
+It connects to multiple LLM providers (Anthropic, OpenAI, DeepSeek, Ollama)
+to function as an AI-powered coding and security assistant.
+.SH OPTIONS
+.TP
+.B \-\-help
+Print help information
+.TP
+.B \-\-version
+Print version information
+.TP
+.BI \-\-model " MODEL"
+Select the LLM model to use
+.TP
+.BI \-\-provider " PROVIDER"
+Select the LLM provider (anthropic, openai, deepseek, ollama, dashscope)
+.TP
+.B \-\-output-format json
+Emit machine-readable JSON output
+.TP
+.B \-\-resume " SESSION"
+Resume an existing session
+.TP
+.B \-\-compact
+Use compact mode (shorter responses)
+.TP
+.BI \-\-reasoning-effort " LEVEL"
+Set reasoning effort (low, medium, high)
+.SH COMMANDS
+.TP
+.B kraken [PROMPT]
+Start REPL or run a one-shot prompt
+.TP
+.B kraken doctor
+Run health check and diagnostics
+.TP
+.B kraken status
+Show session and configuration status
+.TP
+.B kraken init
+Initialize project configuration
+.TP
+.B kraken vulnscan
+Scan for vulnerabilities
+.TP
+.B kraken login
+Authenticate with LLM provider
+.SH SLASH COMMANDS
+Once in the REPL, available commands include:
+.PP
+/bash, /read, /write, /edit, /glob, /grep,
+/web_search, /web_fetch, /agent, /task,
+/vulnscan, /osint, /doctor, /status,
+/session, /history, /diff, /export,
+/memory, /config, /help, /model
+.SH ENVIRONMENT
+.TP
+.B ANTHROPIC_API_KEY
+API key for Anthropic Claude
+.TP
+.B DEEPSEEK_API_KEY
+API key for DeepSeek
+.TP
+.B OPENAI_API_KEY
+API key for OpenAI-compatible providers
+.TP
+.B ANTHROPIC_BASE_URL
+Custom API endpoint URL
+.SH FILES
+.TP
+.I .kraken.json
+Project-specific configuration
+.TP
+.I ~/.config/kraken/config.json
+User-global configuration
+.SH BUGS
+Report issues at https://github.com/rooselvelt6/kraken/issues
+.SH SECURITY
+Report vulnerabilities according to SECURITY.md
+.SH COPYRIGHT
+MIT License, Copyright (c) 2024 Kraken Contributors

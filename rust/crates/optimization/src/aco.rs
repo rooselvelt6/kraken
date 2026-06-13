@@ -4,7 +4,7 @@
 //! It solves optimization problems by simulating ants that deposit pheromones
 //! on paths they traverse.
 //!
-//! **Application in Claw Code**: Path discovery for code navigation
+//! **Application in Kraken**: Path discovery for code navigation
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};

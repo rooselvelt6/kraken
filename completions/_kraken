@@ -1,0 +1,46 @@
+#compdef kraken
+
+# Kraken Zsh completion
+
+local -a _1st_arguments
+_1st_arguments=(
+  'doctor:Run health check and diagnostics'
+  'status:Show session and configuration status'
+  'init:Initialize project configuration'
+  'version:Print version information'
+  'update:Check for updates'
+  'help:Print help information'
+  'sandbox:Show sandbox status'
+  'state:Show worker state'
+  'config:Show configuration'
+  'diff:Show workspace diff'
+  'export:Export session'
+  'acp:ACP status'
+  'prompt:Run a one-shot prompt'
+  'skills:List or invoke skills'
+  'plugins:Manage plugins'
+  'agents:Manage agents'
+  'mcp:MCP management'
+  'system-prompt:Print system prompt'
+  'dump-manifests:Dump manifests'
+  'bootstrap-plan:Bootstrap plan'
+)
+
+_arguments \
+  '--help[Print help]' \
+  '--version[Print version]' \
+  '--model[Model to use]:model:()' \
+  '--provider[Provider to use]:provider:(anthropic openai deepseek ollama dashscope openrouter)' \
+  '--output-format[Output format]:format:(text json)' \
+  '--resume[Resume session]:session:()' \
+  '--compact[Compact mode]' \
+  '--reasoning-effort[Reasoning effort]:level:(low medium high)' \
+  '--allow-broad-cwd[Allow broad CWD]' \
+  '1: :->command' \
+  '*:: :->args'
+
+case "$state" in
+  command)
+    _describe -t commands 'kraken commands' _1st_arguments
+    ;;
+esac

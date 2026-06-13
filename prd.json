@@ -1,356 +1,239 @@
 {
-  "version": "1.0",
-  "description": "Clawable Coding Harness - Clear roadmap stories and commit each",
-  "stories": [
+  "prd_title": "Kraken — Product Requirements Document",
+  "version": "0.3.0",
+  "status": "draft / living",
+  "last_updated": "2026-04-17",
+  "authors": ["Ralph"],
+  "executive_summary": {
+    "one_liner": "An AI‑native CLI that pairs a local Copilot‑style agent with on‑demand access to Claude Code, Gemini Code Assist, and other remote coding agents — all inside a single terminal session.",
+    "why_kraken": "Developers need an AI coding partner that works offline for fast local tasks (copilot) and can escalate to cloud‑grade reasoning when the problem is hard — without switching tools, copying context, or leaving the terminal.",
+    "key_tenets": [
+      "1. AI agents must work together — local copilot + cloud agents in the same conversation.",
+      "2. Every model call counts — no hidden costs or opaque token usage.",
+      "3. Security is not optional — sandbox execution, policy enforcement, audit trails.",
+      "4. Parity with Claude Code is the floor — not the ceiling."
+    ]
+  },
+  "personas": [
     {
-      "id": "US-001",
-      "title": "Phase 1.6 - startup-no-evidence evidence bundle + classifier",
-      "description": "When startup times out, emit typed worker.startup_no_evidence event with evidence bundle including last known worker lifecycle state, pane command, prompt-send timestamp, prompt-acceptance state, trust-prompt detection result, and transport/MCP health summary. Classifier should down-rank into specific failure classes.",
-      "acceptanceCriteria": [
-        "worker.startup_no_evidence event emitted on startup timeout with evidence bundle",
-        "Evidence bundle includes: last lifecycle state, pane command, prompt-send timestamp, prompt-acceptance state, trust-prompt detection, transport/MCP health",
-        "Classifier attempts to categorize into: trust_required, prompt_misdelivery, prompt_acceptance_timeout, transport_dead, worker_crashed, or unknown",
-        "Tests verify evidence bundle structure and classifier behavior"
-      ],
-      "passes": true,
-      "priority": "P0"
+      "name": "Solo Developer (Alex)",
+      "role": "Full‑stack freelancer",
+      "pain": "Context‑switching between Copilot for quick completions and Claude Code for complex refactors. No unified billing or session history.",
+      "want": "One CLI that intelligently routes requests — fast local completions for simple edits, cloud escalation for architecture decisions."
     },
     {
-      "id": "US-002",
-      "title": "Phase 2 - Canonical lane event schema (4.x series)",
-      "description": "Define typed events for lane lifecycle: lane.started, lane.ready, lane.prompt_misdelivery, lane.blocked, lane.red, lane.green, lane.commit.created, lane.pr.opened, lane.merge.ready, lane.finished, lane.failed, branch.stale_against_main. Also implement event ordering, reconciliation, provenance, deduplication, and projection contracts.",
-      "acceptanceCriteria": [
-        "LaneEvent enum with all required variants defined",
-        "Event ordering with monotonic sequence metadata attached",
-        "Event provenance labels (live_lane, test, healthcheck, replay, transport)",
-        "Session identity completeness at creation (title, workspace, purpose)",
-        "Duplicate terminal-event suppression with fingerprinting",
-        "Lane ownership/scope binding in events",
-        "Nudge acknowledgment with dedupe contract",
-        "clawhip consumes typed lane events instead of pane scraping"
-      ],
-      "passes": true,
-      "priority": "P0"
+      "name": "Team Lead (Jordan)",
+      "role": "Engineering manager, 12‑person team",
+      "pain": "No visibility into what agents are used by the team. Security risks from unvetted cloud prompts. No cost control.",
+      "want": "Audit trails, per‑developer usage limits, sandbox execution, and a single policy file (kraken.toml) that enforces rules across the org."
     },
     {
-      "id": "US-003",
-      "title": "Phase 3 - Stale-branch detection before broad verification",
-      "description": "Before broad test runs, compare current branch to main and detect if known fixes are missing. Emit branch.stale_against_main event and suggest/auto-run rebase/merge-forward.",
-      "acceptanceCriteria": [
-        "Branch freshness comparison against main implemented",
-        "branch.stale_against_main event emitted when behind",
-        "Auto-rebase/merge-forward policy integration",
-        "Avoid misclassifying stale-branch failures as new regressions"
-      ],
-      "passes": true,
-      "priority": "P1"
+      "name": "Security Engineer (Taylor)",
+      "role": "AppSec, regulated industry",
+      "pain": "Cannot allow LLM agents that exfiltrate code. Existing tools have no data‑loss prevention (DLP) or prompt‑injection scanning.",
+      "want": "Policy‑based prompt filters, sandboxed subprocess execution, network egress controls, and signed audit logs."
     },
     {
-      "id": "US-004",
-      "title": "Phase 3 - Recovery recipes with ledger",
-      "description": "Encode automatic recoveries for common failures (trust prompt, prompt misdelivery, stale branch, compile red, MCP startup). Expose recovery attempt ledger with recipe id, attempt count, state, timestamps, failure summary.",
-      "acceptanceCriteria": [
-        "Recovery recipes defined for: trust_prompt_unresolved, prompt_delivered_to_shell, stale_branch, compile_red_after_refactor, MCP_handshake_failure, partial_plugin_startup",
-        "Recovery attempt ledger with: recipe id, attempt count, state, timestamps, failure summary, escalation reason",
-        "One automatic recovery attempt before escalation",
-        "Ledger emitted as structured event data"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-005",
-      "title": "Phase 4 - Typed task packet format",
-      "description": "Define structured task packet with fields: objective, scope, repo/worktree, branch policy, acceptance tests, commit policy, reporting contract, escalation policy.",
-      "acceptanceCriteria": [
-        "TaskPacket struct with all required fields",
-        "TaskScope resolution (workspace/module/single-file/custom)",
-        "Validation and serialization support",
-        "Integration into tools/src/lib.rs"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-006",
-      "title": "Phase 4 - Policy engine for autonomous coding",
-      "description": "Encode automation rules: if green + scoped diff + review passed -> merge to dev; if stale branch -> merge-forward before broad tests; if startup blocked -> recover once, then escalate; if lane completed -> emit closeout and cleanup session.",
-      "acceptanceCriteria": [
-        "Policy rules engine implemented",
-        "Rules: green + scoped diff + review -> merge",
-        "Rules: stale branch -> merge-forward before tests",
-        "Rules: startup blocked -> recover once, then escalate",
-        "Rules: lane completed -> closeout and cleanup"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-007",
-      "title": "Phase 5 - Plugin/MCP lifecycle maturity",
-      "description": "First-class plugin/MCP lifecycle contract: config validation, startup healthcheck, discovery result, degraded-mode behavior, shutdown/cleanup. Close gaps in end-to-end lifecycle.",
-      "acceptanceCriteria": [
-        "Plugin/MCP config validation contract",
-        "Startup healthcheck with structured results",
-        "Discovery result reporting",
-        "Degraded-mode behavior documented and implemented",
-        "Shutdown/cleanup contract",
-        "Partial startup and per-server failures reported structurally"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-008",
-      "title": "Fix kimi-k2.5 model API compatibility",
-      "description": "The kimi-k2.5 model (and other kimi models) reject API requests containing the is_error field in tool result messages. The OpenAI-compatible provider currently always includes is_error for all models. Need to make this field conditional based on model support.",
-      "acceptanceCriteria": [
-        "translate_message function accepts model parameter",
-        "is_error field excluded for kimi models (kimi-k2.5, kimi-k1.5, etc.)",
-        "is_error field included for models that support it (openai, grok, xai, etc.)",
-        "build_chat_completion_request passes model to translate_message",
-        "Tests verify is_error presence/absence based on model",
-        "cargo test passes",
-        "cargo clippy passes",
-        "cargo fmt passes"
-      ],
-      "passes": true,
-      "priority": "P0"
-    },
-    {
-      "id": "US-009",
-      "title": "Add unit tests for kimi model compatibility fix",
-      "description": "During dogfooding we discovered the existing test coverage for model-specific is_error handling is insufficient. Need to add dedicated tests for model_rejects_is_error_field function and translate_message behavior with different models.",
-      "acceptanceCriteria": [
-        "Test model_rejects_is_error_field identifies kimi-k2.5, kimi-k1.5, dashscope/kimi-k2.5",
-        "Test translate_message includes is_error for gpt-4, grok-3, claude models",
-        "Test translate_message excludes is_error for kimi models",
-        "Test build_chat_completion_request produces correct payload for kimi vs non-kimi",
-        "All new tests pass",
-        "cargo test --package api passes"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-010",
-      "title": "Add model compatibility documentation",
-      "description": "Document which models require special handling (is_error exclusion, reasoning model tuning param stripping, etc.) in a MODEL_COMPATIBILITY.md file for operators and contributors.",
-      "acceptanceCriteria": [
-        "MODEL_COMPATIBILITY.md created in docs/ or repo root",
-        "Document kimi models is_error exclusion",
-        "Document reasoning models (o1, o3, grok-3-mini) tuning param stripping",
-        "Document gpt-5 max_completion_tokens requirement",
-        "Document qwen model routing through dashscope",
-        "Cross-reference with existing code comments"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-011",
-      "title": "Performance optimization: reduce API request serialization overhead",
-      "description": "The translate_message function creates intermediate JSON Value objects that could be optimized. Profile and optimize the hot path for API request building, especially for conversations with many tool results.",
-      "acceptanceCriteria": [
-        "Profile current request building with criterion or similar",
-        "Identify bottlenecks in translate_message and build_chat_completion_request",
-        "Implement optimizations (Vec pre-allocation, reduced cloning, etc.)",
-        "Benchmark before/after showing improvement",
-        "No functional changes or API breakage"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-012",
-      "title": "Trust prompt resolver with allowlist auto-trust",
-      "description": "Add allowlisted auto-trust behavior for known repos/worktrees. Trust prompts currently block TUI startup and require manual intervention. Implement automatic trust resolution for pre-approved repositories.",
-      "acceptanceCriteria": [
-        "TrustAllowlist config structure with repo patterns",
-        "Auto-trust behavior for allowlisted repos/worktrees",
-        "trust_required event emitted when trust prompt detected",
-        "trust_resolved event emitted when trust is granted",
-        "Non-allowlisted repos remain gated (manual trust required)",
-        "Integration with worker boot lifecycle",
-        "Tests for allowlist matching and event emission"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-013",
-      "title": "Phase 2 - Session event ordering + terminal-state reconciliation",
-      "description": "When the same session emits contradictory lifecycle events (idle, error, completed, transport/server-down) in close succession, expose deterministic final truth. Attach monotonic sequence/causal ordering metadata, classify terminal vs advisory events, reconcile duplicate/out-of-order terminal events into one canonical lane outcome.",
-      "acceptanceCriteria": [
-        "Monotonic sequence / causal ordering metadata attached to session lifecycle events",
-        "Terminal vs advisory event classification implemented",
-        "Reconcile duplicate or out-of-order terminal events into one canonical outcome",
-        "Distinguish 'session terminal state unknown because transport died' from real 'completed'",
-        "Tests verify reconciliation behavior with out-of-order event bursts"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-014",
-      "title": "Phase 2 - Event provenance / environment labeling",
-      "description": "Every emitted event should declare its source (live_lane, test, healthcheck, replay, transport) so claws do not mistake test noise for production truth. Include environment/channel label, emitter identity, and confidence/trust level.",
-      "acceptanceCriteria": [
-        "EventProvenance enum with live_lane, test, healthcheck, replay, transport variants",
-        "Environment/channel label attached to all events",
-        "Emitter identity field on events",
-        "Confidence/trust level field for downstream automation",
-        "Tests verify provenance labeling and filtering"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-015",
-      "title": "Phase 2 - Session identity completeness at creation time",
-      "description": "A newly created session should emit stable title, workspace/worktree path, and lane/session purpose at creation time. If any field is not yet known, emit explicit typed placeholder reason rather than bare unknown string.",
-      "acceptanceCriteria": [
-        "Session creation emits stable title, workspace/worktree path, purpose immediately",
-        "Explicit typed placeholder when fields unknown (not bare 'unknown' strings)",
-        "Later-enriched metadata reconciles onto same session identity without ambiguity",
-        "Tests verify session identity completeness and placeholder handling"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-016",
-      "title": "Phase 2 - Duplicate terminal-event suppression",
-      "description": "When the same session emits repeated completed/failed/terminal notifications, collapse duplicates before they trigger repeated downstream reactions. Attach canonical terminal-event fingerprint per lane/session outcome.",
-      "acceptanceCriteria": [
-        "Canonical terminal-event fingerprint attached per lane/session outcome",
-        "Suppress/coalesce repeated terminal notifications within reconciliation window",
-        "Preserve raw event history for audit while exposing one actionable outcome downstream",
-        "Surface when later duplicate materially differs from original terminal payload",
-        "Tests verify deduplication and material difference detection"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-017",
-      "title": "Phase 2 - Lane ownership / scope binding",
-      "description": "Each session and lane event should declare who owns it and what workflow scope it belongs to. Attach owner/assignee identity, workflow scope (claw-code-dogfood, external-git-maintenance, infra-health, manual-operator), and mark whether watcher is expected to act, observe only, or ignore.",
-      "acceptanceCriteria": [
-        "Owner/assignee identity attached to sessions and lane events",
-        "Workflow scope field (claw-code-dogfood, external-git-maintenance, etc.)",
-        "Watcher action expectation field (act, observe-only, ignore)",
-        "Preserve scope through session restarts, resumes, and late terminal events",
-        "Tests verify ownership and scope binding"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-018",
-      "title": "Phase 2 - Nudge acknowledgment / dedupe contract",
-      "description": "Periodic clawhip nudges should carry nudge id/cycle id and delivery timestamp. Expose whether claw has already acknowledged or responded for that cycle. Distinguish new nudge, retry nudge, and stale duplicate.",
-      "acceptanceCriteria": [
-        "Nudge id / cycle id and delivery timestamp attached",
-        "Acknowledgment state exposed (already acknowledged or not)",
-        "Distinguish new nudge vs retry nudge vs stale duplicate",
-        "Allow downstream summaries to bind reported pinpoint back to triggering nudge id",
-        "Tests verify nudge deduplication and acknowledgment tracking"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-019",
-      "title": "Phase 2 - Stable roadmap-id assignment for newly filed pinpoints",
-      "description": "When a claw records a new pinpoint/follow-up, assign or expose a stable tracking id immediately. Expose that id in structured event/report payload and preserve across edits, reorderings, and summary compression.",
-      "acceptanceCriteria": [
-        "Canonical roadmap id assigned at filing time",
-        "Roadmap id exposed in structured event/report payload",
-        "Same id preserved across edits, reorderings, summary compression",
-        "Distinguish 'new roadmap filing' from 'update to existing roadmap item'",
-        "Tests verify stable id assignment and update detection"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-020",
-      "title": "Phase 2 - Roadmap item lifecycle state contract",
-      "description": "Each roadmap pinpoint should carry machine-readable lifecycle state (filed, acknowledged, in_progress, blocked, done, superseded). Attach last state-change timestamp and preserve lineage when one pinpoint supersedes or merges into another.",
-      "acceptanceCriteria": [
-        "Lifecycle state enum with filed, acknowledged, in_progress, blocked, done, superseded",
-        "Last state-change timestamp attached",
-        "New report can declare first filing, status update, or closure",
-        "Preserve lineage when one pinpoint supersedes or merges into another",
-        "Tests verify lifecycle state transitions"
-      ],
-      "passes": true,
-      "priority": "P2"
-    },
-    {
-      "id": "US-021",
-      "title": "Request body size pre-flight check for OpenAI-compatible provider",
-      "description": "Implement pre-flight request body size estimation to prevent 400 Bad Request errors from API gateways with size limits. Based on dogfood findings with kimi-k2.5 testing, DashScope API has a 6MB request body limit that was exceeded by large system prompts.",
-      "acceptanceCriteria": [
-        "Pre-flight size estimation before sending requests to OpenAI-compatible providers",
-        "Clear error message when request exceeds provider-specific size limit",
-        "Configuration for different provider limits (6MB DashScope, 100MB OpenAI, etc.)",
-        "Unit tests for size estimation and limit checking",
-        "Integration with existing error handling for actionable user messages"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-022",
-      "title": "Enhanced error context for API failures",
-      "description": "Add structured error context to API failures including request ID tracking across retries, provider-specific error code mapping, and suggested user actions based on error type (e.g., 'Reduce prompt size' for 413, 'Check API key' for 401).",
-      "acceptanceCriteria": [
-        "Request ID tracking across retries with full context in error messages",
-        "Provider-specific error code mapping with actionable suggestions",
-        "Suggested user actions for common error types (401, 403, 413, 429, 500, 502-504)",
-        "Unit tests for error context extraction",
-        "All existing tests pass and clippy is clean"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-023",
-      "title": "Add automatic routing for kimi models to DashScope",
-      "description": "Based on dogfood findings with kimi-k2.5 testing, users must manually prefix with dashscope/kimi-k2.5 instead of just using kimi-k2.5. Add automatic routing for kimi/ and kimi- prefixed models to DashScope (similar to qwen models), and add a 'kimi' alias to the model registry.",
-      "acceptanceCriteria": [
-        "kimi/ and kimi- prefix routing to DashScope in metadata_for_model()",
-        "'kimi' alias in MODEL_REGISTRY that resolves to 'kimi-k2.5'",
-        "resolve_model_alias() handles the kimi alias correctly",
-        "Unit tests for kimi routing (similar to qwen routing tests)",
-        "All tests pass and clippy is clean"
-      ],
-      "passes": true,
-      "priority": "P1"
-    },
-    {
-      "id": "US-024",
-      "title": "Add token limit metadata for kimi models",
-      "description": "The model_token_limit() function has no entries for kimi-k2.5 or kimi-k1.5, causing preflight context window validation to skip these models. Add token limit metadata to enable preflight checks and accurate max token defaults. Per Moonshot AI documentation, kimi-k2.5 supports 256K context window and 16K max output tokens.",
-      "acceptanceCriteria": [
-        "model_token_limit('kimi-k2.5') returns Some(ModelTokenLimit { max_output_tokens: 16384, context_window_tokens: 256000 })",
-        "model_token_limit('kimi-k1.5') returns appropriate limits",
-        "model_token_limit('kimi') follows alias chain (kimi → kimi-k2.5) and returns k2.5 limits",
-        "preflight_message_request() validates context window for kimi models (via generic preflight, no provider-specific code needed)",
-        "Unit tests verify limits and preflight behavior for kimi models",
-        "All tests pass and clippy is clean"
-      ],
-      "passes": true,
-      "priority": "P1"
+      "name": "Platform Maintainer",
+      "role": "DevEx / infra engineer",
+      "pain": "Wants to integrate Kraken into the internal dev portal but needs API‑driven triggers, event hooks, and a service mesh identity model.",
+      "want": "First‑class headless mode, JSON‑streaming output, webhook notification on long‑running tasks, and OpenTelemetry tracing."
     }
   ],
-  "metadata": {
-    "lastUpdated": "2026-04-17",
-    "completedStories": ["US-001", "US-002", "US-003", "US-004", "US-005", "US-006", "US-007", "US-008", "US-009", "US-010", "US-011", "US-012", "US-013", "US-014", "US-015", "US-016", "US-017", "US-018", "US-019", "US-020", "US-021", "US-022", "US-023", "US-024"],
-    "inProgressStories": [],
-    "totalStories": 24,
-    "status": "completed"
+  "functional_requirements": [
+    {
+      "id": "FR‑MULTI‑AGENT",
+      "title": "Multi‑agent orchestration",
+      "priority": "P0",
+      "description": "Support multiple AI agent backends (local copilot, Claude Code, Gemini Code Assist, OpenAI agents) in a single session. Agent selection is automatic based on task complexity, but overridable.",
+      "acceptance": [
+        "User can invoke any registered agent with /agent‑name",
+        "Automatic escalation from local to cloud when task exceeds local capability threshold",
+        "Session context is shared across agents (within privacy boundaries)",
+        "No context duplication — one history, one token budget"
+      ]
+    },
+    {
+      "id": "FR‑OFFLINE‑MODE",
+      "title": "First‑class offline mode",
+      "priority": "P0",
+      "description": "Kraken copilot agent must work fully offline using local models (e.g., llama.cpp, ONNX, or similar). No phone‑home, no mandatory cloud dependency.",
+      "acceptance": [
+        "Copilot completions and inline chat work with zero internet connectivity",
+        "Local model can be swapped via kraken.toml",
+        "Graceful degradation — cloud agent calls are queued or blocked when offline",
+        "Explicit user consent required before any network request"
+      ]
+    },
+    {
+      "id": "FR‑PARITY",
+      "title": "Claude Code parity (baseline)",
+      "priority": "P0",
+      "description": "Kraken must match or exceed Claude Code's feature set for daily coding workflows.",
+      "acceptance": [
+        "Inline chat, edit, problem resolution, agentic loop, file operations",
+        "Git integration (commit messages, PR summaries, changelog generation)",
+        "Multi‑file diff display and chunked application",
+        "Permission system with allow/deny/ask",
+        "See PARITY.md for the full matrix"
+      ]
+    },
+    {
+      "id": "FR‑SANDBOX",
+      "title": "Sandboxed execution",
+      "priority": "P0",
+      "description": "All agent‑triggered commands run inside a sandbox with resource limits, network egress policy, and filesystem access controls.",
+      "acceptance": [
+        "Commands are intercepted and policy‑checked before execution",
+        "Network egress can be blocked, allowed, or prompted per‑domain",
+        "CPU/memory/time limits per command",
+        "Full audit trail of every executed command and its output",
+        "Sandbox bypass requires explicit user approval and is logged"
+      ]
+    },
+    {
+      "id": "FR‑DLP",
+      "title": "Data‑loss prevention for prompts",
+      "priority": "P1",
+      "description": "Prompts sent to cloud agents must be scanned for secrets, PII, and policy violations. User is warned or blocked before transmission.",
+      "acceptance": [
+        "Regex‑based and entropy‑based secret detection on outgoing prompts",
+        "Custom allow/block lists in kraken.toml",
+        "Redaction mode — automatically replaces secrets before sending",
+        "Audit log of all blocked or redacted prompts"
+      ]
+    },
+    {
+      "id": "FR‑POLICY",
+      "title": "Policy‑driven configuration",
+      "priority": "P1",
+      "description": "All security, cost, and agent behaviour is controlled via a single kraken.toml file. Team‑wide policy can be enforced via signed or git‑tracked config.",
+      "acceptance": [
+        "Policy file supports agent allowlist, cost caps, sandbox rules, DLP rules, audit settings",
+        "Team‑wide override (e.g., /etc/kraken/policy.toml) that users cannot bypass",
+        "Policy changes are logged and can trigger notifications"
+      ]
+    },
+    {
+      "id": "FR‑COST‑CONTROL",
+      "title": "Cost visibility and control",
+      "priority": "P1",
+      "description": "Every cloud API call is tracked, billed to a project/task, and visible in real time. Users set hard and soft spend limits.",
+      "acceptance": [
+        "Per‑session, per‑agent, and cumulative cost displayed in status bar",
+        "Hard spend limits stop cloud calls when exceeded",
+        "Soft spend limits warn the user",
+        "Cost attribution via environment variable or flag (--project, --task)"
+      ]
+    },
+    {
+      "id": "FR‑AUDIT",
+      "title": "Immutable audit trail",
+      "priority": "P1",
+      "description": "All agent interactions, commands, policy decisions, and cost events are recorded in a tamper‑evident audit log.",
+      "acceptance": [
+        "Audit log is append‑only and optionally signed",
+        "Logs include timestamp, agent id, prompt hash, command, policy decision, cost",
+        "Audit export in JSON, CSV, and OpenTelemetry formats"
+      ]
+    },
+    {
+      "id": "FR‑PLUGINS",
+      "title": "Plugin system",
+      "priority": "P2",
+      "description": "Third‑party agents and tools can be added via a plugin interface without modifying Kraken core.",
+      "acceptance": [
+        "Plugin manifest (kraken‑plugin.toml) defines agent name, binary path, schema, cost model",
+        "Plugins run in their own sandbox",
+        "Plugin marketplace or registry is out of scope for v0.x"
+      ]
+    },
+    {
+      "id": "FR‑HEADLESS",
+      "title": "Headless / CI mode",
+      "priority": "P2",
+      "description": "Kraken runs in non‑interactive mode for CI/CD pipelines, pre‑commit hooks, and batch processing.",
+      "acceptance": [
+        "All output is JSON‑streamed or structured",
+        "Non‑zero exit code on failures",
+        "Can read input from stdin / file and write output to stdout / file",
+        "No TUI dependency in headless mode"
+      ]
+    },
+    {
+      "id": "FR‑EVENT‑HOOKS",
+      "title": "Event hooks and webhooks",
+      "priority": "P2",
+      "description": "External systems can react to Kraken events (prompt sent, command executed, policy violation, cost threshold hit) via webhooks or Unix sockets.",
+      "acceptance": [
+        "Configurable webhook URLs per event type",
+        "Webhook payload includes full event context",
+        "Unix socket delivery option for local services"
+      ]
+    },
+    {
+      "id": "FR‑TELEMETRY",
+      "title": "OpenTelemetry instrumentation",
+      "priority": "P2",
+      "description": "Kraken exports traces, metrics, and logs via OpenTelemetry for observability in production deployments.",
+      "acceptance": [
+        "Traces for agent calls, sandbox execution, policy checks",
+        "Metrics for token usage, latency, cost, error rates",
+        "Optional export to stdout, file, or OTLP endpoint"
+      ]
+    }
+  ],
+  "non_functional_requirements": [
+    {
+      "id": "NFR‑LATENCY",
+      "title": "Sub‑100ms copilot latency",
+      "priority": "P0",
+      "description": "Local copilot completions must appear in under 100ms on modern hardware (M1 Mac, 12th‑gen Intel). Cloud agent startup overhead must be under 2s.",
+      "measure": "p95 latency measured by built‑in benchmark suite"
+    },
+    {
+      "id": "NFR‑MEMORY",
+      "title": "Memory ceiling",
+      "priority": "P1",
+      "description": "Kraken idle memory must stay under 50MB. Peak memory during local copilot inference under 2GB.",
+      "measure": "`kraken benchmark memory`"
+    },
+    {
+      "id": "NFR‑SECURITY",
+      "title": "Sandbox escape resistance",
+      "priority": "P0",
+      "description": "The sandbox must resist fork bombs, resource exhaustion, and filesystem escape attempts by an untrusted agent.",
+      "measure": "Red‑team test suite with known escape vectors. Zero critical escapes."
+    },
+    {
+      "id": "NFR‑COMPAT",
+      "title": "Platform coverage",
+      "priority": "P1",
+      "description": "Kraken must ship as a single static binary for Linux (x64, aarch64, armv7), macOS (x64, aarch64), Windows (x64), and FreeBSD (x64).",
+      "measure": "Release pipeline produces 7 signed artifacts per version"
+    }
+  ],
+  "open_questions": [
+    "Do we need a hosted relay for enterprise audit aggregation? → defer to 0.5",
+    "Should Kraken support MCP (Model Context Protocol) natively? → yes, planned for 0.4",
+    "Plugin sandbox: Wasm or containers? → investigate Wasm for v0.4",
+    "Cost model: per‑token billing or per‑request billing? → align with Claude Code billing model"
+  ],
+  "future_scope": [
+    "Multi‑player session sharing (pair debugging with remote peer)",
+    "Kraken Cloud — hosted relay with team dashboards, audit aggregation, policy distribution",
+    "Plugin marketplace with signing and verification",
+    "VSCode / JetBrains extension that embeds the Kraken TUI",
+    "Native Windows Sandbox (vs. WSL) support",
+    "Kraken as a GitHub App (auto‑fix PRs, review comments)"
+  ],
+  "glossary": {
+    "agent": "A backend AI provider (Copilot, Claude Code, Gemini Code Assist, OpenAI)",
+    "krakenhip": "Internal service that routes and tracks agent calls within a session; named by analogy to a squid's feeding arm",
+    "session": "A single Kraken invocation from start to exit, with full conversation history",
+    "sandbox": "An isolated execution environment with resource limits and egress controls",
+    "dwell time": "The time a user spends inside an agent before switching agents or exiting",
+    "dogfood": "Workflow scope label used by the Kraken team for internal self‑hosting; currently kraken-dogfood in production",
+    "pinpoint": "A follow‑up task or question spawned from an ongoing agent conversation"
   }
 }

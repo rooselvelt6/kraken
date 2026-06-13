@@ -29,6 +29,7 @@ if [ -t 1 ] && command -v tput >/dev/null 2>&1 && [ "$(tput colors 2>/dev/null |
     COLOR_GREEN="$(tput setaf 2)"
     COLOR_YELLOW="$(tput setaf 3)"
     COLOR_BLUE="$(tput setaf 4)"
+    COLOR_PURPLE="$(tput setaf 5)"
     COLOR_CYAN="$(tput setaf 6)"
 else
     COLOR_RESET=""
@@ -38,6 +39,7 @@ else
     COLOR_GREEN=""
     COLOR_YELLOW=""
     COLOR_BLUE=""
+    COLOR_PURPLE=""
     COLOR_CYAN=""
 fi
 
@@ -57,16 +59,20 @@ warn()  { printf '%s  warn%s %s\n' "${COLOR_YELLOW}" "${COLOR_RESET}" "$1"; }
 error() { printf '%s  error%s %s\n' "${COLOR_RED}" "${COLOR_RESET}" "$1" 1>&2; }
 
 print_banner() {
-    printf '%s' "${COLOR_BOLD}"
+    printf '%s' "${COLOR_PURPLE}${COLOR_BOLD}"
     cat <<'EOF'
-   ____  _                   ____          _
-  / ___|| |  __ _ __      __ / ___|___   __| | ___
- | |    | | / _` |\ \ /\ / /| |   / _ \ / _` |/ _ \
- | |___ | || (_| | \ V  V / | |__| (_) | (_| |  __/
-  \____||_| \__,_|  \_/\_/   \____\___/ \__,_|\___|
+         .--.
+        / o o\
+       |   _   |
+       |  (_)  |
+        \  /  /
+         \/  /
+     /|  |  |  |\
+    / |  |  |  | \
+   /  |  |  |  |  \
 EOF
     printf '%s\n' "${COLOR_RESET}"
-    printf '%sKraken Code installer%s\n' "${COLOR_DIM}" "${COLOR_RESET}"
+    printf '%sKraken installer%s\n' "${COLOR_DIM}" "${COLOR_RESET}"
 }
 
 print_usage() {

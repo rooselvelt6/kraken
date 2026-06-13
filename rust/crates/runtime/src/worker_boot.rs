@@ -774,7 +774,7 @@ struct StateSnapshot<'a> {
     prompt_in_flight: bool,
     last_event: Option<&'a WorkerEvent>,
     updated_at: u64,
-    /// Seconds since last state transition. Clawhip uses this to detect
+    /// Seconds since last state transition. Krakenhip uses this to detect
     /// stalled workers without computing epoch deltas.
     seconds_since_update: u64,
 }

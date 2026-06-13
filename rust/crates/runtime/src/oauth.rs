@@ -375,7 +375,7 @@ fn credentials_home_dir() -> io::Result<PathBuf> {
             io::Error::new(
                 io::ErrorKind::NotFound,
                 "HOME is not set (on Windows, set USERPROFILE or HOME, \
-                 or use CLAW_CONFIG_HOME to point directly at the config directory)",
+                 or use KRAKEN_CONFIG_HOME to point directly at the config directory)",
             )
         })?;
     Ok(PathBuf::from(home).join(".kraken"))

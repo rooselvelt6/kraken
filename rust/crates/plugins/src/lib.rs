@@ -312,14 +312,14 @@ impl PluginTool {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .env("CLAWD_PLUGIN_ID", &self.plugin_id)
-            .env("CLAWD_PLUGIN_NAME", &self.plugin_name)
-            .env("CLAWD_TOOL_NAME", &self.definition.name)
-            .env("CLAWD_TOOL_INPUT", &input_json);
+            .env("KRAKEND_PLUGIN_ID", &self.plugin_id)
+            .env("KRAKEND_PLUGIN_NAME", &self.plugin_name)
+            .env("KRAKEND_TOOL_NAME", &self.definition.name)
+            .env("KRAKEND_TOOL_INPUT", &input_json);
         if let Some(root) = &self.root {
             process
                 .current_dir(root)
-                .env("CLAWD_PLUGIN_ROOT", root.display().to_string());
+                .env("KRAKEND_PLUGIN_ROOT", root.display().to_string());
         }
 
         let mut child = process.spawn()?;
@@ -2283,7 +2283,7 @@ fn ensure_object<'a>(root: &'a mut Map<String, Value>, key: &str) -> &'a mut Map
 }
 
 /// Environment variable lock for test isolation.
-/// Guards against concurrent modification of `CLAW_CONFIG_HOME`.
+/// Guards against concurrent modification of `KRAKEN_CONFIG_HOME`.
 #[cfg(test)]
 fn env_lock() -> &'static std::sync::Mutex<()> {
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -2452,7 +2452,7 @@ mod tests {
         let script_path = root.join("tools").join("echo-json.sh");
         write_file(
             &script_path,
-            "#!/bin/sh\nINPUT=$(cat)\nprintf '{\"plugin\":\"%s\",\"tool\":\"%s\",\"input\":%s}\\n' \"$CLAWD_PLUGIN_ID\" \"$CLAWD_TOOL_NAME\" \"$INPUT\"\n",
+            "#!/bin/sh\nINPUT=$(cat)\nprintf '{\"plugin\":\"%s\",\"tool\":\"%s\",\"input\":%s}\\n' \"$KRAKEND_PLUGIN_ID\" \"$KRAKEND_TOOL_NAME\" \"$INPUT\"\n",
         );
         #[cfg(unix)]
         {
@@ -3516,17 +3516,17 @@ mod tests {
         let _ = fs::remove_dir_all(bundled_root);
     }
 
-    /// Regression test for ROADMAP #41: verify that `CLAW_CONFIG_HOME` isolation prevents
+    /// Regression test for ROADMAP #41: verify that `KRAKEN_CONFIG_HOME` isolation prevents
     /// host `~/.kraken/plugins/` from bleeding into test runs.
     #[test]
     fn kraken_config_home_isolation_prevents_host_plugin_leakage() {
         let _guard = env_guard();
 
-        // Create a temp directory to act as our isolated CLAW_CONFIG_HOME
+        // Create a temp directory to act as our isolated KRAKEN_CONFIG_HOME
         let config_home = temp_dir("isolated-home");
         let bundled_root = temp_dir("isolated-bundled");
 
-        // Set CLAW_CONFIG_HOME to our temp directory
+        // Set KRAKEN_CONFIG_HOME to our temp directory
         std::env::set_var("KRAKEN_CONFIG_HOME", &config_home);
 
         // Create a test fixture plugin in the isolated config home

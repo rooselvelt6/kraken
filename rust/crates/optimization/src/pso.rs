@@ -4,7 +4,7 @@
 //! It optimizes a problem by iteratively improving a candidate solution with regard to a given
 //! measure of quality.
 //!
-//! **Application in Claw Code**: Selection of optimal tools/tasks for coding problems.
+//! **Application in Kraken**: Selection of optimal tools/tasks for coding problems.
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};

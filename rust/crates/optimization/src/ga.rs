@@ -3,7 +3,7 @@
 //! GA is a metaheuristic inspired by the process of natural selection.
 //! It optimizes a problem by evolving a population of candidate solutions.
 //!
-//! **Application in Claw Code**: Evolution of coding strategies
+//! **Application in Kraken**: Evolution of coding strategies
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};

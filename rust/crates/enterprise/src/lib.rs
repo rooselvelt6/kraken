@@ -1,5 +1,5 @@
 #![allow(clippy::all, clippy::map_unwrap_or)]
-/// Enterprise Features for Claw Code Venezuela
+/// Enterprise Features
 ///
 /// This crate provides production-ready features:
 /// - Retry logic with exponential backoff

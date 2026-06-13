@@ -1,8 +1,8 @@
 [package]
 name = "enterprise"
-version = "0.1.0"
+version.workspace = true
 edition = "2021"
-authors = ["Claw Code Venezuela"]
+authors = ["Kraken Contributors"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

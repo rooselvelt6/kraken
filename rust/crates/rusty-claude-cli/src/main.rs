@@ -33,7 +33,7 @@ use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const CLI_NAMES: &[&str] = &["kraken", "claw", "claw-ve"];
+const CLI_NAMES: &[&str] = &["kraken"];
 
 fn get_invoked_name() -> String {
     let args: Vec<String> = std::env::args().collect();
@@ -400,6 +400,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             output_format,
         } => print_system_prompt(cwd, date, output_format)?,
         CliAction::Version { output_format } => print_version(output_format)?,
+        CliAction::Update { output_format } => run_update(output_format).map_err(|e| e.to_string())?,
         CliAction::ResumeSession {
             session_path,
             commands,
@@ -605,6 +606,9 @@ enum CliAction {
     HelpTopic(LocalHelpTopic),
     // prompt-mode formatting is only supported for non-interactive runs
     Help {
+        output_format: CliOutputFormat,
+    },
+    Update {
         output_format: CliOutputFormat,
     },
 }
@@ -1131,6 +1135,7 @@ fn parse_single_word_command_alias(
     match rest[0].as_str() {
         "help" => Some(Ok(CliAction::Help { output_format })),
         "version" => Some(Ok(CliAction::Version { output_format })),
+        "update" => Some(Ok(CliAction::Update { output_format })),
         "status" => Some(Ok(CliAction::Status {
             model: model.to_string(),
             model_flag_raw: model_flag_raw.map(str::to_string), // #148
@@ -2666,6 +2671,47 @@ fn version_json_value() -> serde_json::Value {
         "git_sha": GIT_SHA,
         "target": BUILD_TARGET,
     })
+}
+
+fn run_update(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::Error>> {
+    let repo = "rooselvelt6/kraken";
+    let release_url = format!("https://api.github.com/repos/{repo}/releases/latest");
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("kraken-update-check")
+        .build()?;
+    let resp = client.get(&release_url).send()?;
+    let data: serde_json::Value = resp.json()?;
+    let latest_tag = data["tag_name"].as_str().unwrap_or("unknown");
+
+    let current_ver = format!("v{VERSION}");
+
+    match output_format {
+        CliOutputFormat::Text => {
+            println!("Current version: {}", VERSION);
+            println!("Latest release:  {}", latest_tag);
+            println!();
+            if latest_tag == current_ver || latest_tag.trim_start_matches('v') == VERSION {
+                println!("You are already running the latest version.");
+            } else {
+                println!("A new version is available: {}", latest_tag);
+                println!();
+                println!("To update, run:");
+                println!("  curl -fsSL https://raw.githubusercontent.com/{repo}/main/scripts/get-kraken.sh | sh");
+            }
+        }
+        CliOutputFormat::Json => {
+            let is_latest = latest_tag == current_ver
+                || latest_tag.trim_start_matches('v') == VERSION;
+            let msg = serde_json::to_string_pretty(&json!({
+                "kind": "update",
+                "current_version": VERSION,
+                "latest_version": latest_tag,
+                "is_latest": is_latest,
+            }))?;
+            println!("{msg}");
+        }
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_lines)]

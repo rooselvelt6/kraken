@@ -1774,7 +1774,7 @@ checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
 
 [[package]]
 name = "localmodels"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "criterion",
  "log",
@@ -2857,6 +2857,7 @@ dependencies = [
  "mock-anthropic-service",
  "plugins",
  "pulldown-cmark",
+ "reqwest",
  "runtime",
  "rustyline",
  "serde",
@@ -2918,7 +2919,7 @@ dependencies = [
 
 [[package]]
 name = "sandbox"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "libc",
  "log",
@@ -2961,7 +2962,7 @@ dependencies = [
 
 [[package]]
 name = "security"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",

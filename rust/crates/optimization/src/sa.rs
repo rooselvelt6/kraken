@@ -3,7 +3,7 @@
 //! Simulated annealing is a metaheuristic used to approximate global optimum
 //! in large search spaces. It inspired by the process of annealing in metallurgy.
 //!
-//! **Application in Claw Code**: Escape from local optima during refactoring decisions.
+//! **Application in Kraken**: Escape from local optima during refactoring decisions.
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};

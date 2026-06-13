@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/tests-1500%2B-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/unsafe-forbidden-red" alt="Unsafe Forbidden">
   <img src="https://img.shields.io/badge/SLSA-3-purple" alt="SLSA 3">
-  <img src="https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey" alt="OS">
+  <img src="https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20BSD%20%7C%20RPi-brightgreen" alt="OS">
 </p>
 
 ---
@@ -199,22 +199,47 @@ Kraken incluye un framework OSINT completo integrado como tool:
 
 ## Inicio Rápido
 
+### Instalar (segundos)
+
+**Linux / macOS / WSL / BSD**
 ```bash
-# Clonar
-git clone https://github.com/rooselvelt6/kraken.git
-cd kraken
-
-# Compilar (release recomendado — ~40 MB)
-cd rust && cargo build --release
-
-# Ejecutar
-./target/release/kraken
-
-# O en modo desarrollo
-cargo run -- --provider deepseek
+curl -fsSL https://raw.githubusercontent.com/rooselvelt6/kraken/main/scripts/get-kraken.sh | sh
 ```
 
-### Escaneo de vulnerabilidades
+**Windows (PowerShell)**
+```powershell
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/rooselvelt6/kraken/main/scripts/get-kraken.ps1'))
+```
+
+**Docker**
+```bash
+docker run --rm -it ghcr.io/rooselvelt6/kraken --help
+```
+
+### Compilar desde fuente
+
+```bash
+git clone https://github.com/rooselvelt6/kraken.git
+cd kraken/rust
+cargo build --release
+./target/release/kraken
+```
+
+### Primeros pasos
+
+```bash
+# Modo interactivo (REPL)
+kraken
+
+# Comando directo
+kraken prompt "analiza este repositorio"
+
+# Escaneo de vulnerabilidades
+kraken vulnscan --dir .
+
+# Verificar actualizaciones
+kraken update
+```
 
 ```bash
 # Escaneo completo de un proyecto
@@ -291,21 +316,30 @@ kraken/
 │   └── fuzz/                   # Fuzzing (path traversal, bash, features, config)
 ├── scripts/
 │   ├── chaos-test.sh          # Chaos testing para self-healing
+│   ├── checksums.sh           # Generador de SHA256SUMS
 │   ├── generate-sbom.sh       # Generación de SBOM CycloneDX
+│   ├── get-kraken.sh          # Instalador universal (Linux/macOS/BSD/WSL)
+│   ├── get-kraken.ps1         # Instalador Windows PowerShell
 │   ├── install-pre-commit.sh  # Pre-commit hook de secret scanning
+│   ├── kraken.1               # Página de manual (man)
+│   ├── kraken.service         # Systemd service unit
 │   └── vendor-deps.sh         # Vendorización offline
+├── completions/
+│   ├── _kraken                # Completado Zsh
+│   ├── kraken.bash            # Completado Bash
+│   └── kraken.fish            # Completado Fish
 ├── ROADMAP-2030.md             # Roadmap Fases 11–14 (completadas)
 ├── SUPPLY-CHAIN.md             # Política SLSA 3, cargo-deny, SBOM
-├── Containerfile               # Docker build environment
+├── Containerfile               # Docker build environment (multi-arch)
 ├── deny.toml                   # cargo-deny: licencias, fuentes, bans
-└── install.sh                  # Instalador cross-platform
+└── install.sh                  # Instalador build-from-source
 ```
 
 ---
 
 ## Licencia
 
-MIT © 2024 Claw Code Venezuela
+MIT © 2026 Kraken Contributors
 
 ---
 

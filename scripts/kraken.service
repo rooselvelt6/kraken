@@ -1,0 +1,21 @@
+[Unit]
+Description=Kraken autonomous coding agent
+Documentation=https://github.com/rooselvelt6/kraken
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/kraken
+Restart=on-failure
+RestartSec=5
+Environment=ANTHROPIC_API_KEY=
+Environment=KRAKEN_CONFIG_DIR=/etc/kraken
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/kraken
+
+[Install]
+WantedBy=multi-user.target
