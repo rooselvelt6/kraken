@@ -132,26 +132,26 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 5 — Password Attacks 🔑
+## Fase 5 — Password Attacks 🔑 ✅
 **Reemplaza:** hashcat, john, hydra, medusa, crunch, cewl
 **Duración estimada:** 3 semanas
 **Dependencias:** `sha2`, `argon2`, `bcrypt`, `ssh2`, `mysql`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Hash type identifier | Detectar tipo de hash por formato y longitud | 🔴 |
+| Hash type identifier | Detectar tipo de hash por formato y longitud | ✅ |
 | Hash cracker CPU | MD5, SHA1, SHA2-256/512, bcrypt, argon2id | 🟢 (ya existen en security) |
-| Hash cracker GPU | OpenCL/CUDA acceleration | 🔴 |
-| Online brute-force HTTP | Basic auth, form-based login | 🔴 |
-| Online brute-force FTP | FTP authentication brute-force | 🔴 |
-| Online brute-force SSH | SSH key + password brute-force | 🔴 |
-| Online brute-force MySQL | MySQL/MariaDB login brute-force | 🔴 |
-| Online brute-force SMB | SMB/LM protocol brute-force | 🔴 |
-| Wordlist generator | Crunch-style con patrones personalizados | 🔴 |
-| CeWL clone | Generar wordlist desde URL con crawling | 🔴 |
-| Mask attack | Ataque por máscara (hashcat-style: ?l?d?u?s) | 🔴 |
-| Rainbow table lookup | Búsqueda en rainbow tables precomputadas | 🔴 |
-| Pipal-style stats | Análisis estadístico de contraseñas | 🔴 |
+| Hash cracker GPU | OpenCL/CUDA acceleration | 🔴 (sin soporte GPU) |
+| Online brute-force HTTP | Basic auth, form-based login | ✅ |
+| Online brute-force FTP | FTP authentication brute-force | ✅ |
+| Online brute-force SSH | SSH key + password brute-force | ✅ |
+| Online brute-force MySQL | MySQL/MariaDB login brute-force | ✅ |
+| Online brute-force SMB | SMB/LM protocol brute-force | ✅ |
+| Wordlist generator | Crunch-style con patrones personalizados | ✅ |
+| CeWL clone | Generar wordlist desde URL con crawling | ✅ |
+| Mask attack | Ataque por máscara (hashcat-style: ?l?d?u?s) | ✅ |
+| Rainbow table lookup | Búsqueda en rainbow tables precomputadas | ✅ |
+| Pipal-style stats | Análisis estadístico de contraseñas | ✅ |
 
 ---
 
@@ -478,6 +478,7 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Network | Fase 1 | ✅ 10/10 |
 | Web | Fases 2-3 | ✅ 20/20 |
 | Exploitation | Fase 4 | ✅ 10/10 |
+| Password | Fase 5 | ✅ 13/14 (GPU sin soporte) |
 | Password | Fase 5 | 🔴 0/13 |
 | Sniffing | Fase 6 | 🔴 0/10 |
 | Wireless | Fase 7 | 🔴 0/11 |
@@ -498,5 +499,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas: ~60 (30%)**
+**Completadas: ~73 (36.5%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**
