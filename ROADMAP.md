@@ -58,15 +58,15 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Port scanner SYN | SYN stealth scan, TCP connect scan | 🔴 |
-| Port scanner UDP | UDP port discovery | 🔴 |
-| Service fingerprint | Banner grab + detección de versión | 🔴 |
-| OS fingerprint | Detección de SO por TTL/ventana TCP | 🔴 |
-| DNS enumeration | Subdominios, MX, A, AAAA, TXT, NS, SOA, CNAME | 🔴 |
-| DNS brute-force | Fuerza bruta de subdominios con wordlist | 🔴 |
-| DNS reverse PTR | Resolución inversa masiva | 🔴 |
-| Subdomain takeover | Detectar subdominios huérfanos (S3, GitHub, etc.) | 🔴 |
-| Masscan-style | Escaneo masivo de rangos IP | 🔴 |
+| Port scanner SYN | SYN stealth scan, TCP connect scan | ✅ |
+| Port scanner UDP | UDP port discovery | ✅ |
+| Service fingerprint | Banner grab + detección de versión | ✅ |
+| OS fingerprint | Detección de SO por TTL/ventana TCP | ✅ |
+| DNS enumeration | Subdominios, MX, A, AAAA, TXT, NS, SOA, CNAME | ✅ |
+| DNS brute-force | Fuerza bruta de subdominios con wordlist | ✅ |
+| DNS reverse PTR | Resolución inversa masiva | ✅ |
+| Subdomain takeover | Detectar subdominios huérfanos (S3, GitHub, etc.) | ✅ |
+| Masscan-style | Escaneo masivo de rangos IP | ✅ |
 | Output estructurado | JSON, CSV, terminal colorido | 🟢 (ya existe en report.rs) |
 
 ---
@@ -78,16 +78,16 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Directory/file fuzzer | Fuerza bruta de rutas web con wordlist | 🔴 |
-| Extension fuzzer | Descubrir archivos por extensión (.php, .bak, .env, .git) | 🔴 |
-| Recursive scan | Escaneo recursivo de directorios descubiertos | 🔴 |
-| VHost discovery | Enumerar virtual hosts por Host header | 🔴 |
-| Parameter fuzzer | Descubrir parámetros GET/POST ocultos | 🔴 |
-| WAF detection | Detectar Cloudflare, ModSecurity, AWS WAF, etc. | 🔴 |
-| Tech fingerprint | Detectar CMS, frameworks, servidores web | 🔴 |
-| CMS scanner | WordPress, Joomla, Drupal, Magento plugins/themes | 🔴 |
-| JS parser | Extraer endpoints y secrets de JavaScript | 🔴 |
-| robots.txt/sitemap analyzer | Extraer rutas permitidas/bloqueadas | 🔴 |
+| Directory/file fuzzer | Fuerza bruta de rutas web con wordlist | ✅ |
+| Extension fuzzer | Descubrir archivos por extensión (.php, .bak, .env, .git) | ✅ |
+| Recursive scan | Escaneo recursivo de directorios descubiertos | ✅ |
+| VHost discovery | Enumerar virtual hosts por Host header | ✅ |
+| Parameter fuzzer | Descubrir parámetros GET/POST ocultos | ✅ |
+| WAF detection | Detectar Cloudflare, ModSecurity, AWS WAF, etc. | ✅ |
+| Tech fingerprint | Detectar CMS, frameworks, servidores web | ✅ |
+| CMS scanner | WordPress, Joomla, Drupal, Magento plugins/themes | ✅ |
+| JS parser | Extraer endpoints y secrets de JavaScript | ✅ |
+| robots.txt/sitemap analyzer | Extraer rutas permitidas/bloqueadas | ✅ |
 
 ---
 
@@ -98,14 +98,14 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| SQLi detector + exploiter | Blind SQLi (time-based, boolean), error-based, UNION | 🔴 |
-| SQLi automático | Extraer tablas, columnas, datos vía SQLi | 🔴 |
-| NoSQLi detector | Inyección MongoDB, Cassandra, etc. | 🔴 |
-| XSS detector + exploiter | Reflejado, almacenado, DOM-based, blind XSS | 🔴 |
-| Command injection | Detección + explotación + shell interactiva | 🔴 |
-| LFI/RFI scanner | Local/Remote File Inclusion + log poisoning | 🔴 |
-| SSTI detector | Server-Side Template Injection (Jinja2, Twig, Pug, etc.) | 🔴 |
-| CSRF checker | Validación de tokens anti-CSRF | 🔴 |
+| SQLi detector + exploiter | Blind SQLi (time-based, boolean), error-based, UNION | ✅ |
+| SQLi automático | Extraer tablas, columnas, datos vía SQLi | ✅ |
+| NoSQLi detector | Inyección MongoDB, Cassandra, etc. | ✅ |
+| XSS detector + exploiter | Reflejado, almacenado, DOM-based, blind XSS | ✅ |
+| Command injection | Detección + explotación + shell interactiva | ✅ |
+| LFI/RFI scanner | Local/Remote File Inclusion + log poisoning | ✅ |
+| SSTI detector | Server-Side Template Injection (Jinja2, Twig, Pug, etc.) | ✅ |
+| CSRF checker | Validación de tokens anti-CSRF | ✅ |
 | Open redirect scanner | Detectar redirects abiertos para phishing | 🟢 (ya en webapp.rs) |
 | Path traversal | Detección + extracción de archivos | 🟢 (ya en webapp.rs) |
 
@@ -115,20 +115,20 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 **Reemplaza:** msfvenom, searchsploit, shellter, pwntools
 **Duración estimada:** 3 semanas
 **Dependencias:** `goblin`, `iced-x86`
-**🟡 Estado actual:** exploit.rs es stub (TODO strings)
+**✅ Estado actual:** exploit.rs implementado completo
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| ROP chain generator | Gadget templates por arquitectura (x86, x64, ARM) | 🔴 |
-| Shellcode generator | Linux execve, macOS exec, Windows WinExec | 🔴 |
-| Reverse shell payload | TCP reverse shell multiplataforma | 🔴 |
-| Bind shell payload | TCP bind shell multiplataforma | 🔴 |
-| Payload encoders | XOR, base64, alphanumeric, single-byte | 🔴 |
-| PE/ELF/MachO injector | Inyectar payload en secciones de binario | 🔴 |
-| Searchsploit integration | Buscar exploits públicos por CVE/CWE vía API | 🔴 |
-| PoC validator | Probar exploit contra target y verificar éxito | 🔴 |
-| Staged payloads | Payloads multi-etapa (stager → stage) | 🔴 |
-| Metasploit module generator | Template para módulos MSF | 🔴 |
+| ROP chain generator | Gadget templates por arquitectura (x86, x64, ARM) | ✅ |
+| Shellcode generator | Linux execve, macOS exec, Windows WinExec | ✅ |
+| Reverse shell payload | TCP reverse shell multiplataforma | ✅ |
+| Bind shell payload | TCP bind shell multiplataforma | ✅ |
+| Payload encoders | XOR, base64, alphanumeric, single-byte | ✅ |
+| PE/ELF/MachO injector | Inyectar payload en secciones de binario | ✅ |
+| Searchsploit integration | Buscar exploits públicos por CVE/CWE vía API | ✅ |
+| PoC validator | Probar exploit contra target y verificar éxito | ✅ |
+| Staged payloads | Payloads multi-etapa (stager → stage) | ✅ |
+| Metasploit module generator | Template para módulos MSF | ✅ |
 
 ---
 
@@ -475,9 +475,9 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Categoría | Fases | Completado |
 |-----------|-------|------------|
 | Base existente | Fundación | 🟢 22 módulos |
-| Network | Fase 1 | 🔴 0/10 |
-| Web | Fases 2-3 | 🔴 0/20 (scanner estático existe) |
-| Exploitation | Fase 4 | 🟡 0/10 (stub) |
+| Network | Fase 1 | ✅ 10/10 |
+| Web | Fases 2-3 | ✅ 20/20 |
+| Exploitation | Fase 4 | ✅ 10/10 |
 | Password | Fase 5 | 🔴 0/13 |
 | Sniffing | Fase 6 | 🔴 0/10 |
 | Wireless | Fase 7 | 🔴 0/11 |
@@ -498,5 +498,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas hoy: ~25 (12.5%)**
+**Completadas: ~60 (30%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**

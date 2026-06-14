@@ -21,7 +21,7 @@ impl WebAppScanner {
         let mut findings = Vec::new();
 
         // Raw SQL concatenation (classic SQLi)
-        let sqli_fmt = Regex::new(r#"(?i)(SELECT|INSERT|UPDATE|DELETE).*\$\{.*\{|\"\s*\+\s*[varuserinput]|format!\(.*SELECT|execute\(.*SELECT|query\(.*SELECT)"#).ok();
+        let sqli_fmt = Regex::new(r#"(?i)(?:SELECT|INSERT|UPDATE|DELETE).*\$\{.*|"\s*\+\s*[^)]+|format![(].*SELECT|execute[(].*SELECT|query[(].*SELECT[)]"#).ok();
         if let Some(re) = sqli_fmt {
             for (i, line) in content.lines().enumerate() {
                 if re.is_match(line) {
