@@ -8,6 +8,8 @@ members = [
   "crates/offline",
   "crates/cache",
   "crates/osint",
+  "crates/cloudsec",
+  "crates/hardware",
 ]
 exclude = ["fuzz"]
 resolver = "2"

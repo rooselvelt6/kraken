@@ -321,22 +321,22 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 14 — Hardware & IoT ⚙️
+## Fase 14 — Hardware & IoT ⚙️ ✅
 **Reemplaza:** binwalk, firmware-mod-kit, openocd, flashrom
 **Duración estimada:** 6 semanas
 **Dependencias:** wrappers de herramientas externas
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Firmware extractor | Extraer filesystem de firmware (SquashFS, JFFS2, etc.) | 🔴 |
-| Firmware entropy scan | Detectar cifrado/compresión en firmware | 🔴 |
-| Firmware diff | Comparar versiones de firmware para vulnerabilidades | 🔴 |
-| UART detection | Detectar pines UART en imágenes | 🔴 |
-| SDR basic scanner | RTL-SDR frequency scan (wrapper) | 🔴 |
-| GPIO control | Raspberry Pi / embedded GPIO manipulation | 🔴 |
-| JTAG/SWD detection | Detectar interfaces de depuración | 🔴 |
-| Flash reader | Leer/escribir chips flash SPI (wrapper flashrom) | 🔴 |
-| IoT protocol fuzzer | MQTT, CoAP, Zigbee protocol fuzzing | 🔴 |
+| Firmware extractor | Extraer filesystem de firmware (SquashFS, JFFS2, etc.) | ✅ |
+| Firmware entropy scan | Detectar cifrado/compresión en firmware | ✅ |
+| Firmware diff | Comparar versiones de firmware para vulnerabilidades | ✅ |
+| UART detection | Detectar pines UART en imágenes | ✅ |
+| SDR basic scanner | RTL-SDR frequency scan (wrapper) | ✅ |
+| GPIO control | Raspberry Pi / embedded GPIO manipulation | ✅ |
+| JTAG/SWD detection | Detectar interfaces de depuración | ✅ |
+| Flash reader | Leer/escribir chips flash SPI (wrapper flashrom) | ✅ |
+| IoT protocol fuzzer | MQTT, CoAP, Zigbee protocol fuzzing | ✅ |
 
 ---
 
@@ -486,7 +486,7 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Forensics | Fase 11 | ✅ 11/11 |
 | Social | Fase 12 | ✅ 10/10 |
 | Cloud | Fase 13 | ✅ 9/10 |
-| IoT | Fase 14 | 🔴 0/8 |
+| IoT | Fase 14 | ✅ 8/8 |
 | Mobile | Fase 15 | 🔴 0/9 |
 | Supply chain | Fase 16 | 🟡 1/8 |
 | Anonymity | Fase 17 | 🔴 0/8 |
@@ -497,5 +497,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas: 159 (80%)**
+**Completadas: 167 (84%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**
