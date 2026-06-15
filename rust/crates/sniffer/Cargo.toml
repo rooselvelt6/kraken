@@ -1,0 +1,15 @@
+[package]
+name = "sniffer"
+version.workspace = true
+edition = "2021"
+authors = ["Kraken Contributors"]
+
+[dependencies]
+pcap = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+regex = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+hex = "0.4"
+base64 = "0.22"

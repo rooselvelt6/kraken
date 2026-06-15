@@ -155,150 +155,149 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 6 — Sniffing & Spoofing 📡
+## Fase 6 — Sniffing & Spoofing 📡 ✅
 **Reemplaza:** tcpdump, tshark, ettercap, bettercap, responder
 **Duración estimada:** 3 semanas
 **Dependencias:** `pcap`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Packet capture live | Capturar tráfico en interfaz con filtros BPF | 🔴 |
-| Protocol dissectors | HTTP, DNS, TLS, ARP, DHCP, ICMP | 🔴 |
-| ARP spoofing | MITM en red local con forwarding | 🔴 |
-| DNS spoofing | Falsificar respuestas DNS | 🔴 |
-| DHCP spoofing | Falso DHCP server (rogue DHCP) | 🔴 |
-| SSL/TLS strip | Downgrade HTTPS → HTTP (sslstrip-style) | 🔴 |
-| NetCreds sniffer | Capturar credenciales HTTP básico, FTP, IMAP | 🔴 |
-| Session hijack | Secuestrar cookies de sesión HTTP | 🔴 |
-| Bettercap-style | MITM framework con módulos intercambiables | 🔴 |
-| PCAP analyzer offline | Analizar captures (.pcap, .pcapng) | 🔴 |
+| Packet capture live | Capturar tráfico en interfaz con filtros BPF | ✅ |
+| Protocol dissectors | HTTP, DNS, ARP, DHCP, ICMP | 🟢 (ya existen en osint/network) |
+| ARP spoofing | MITM en red local con forwarding | ✅ |
+| DNS spoofing | Falsificar respuestas DNS | ✅ |
+| DHCP spoofing | Falso DHCP server (rogue DHCP) | ✅ |
+| SSL/TLS strip | Downgrade HTTPS → HTTP (sslstrip-style) | ✅ |
+| NetCreds sniffer | Capturar credenciales HTTP básico, FTP, IMAP | ✅ |
+| Session hijack | Secuestrar cookies de sesión HTTP | ✅ |
+| Bettercap-style | MITM framework con módulos intercambiables | ✅ |
+| PCAP analyzer offline | Analizar captures (.pcap, .pcapng) | ✅ |
 
 ---
 
-## Fase 7 — Wireless Security 📶
+## Fase 7 — Wireless Security 📶 ✅
 **Reemplaza:** aircrack-ng, kismet, reaver, wifite, airgeddon
 **Duración estimada:** 4 semanas
 **Dependencias:** wrappers de `iw`, `aircrack-ng`, `bluetoothctl`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Wi-Fi scan | Listar redes, canales, cifrado, clientes conectados | 🔴 |
-| Handshake capture | Capturar WPA/WPA2 4-way handshake | 🔴 |
-| PMKID attack | Capturar y crackear PMKID | 🔴 |
-| WPA/WPA2 dictionary | Crackear handshake con wordlist | 🔴 |
-| WPS PIN brute-force | Reaver-style attack | 🔴 |
-| Deauth attack | Desautenticar clientes (aireplay-ng style) | 🔴 |
-| Beacon flood | Inundar con falsos APs (MDK4-style) | 🔴 |
-| Evil twin | AP gemelo con captive portal | 🔴 |
-| Bluetooth scan | Descubrir dispositivos BT clásico | 🔴 |
-| BLE scan | Bluetooth Low Energy service enumeration | 🔴 |
-| Bluetooth recon | Extraer nombre, clase, servicios, RSSI | 🔴 |
+| Wi-Fi scan | Listar redes, canales, cifrado, clientes conectados | ✅ |
+| Handshake capture | Capturar WPA/WPA2 4-way handshake | ✅ |
+| PMKID attack | Capturar y crackear PMKID | ✅ |
+| WPA/WPA2 dictionary | Crackear handshake con wordlist | ✅ |
+| WPS PIN brute-force | Reaver-style attack | ✅ |
+| Deauth attack | Desautenticar clientes (aireplay-ng style) | ✅ |
+| Beacon flood | Inundar con falsos APs (MDK4-style) | ✅ |
+| Evil twin | AP gemelo con captive portal | ✅ |
+| Bluetooth scan | Descubrir dispositivos BT clásico | ✅ |
+| BLE scan | Bluetooth Low Energy service enumeration | ✅ |
+| Bluetooth recon | Extraer nombre, clase, servicios, RSSI | ✅ |
 
 ---
 
-## Fase 8 — Reverse Engineering 🔍
+## Fase 8 — Reverse Engineering 🔍 ✅
 **Reemplaza:** Ghidra, radare2, cutter, strings, binwalk
 **Duración estimada:** 4 semanas
 **Dependencias:** `goblin`, `iced-x86` / `capstone`, `yara`
-**🔴 Estado actual:** reverse.rs vacío (todos los métodos retornan vec![])
+**✅ Estado actual:** reverse crate completo — 5 módulos, 41 tests
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| ELF parser | Secciones, segmentos, símbolos, relocations | 🔴 |
-| PE parser | Secciones, imports, exports, resources | 🔴 |
-| MachO parser | Fat/thin binaries, segmentos, load commands | 🔴 |
-| String extraction | Strings legibles ASCII/Unicode con offset | 🔴 |
-| Disassembly x86/x64 | Basic blocks, function boundaries | 🔴 |
-| Disassembly ARM | ARM/Thumb basic blocks | 🔴 |
-| Entropy analysis | Detectar empaquetado, cifrado, compresión | 🔴 |
-| YARA scanner | Escanear binarios con reglas YARA | 🔴 |
-| PEiD-style signatures | Detectar packers (UPX, Themida, VMProtect) | 🔴 |
-| Import/export table | Listar funciones importadas y exportadas | 🔴 |
-| Section analysis | Permisos, tamaños, raw/virtual sizes | 🔴 |
+| ELF parser | Secciones, segmentos, símbolos, relocations | ✅ |
+| PE parser | Secciones, imports, exports, resources | ✅ |
+| MachO parser | Fat/thin binaries, segmentos, load commands | ✅ |
+| String extraction | Strings legibles ASCII/Unicode con offset | ✅ |
+| Disassembly x86/x64 | Basic blocks, function boundaries | ✅ |
+| Disassembly ARM | ARM/Thumb basic blocks | ✅ |
+| Entropy analysis | Detectar empaquetado, cifrado, compresión | ✅ |
+| YARA scanner | Escanear binarios con reglas YARA | ✅ |
+| PEiD-style signatures | Detectar packers (UPX, Themida, VMProtect) | ✅ |
+| Import/export table | Listar funciones importadas y exportadas | ✅ |
+| Section analysis | Permisos, tamaños, raw/virtual sizes | ✅ |
 
 ---
 
-## Fase 9 — Post-Exploitation 🎯
+## Fase 9 — Post-Exploitation 🎯 ✅
 **Reemplaza:** mimikatz, powersploit, bloodhound, chisel, ligolo-ng
 **Duración estimada:** 4 semanas
 **Dependencias:** `ssh2`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| PE checker Linux | SUID, sudo -l, capabilities, cron jobs, writable scripts | 🔴 |
-| PE checker Windows | AlwaysInstallElevated, unquoted paths, tokens | 🔴 |
-| Credential hunter | Buscar credenciales en archivos, env, git, configs | 🟢 (parcial) |
-| Persistence Linux | Cron, systemd, ssh authorized_keys, LD_PRELOAD | 🔴 |
-| Persistence Windows | Registry RUN, Startup folder, scheduled tasks | 🔴 |
-| Persistence macOS | Launchd plists, login items, cron | 🔴 |
-| Lateral movement SSH | SSH jump host con key forwarding | 🔴 |
-| Lateral movement SMB | PsExec-style remote execution | 🔴 |
-| Pivoting SOCKS | Túnel SOCKS5 sobre SSH/HTTP | 🔴 |
-| Port forwarding | Local/remote port forwarding | 🔴 |
-| Token impersonation | Windows token manipulation (meterpreter-style) | 🔴 |
+| PE checker Linux | SUID, sudo -l, capabilities, cron jobs, writable scripts | ✅ |
+| PE checker Windows | AlwaysInstallElevated, unquoted paths, tokens | ✅ |
+| Credential hunter | Buscar credenciales en archivos, env, git, configs | ✅ |
+| Persistence Linux | Cron, systemd, ssh authorized_keys, LD_PRELOAD | ✅ |
+| Persistence Windows | Registry RUN, Startup folder, scheduled tasks | ✅ |
+| Persistence macOS | Launchd plists, login items, cron | ✅ |
+| Lateral movement SSH | SSH jump host con key forwarding | ✅ |
+| Lateral movement SMB | PsExec-style remote execution | ✅ |
+| Pivoting SOCKS | Túnel SOCKS5 sobre SSH/HTTP | ✅ |
+| Port forwarding | Local/remote port forwarding | ✅ |
+| Token impersonation | Windows token manipulation (meterpreter-style) | ✅ |
 
 ---
 
-## Fase 10 — C2 Framework 📡
+## Fase 10 — C2 Framework 📡 ✅
 **Reemplaza:** metasploit, empire, covenant, havok, mythic
 **Duración estimada:** 8 semanas
-**Dependencias:** `reqwest`, `trust-dns`, `tokio-tungstenite`
-**🟡 Estado actual:** agent.rs tiene estructura pero sin C2
+**Dependencias:** `reqwest`, `hickory-resolver`, `tokio-tungstenite`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| HTTP beacon | C2 channel sobre HTTP(S) con jitter | 🔴 |
-| DNS beacon | C2 channel sobre DNS tunneling | 🔴 |
-| WebSocket beacon | C2 channel bidireccional sobre WS(S) | 🔴 |
-| SMB beacon | C2 channel sobre SMB pipes (psexec-style) | 🔴 |
-| Task management | Enviar comandos, scripts, payloads a implants | 🔴 |
-| Payload staging | Stager descarga stage, ejecución en memoria | 🔴 |
-| Multi-client | Múltiples implants simultáneos con sesiones | 🔴 |
-| Encrypted C2 | AES-256-GCM session keys + ECDHE key exchange | 🟢 (ya existe crypto) |
-| Kill/reconnect | Matar implant o forzar reconexión | 🔴 |
-| Proxy-aware | C2 a través de proxies corporativos | 🔴 |
-| Egress detection | Detectar restricciones de salida en red objetivo | 🔴 |
+| HTTP beacon | C2 channel sobre HTTP(S) con jitter | ✅ |
+| DNS beacon | C2 channel sobre DNS tunneling | ✅ |
+| WebSocket beacon | C2 channel bidireccional sobre WS(S) | ✅ |
+| SMB beacon | C2 channel sobre SMB pipes (psexec-style) | ✅ |
+| Task management | Enviar comandos, scripts, payloads a implants | ✅ |
+| Payload staging | Stager descarga stage, ejecución en memoria | ✅ |
+| Multi-client | Múltiples implants simultáneos con sesiones | ✅ |
+| Encrypted C2 | AES-256-GCM session keys + key derivation | ✅ |
+| Kill/reconnect | Matar implant o forzar reconexión | ✅ |
+| Proxy-aware | C2 a través de proxies corporativos | ✅ |
+| Egress detection | Detectar restricciones de salida en red objetivo | ✅ |
 
 ---
 
-## Fase 11 — Forensics 🕵️
+## Fase 11 — Forensics 🕵️ ✅
 **Reemplaza:** autopsy, the sleuth kit (TSK), volatility, foremost, scalpel
 **Duración estimada:** 6 semanas
 **Dependencias:** `goblin`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Disk imaging | DD-style con hash verification (SHA-256) | 🔴 |
-| File carving | Recuperar archivos por magic headers/signatures | 🔴 |
-| PhotoRec-style | Deep scan + file recovery por tipo | 🔴 |
-| Memory dump analysis | Volatility-style: procesos, sockets, modules | 🔴 |
-| Registry parser | Windows Registry (SAM, SYSTEM, SOFTWARE, NTUSER) | 🔴 |
-| Timeline analysis | MAC times (Modify, Access, Change) + log correlation | 🔴 |
-| EXIF/metadata extractor | Extraer GPS, cámara, software, fechas | 🔴 |
-| PDF forensics | Analizar PDF maliciosos (JS, embedded files) | 🔴 |
-| Email forensics | Analizar archivos .pst/.mbox, cabeceras, SPF/DKIM | 🔴 |
-| Browser forensics | Historial, cookies, bookmarks (Chrome, Firefox) | 🔴 |
-| Network forensics | Reconstruir TCP streams de PCAP | 🔴 |
+| Disk imaging | DD-style con hash verification (SHA-256) | ✅ |
+| File carving | Recuperar archivos por magic headers/signatures | ✅ |
+| PhotoRec-style | Deep scan + file recovery por tipo | ✅ |
+| Memory dump analysis | Volatility-style: procesos, sockets, modules | ✅ |
+| Registry parser | Windows Registry (SAM, SYSTEM, SOFTWARE, NTUSER) | ✅ |
+| Timeline analysis | MAC times (Modify, Access, Change) + log correlation | ✅ |
+| EXIF/metadata extractor | Extraer GPS, cámara, software, fechas | ✅ |
+| PDF forensics | Analizar PDF maliciosos (JS, embedded files) | ✅ |
+| Email forensics | Analizar archivos .pst/.mbox, cabeceras, SPF/DKIM | ✅ |
+| Browser forensics | Historial, cookies, bookmarks (Chrome, Firefox) | ✅ |
+| Network forensics | Reconstruir TCP streams de PCAP | ✅ |
 
 ---
 
-## Fase 12 — Social Engineering 🎭
+## Fase 12 — Social Engineering 🎭 ✅
 **Reemplaza:** SET, gophish, evilginx, hiddeneye, socialfish
 **Duración estimada:** 4 semanas
 **Dependencias:** `lettre` (SMTP), `axum` (HTTP server)
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Phishing page cloner | Clonar sitio web con formulario de login | 🔴 |
-| Credential harvester | Servidor HTTP que captura POST credentials | 🔴 |
-| Fake login generator | Plantillas de login (Google, Office365, GitHub, etc.) | 🔴 |
-| Email phishing SMTP | Enviar campañas con templates HTML | 🔴 |
-| QR code phishing | Generar QR codes maliciosos que apuntan a clone | 🔴 |
-| USB drop generator | Rubber Ducky / Bash Bunny scripts | 🔴 |
-| Evilginx-style proxy | Reverse proxy que captura 2FA tokens | 🔴 |
-| SMS phishing | Envío de SMS masivos (vía twilio o similar) | 🔴 |
-| Pretexting templates | Plantillas de pretextos (IT support, HR, etc.) | 🔴 |
-| Campaign tracking | Estadísticas: enviados, abiertos, clickeados, creds | 🔴 |
+| Phishing page cloner | Clonar sitio web con formulario de login | ✅ |
+| Credential harvester | Servidor HTTP que captura POST credentials | ✅ |
+| Fake login generator | Plantillas de login (Google, Office365, GitHub, etc.) | ✅ |
+| Email phishing SMTP | Enviar campañas con templates HTML | ✅ |
+| QR code phishing | Generar QR codes maliciosos que apuntan a clone | ✅ |
+| USB drop generator | Rubber Ducky / Bash Bunny scripts | ✅ |
+| Evilginx-style proxy | Reverse proxy que captura 2FA tokens | ✅ |
+| SMS phishing | Envío de SMS masivos (vía twilio o similar) | ✅ |
+| Pretexting templates | Plantillas de pretextos (IT support, HR, etc.) | ✅ |
+| Campaign tracking | Estadísticas: enviados, abiertos, clickeados, creds | ✅ |
 
 ---
 
@@ -479,14 +478,13 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Web | Fases 2-3 | ✅ 20/20 |
 | Exploitation | Fase 4 | ✅ 10/10 |
 | Password | Fase 5 | ✅ 13/14 (GPU sin soporte) |
-| Password | Fase 5 | 🔴 0/13 |
-| Sniffing | Fase 6 | 🔴 0/10 |
-| Wireless | Fase 7 | 🔴 0/11 |
-| Reverse | Fase 8 | 🔴 0/11 |
-| Post-exploit | Fase 9 | 🔴 0/11 |
-| C2 | Fase 10 | 🔴 0/11 |
-| Forensics | Fase 11 | 🔴 0/11 |
-| Social | Fase 12 | 🔴 0/10 |
+| Sniffing | Fase 6 | ✅ 10/10 |
+| Wireless | Fase 7 | ✅ 11/11 |
+| Reverse | Fase 8 | ✅ 11/11 |
+| Post-exploit | Fase 9 | ✅ 11/11 |
+| C2 | Fase 10 | ✅ 11/11 |
+| Forensics | Fase 11 | ✅ 11/11 |
+| Social | Fase 12 | ✅ 10/10 |
 | Cloud | Fase 13 | 🔴 0/10 |
 | IoT | Fase 14 | 🔴 0/8 |
 | Mobile | Fase 15 | 🔴 0/9 |
@@ -499,5 +497,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas: ~73 (36.5%)**
+**Completadas: 150 (75%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**

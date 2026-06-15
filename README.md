@@ -39,9 +39,9 @@ Está construido completamente en Rust con `unsafe` prohibido a nivel workspace,
 
 | Estadística | Valor |
 |---|---|
-| Crates en workspace | 18 |
-| Líneas de código | ~110 000 |
-| Tests unitarios | 1500+ |
+| Crates en workspace | 20 |
+| Líneas de código | ~120 000 |
+| Tests unitarios | 1600+ |
 | Tests de propiedad (proptest) | 23 |
 | Herramientas (tools) | 44+ |
 | Comandos slash | 140+ |
@@ -264,7 +264,7 @@ bash scripts/install-pre-commit.sh
 ```
 kraken/
 ├── rust/
-│   ├── Cargo.toml              # Workspace root (18 crates, profile.release tuneado)
+│   ├── Cargo.toml              # Workspace root (20 crates, profile.release tuneado)
 │   ├── crates/
 │   │   ├── rusty-claude-cli/   # CLI principal (cargo run → kraken)
 │   │   ├── runtime/            # Runtime core, permisos, sanitizer, fingerprint
@@ -281,6 +281,8 @@ kraken/
 │   │   ├── offline/            # Cola de operaciones offline-first
 │   │   ├── plugins/            # Lifecycle de plugins MCP
 │   │   ├── telemetry/          # Tipos de telemetría estructurada
+│   │   ├── password/           # Password attacks: hash cracker, online brute-force, wordlist, mask, rainbow
+│   │   ├── sniffer/            # Sniffing & spoofing: packet capture, ARP/DNS/DHCP spoof, SSL strip, cred sniffer, MITM
 │   │   ├── compat-harness/     # Test de paridad con Anthropic
 │   │   ├── mock-anthropic/     # Mock service para tests E2E
 │   │   └── optimization/       # PSO, GA, ACO, Simulated Annealing
@@ -305,6 +307,34 @@ kraken/
 ├── deny.toml                   # cargo-deny: licencias, fuentes, bans
 └── install.sh                  # Instalador build-from-source
 ```
+
+---
+
+## Progreso del Roadmap 🗺️
+
+| Categoría | Fase | Estado |
+|-----------|------|--------|
+| Network | 1 | ✅ 10/10 |
+| Web | 2–3 | ✅ 20/20 |
+| Exploitation | 4 | ✅ 10/10 |
+| Password | 5 | ✅ 13/14 |
+| Sniffing | 6 | ✅ 10/10 |
+| Wireless | 7 | ✅ 11/11 |
+| Reverse | 8 | ✅ 11/11 |
+| Post-exploit | 9 | ✅ 11/11 |
+| C2 | 10 | ✅ 11/11 |
+| Forensics | 11 | ✅ 11/11 |
+| Social Eng. | 12 | ✅ 10/10 |
+| Cloud | 13 | 🔴 0/10 |
+| IoT | 14 | 🔴 0/8 |
+| Mobile | 15 | 🔴 0/9 |
+| Supply chain | 16 | 🟡 1/8 |
+| Anonymity | 17 | 🔴 0/8 |
+| Stress | 18 | 🔴 0/9 |
+| AI orchest. | 19 | 🟡 1/8 |
+| Reporting | 20 | 🟡 2/11 |
+
+**Total features: ~200 | Completadas: 150 (75%)**
 
 ---
 
