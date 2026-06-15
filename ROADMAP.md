@@ -340,22 +340,22 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 15 — Mobile Security 📱
+## Fase 15 — Mobile Security 📱 ✅
 **Reemplaza:** apktool, dex2jar, mobsf, objection, frida
 **Duración estimada:** 5 semanas
 **Dependencias:** wrappers de herramientas externas
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| APK decompiler | Descompilar Android APK (wrapper apktool) | 🔴 |
-| DEX parser | Analizar Dalvik bytecode | 🔴 |
-| Android manifest analyzer | Permisos, activities, services, receivers, providers | 🔴 |
-| iOS IPA analysis | Analizar IPA bundle (Plist, binary, entitlements) | 🔴 |
+| APK decompiler | Descompilar Android APK (wrapper apktool) | ✅ |
+| DEX parser | Analizar Dalvik bytecode | ✅ |
+| Android manifest analyzer | Permisos, activities, services, receivers, providers | ✅ |
+| iOS IPA analysis | Analizar IPA bundle (Plist, binary, entitlements) | ✅ |
 | Hardcoded secrets mobile | Buscar API keys, tokens en binarios mobile | 🟢 (ya existe) |
-| Root/jailbreak detection | Detectar Magisk, SuperSU, unc0ver, checkra1n | 🔴 |
-| Certificate pinning check | Detectar SSL pinning implementado | 🔴 |
-| Frida script generator | Generar scripts Frida para bypass SSL, root detection | 🔴 |
-| OWASP MASVS checker | Verificar cumplimiento MASVS (L1, L2, L3) | 🔴 |
+| Root/jailbreak detection | Detectar Magisk, SuperSU, unc0ver, checkra1n | ✅ |
+| Certificate pinning check | Detectar SSL pinning implementado | ✅ |
+| Frida script generator | Generar scripts Frida para bypass SSL, root detection | ✅ |
+| OWASP MASVS checker | Verificar cumplimiento MASVS (L1, L2, L3) | ✅ |
 
 ---
 
@@ -487,7 +487,7 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Social | Fase 12 | ✅ 10/10 |
 | Cloud | Fase 13 | ✅ 9/10 |
 | IoT | Fase 14 | ✅ 8/8 |
-| Mobile | Fase 15 | 🔴 0/9 |
+| Mobile | Fase 15 | ✅ 8/9 |
 | Supply chain | Fase 16 | 🟡 1/8 |
 | Anonymity | Fase 17 | 🔴 0/8 |
 | Stress | Fase 18 | 🔴 0/9 |
@@ -497,5 +497,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas: 167 (84%)**
+**Completadas: 175 (88%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**

@@ -2211,6 +2211,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mobile"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "mock-anthropic-service"
 version = "0.1.0"
 dependencies = [

@@ -327,14 +327,14 @@ kraken/
 | Social Eng. | 12 | ✅ 10/10 |
 | Cloud | 13 | ✅ 9/10 |
 | IoT | 14 | ✅ 8/8 |
-| Mobile | 15 | 🔴 0/9 |
+| Mobile | 15 | ✅ 8/9 |
 | Supply chain | 16 | 🟡 1/8 |
 | Anonymity | 17 | 🔴 0/8 |
 | Stress | 18 | 🔴 0/9 |
 | AI orchest. | 19 | 🟡 1/8 |
 | Reporting | 20 | 🟡 2/11 |
 
-**Total features: ~200 | Completadas: 167 (84%)**
+**Total features: ~200 | Completadas: 175 (88%)**
 
 ---
 
