@@ -301,23 +301,23 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 13 — Cloud Security ☁️
+## Fase 13 — Cloud Security ☁️ ✅
 **Reemplaza:** scoutsuite, prowler, kube-hunter, s3scanner, cloudbrute
 **Duración estimada:** 5 semanas
 **Dependencias:** `reqwest`
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| AWS S3 bucket enum | Enumerar buckets públicos + listar archivos | 🔴 |
-| AWS IAM audit | Políticas demasiado permisivas, roles sin usar | 🔴 |
-| AWS EC2/EBS audit | Instancias públicas, snapshots compartidos | 🔴 |
-| GCP storage enum | Google Cloud Storage bucket enumeration | 🔴 |
-| Azure blob enum | Azure Blob Storage container enumeration | 🔴 |
+| AWS S3 bucket enum | Enumerar buckets públicos + listar archivos | ✅ |
+| AWS IAM audit | Políticas demasiado permisivas, roles sin usar | ✅ |
+| AWS EC2/EBS audit | Instancias públicas, snapshots compartidos | ✅ |
+| GCP storage enum | Google Cloud Storage bucket enumeration | ✅ |
+| Azure blob enum | Azure Blob Storage container enumeration | ✅ |
 | Cloud credential scanner | Credenciales cloud en env/git/config | 🟢 (ya existe) |
-| Kubernetes audit | Pod security contexts, RBAC, network policies | 🔴 |
-| Docker security | Host config, running containers, exposed ports | 🔴 |
-| kube-bench style | CIS benchmark para Kubernetes | 🔴 |
-| Cloud metadata API | SSRF via cloud metadata (169.254.169.254) | 🔴 |
+| Kubernetes audit | Pod security contexts, RBAC, network policies | ✅ |
+| Docker security | Host config, running containers, exposed ports | ✅ |
+| kube-bench style | CIS benchmark para Kubernetes | ✅ |
+| Cloud metadata API | SSRF via cloud metadata (169.254.169.254) | ✅ |
 
 ---
 
@@ -485,7 +485,7 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | C2 | Fase 10 | ✅ 11/11 |
 | Forensics | Fase 11 | ✅ 11/11 |
 | Social | Fase 12 | ✅ 10/10 |
-| Cloud | Fase 13 | 🔴 0/10 |
+| Cloud | Fase 13 | ✅ 9/10 |
 | IoT | Fase 14 | 🔴 0/8 |
 | Mobile | Fase 15 | 🔴 0/9 |
 | Supply chain | Fase 16 | 🟡 1/8 |
@@ -497,5 +497,5 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 ---
 
 **Total features: ~200**
-**Completadas: 150 (75%)**
+**Completadas: 159 (80%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**

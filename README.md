@@ -325,7 +325,7 @@ kraken/
 | C2 | 10 | ✅ 11/11 |
 | Forensics | 11 | ✅ 11/11 |
 | Social Eng. | 12 | ✅ 10/10 |
-| Cloud | 13 | 🔴 0/10 |
+| Cloud | 13 | ✅ 9/10 |
 | IoT | 14 | 🔴 0/8 |
 | Mobile | 15 | 🔴 0/9 |
 | Supply chain | 16 | 🟡 1/8 |
@@ -334,7 +334,7 @@ kraken/
 | AI orchest. | 19 | 🟡 1/8 |
 | Reporting | 20 | 🟡 2/11 |
 
-**Total features: ~200 | Completadas: 150 (75%)**
+**Total features: ~200 | Completadas: 159 (80%)**
 
 ---
 
