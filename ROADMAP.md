@@ -436,25 +436,25 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 
 ---
 
-## Fase 20 — Reporting & Collaboration 📊
+## Fase 20 — Reporting & Collaboration 📊 ✅
 **Reemplaza:** dradis, faraday, eyewitness, cherrytree
 **Duración estimada:** 6 semanas
 **Dependencias:** `printpdf`, `axum`, `maud`
-**🟡 Estado actual:** report.rs genera reportes CLI/JSON
+**✅ Estado actual:** reporting crate completo — 7 módulos, 63 tests
 
 | Feature | Descripción | Estado |
 |---------|------------|--------|
-| Executive PDF report | Reporte profesional en PDF con portada, resumen, hallazgos | 🔴 |
-| HTML dashboard | Dashboard web embebido con escaneos en vivo | 🔴 |
-| Screenshot capture | Capturar pantalla de servicios web (EyeWitness-style) | 🔴 |
-| Slack webhook | Notificaciones automáticas a Slack | 🔴 |
-| Discord webhook | Notificaciones automáticas a Discord | 🔴 |
-| Teams webhook | Notificaciones automáticas a Microsoft Teams | 🔴 |
-| Telegram bot | Notificaciones vía bot de Telegram | 🔴 |
-| Multi-user sessions | Sesiones colaborativas compartidas | 🔴 |
+| Executive PDF report | Reporte profesional en PDF con portada, resumen, hallazgos | ✅ |
+| HTML dashboard | Dashboard web embebido con escaneos en vivo | ✅ |
+| Screenshot capture | Capturar pantalla de servicios web (EyeWitness-style) | ✅ |
+| Slack webhook | Notificaciones automáticas a Slack | ✅ |
+| Discord webhook | Notificaciones automáticas a Discord | ✅ |
+| Teams webhook | Notificaciones automáticas a Microsoft Teams | ✅ |
+| Telegram bot | Notificaciones vía bot de Telegram | ✅ |
+| Multi-user sessions | Sesiones colaborativas compartidas | ✅ |
 | Elasticsearch export | Exportar findings a Elasticsearch/SIEM | 🟢 (ya existe) |
 | CSV/JSON/HTML export | Múltiples formatos de exportación | 🟢 (ya existe report.rs) |
-| Password analysis stats | Pipal-style: estadísticas de contraseñas encontradas | 🔴 |
+| Password analysis stats | Pipal-style: estadísticas de contraseñas encontradas | ✅ |
 
 ---
 
@@ -488,14 +488,14 @@ Esto ya está implementado y sirve como cimiento de todo lo que viene:
 | Cloud | Fase 13 | ✅ 9/10 |
 | IoT | Fase 14 | ✅ 8/8 |
 | Mobile | Fase 15 | ✅ 8/9 |
-| Supply chain | Fase 16 | 🟡 1/8 |
-| Anonymity | Fase 17 | 🔴 0/8 |
-| Stress | Fase 18 | 🔴 0/9 |
-| AI orchest. | Fase 19 | 🟡 1/8 |
-| Reporting | Fase 20 | 🟡 2/11 |
+| Supply chain | Fase 16 | ✅ 8/8 |
+| Anonymity | Fase 17 | ✅ 8/8 |
+| Stress | Fase 18 | ✅ 9/9 |
+| AI orchest. | Fase 19 | ✅ 8/8 |
+| Reporting | Fase 20 | ✅ 11/11 |
 
 ---
 
 **Total features: ~200**
-**Completadas: 175 (88%)**
+**Completadas: 200 (100%)**
 **Potencial al completar roadmap: herramienta definitiva de ciberseguridad en Rust**
