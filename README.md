@@ -297,6 +297,12 @@ kraken campaign --target 10.0.0.0/24            # Campaña autónoma
 
 ---
 
+## 📚 Documentación
+
+- [PHILOSOPHY.md](PHILOSOPHY.md) — Filosofía del proyecto
+
+---
+
 <p align="center">
   🦀 <strong>Hecho en Rust, construido en Venezuela</strong> 🦀<br>
   <sub>210 000 líneas · 2 620 tests · 0 unsafe · 35 crates · 200 capacidades</sub>

@@ -1,49 +1,86 @@
-# Filosofía de Kraken
+# Kraken Philosophy
 
-## Deja de Mirar Solo los Archivos
+> **Build once, breach everywhere.** Una plataforma, cero `unsafe`, 200 capacidades.
 
-Si solo miras los archivos generados en este repositorio, estás mirando la capa equivocada.
+---
 
-Lo que vale la pena estudiar es el **sistema que los produjo**: un bucle de coordinación donde los humanos dan dirección y los agentes autónomos ejecutan el trabajo.
+## Core Principles
 
-Kraken no es solo un codebase. Es una demostración de lo que sucede cuando:
+### 1. Seguridad por Construcción
 
-- un humano da dirección clara,
-- múltiples agentes de código coordinan en paralelo,
-- la planificación, ejecución, revisión y reintentos se automatizan,
-- y el humano **no** se sienta en una terminal microgestionando cada paso.
+Kraken prohibe **todo** código `unsafe` a nivel workspace. Las 210,000+ líneas de Rust están libres de vulnerabilidades de memoria por construcción — no por revisión, no por suerte, por decisión arquitectónica. El comprobador de *ownership* de Rust es nuestra primera línea de defensa.
 
-## Principios
+### 2. Todo-en-Uno, no navaja suiza
 
-### 1. Offline-first, Venezuela-first
+Kraken no es un conjunto de scripts sueltos. Es una plataforma cohesiva de 35 crates donde cada componente conoce al otro. Un hallazgo de `vulnscan` alimenta al generador de exploits, que alimenta al framework C2, que reporta al dashboard. No hay silos.
 
-Kraken nace en Venezuela, donde internet no es garantía. Todo el sistema está diseñado para funcionar con conectividad intermitente: cola de operaciones offline, caché multi-nivel, sync cuando hay conexión.
+### 3. Determinista por defecto, Aumentado por ML
 
-### 2. Seguridad por defecto, no por configuración
+El análisis estático (tree-sitter, patrones, AST) corre primero: es rápido, offline y no alucina. El LLM y el ML aumentan, no reemplazan. Cuando el estático dice "esto es vulnerable", el LLM explica *por qué*. Cuando el ML detecta una anomalía, el agente ajusta su estrategia.
 
-- `unsafe` prohibido en todo el workspace
-- Sandbox obligatorio para ejecución de herramientas
-- Criptografía autenticada en todos los planos
-- Zeroize en memoria para datos sensibles
+### 4. Híbrido Estático + LLM
 
-### 3. Unix Philosophy aplicada a LLMs
+El análisis de kernel (Fases 21-25) es el ejemplo perfecto: tree-sitter valida que el C es sintácticamente correcto, los checkers de patrones detectan vulnerabilidades conocidas (sin falsos positivos), y el LLM especializado en kernel (DeepSeek) entiende el contexto semántico — APIs de kernel, estructuras internas, técnicas de explotación. Cada capa compensa las debilidades de la otra.
 
-- **Una cosa bien**: 18 crates, cada uno con una responsabilidad clara
-- **Composición sobre configuración**: pipelines de herramientas que se combinan
-- **Texto como interfaz universal**: output JSON machine-readable en todos los comandos
-- **La terminal es la API**: cada comando es un endpoint
+### 5. Offline-First
 
-### 4. Autonomía sobre automatización
+Todo el análisis estático, los patrones de kernel, la detección de secretos, el cracking de contraseñas y el escaneo de red funcionan sin conexión. El LLM es aumentativo, no dependencia crítica. Kraken no se detiene porque la API de turno esté caída.
 
-No se trata de automatizar tareas repetitivas. Se trata de que un agente pueda:
+### 6. Rapidez como Feature
 
-1. Recibir un objetivo difuso ("encuentra vulnerabilidades en este proyecto")
-2. Descomponerlo en tareas concretas
-3. Ejecutarlas con juicio contextual
-4. Reportar resultados accionables
+Benchmarks Criterion: 24 µs de inferencia ML, 53 µs de extracción de features, 327 µs de detección de anomalías. Cada microsegundo cuenta cuando estás analizando 210,000 líneas de código. El perfil de release optimiza para tamaño (~40 MB binario estático) y velocidad.
 
-### 5. Sin bloqueo de proveedor
+### 7. Cero Fricción, Una Dependencia
 
-Kraken funciona con cualquier LLM: Anthropic, OpenAI, DeepSeek, Ollama, DashScope, OpenRouter, modelos locales. No hay dependencia de un solo proveedor.
+Un solo binario estático. Sin runtime de Python, sin Node, sin JVM. `curl | sh` y listo. Las 59 herramientas del agente, los 200+ comandos slash, los 7 proveedores LLM — todo en un binario.
 
+---
 
+## Design Tenets
+
+### Para el Código
+
+| Principio | Aplicación |
+|-----------|------------|
+| `forbid(unsafe_code)` | Cada crate, cada archivo. No hay excepciones. |
+| Sin macros procedurales | Compilación rápida, código explícito. |
+| Tests en cada PR | 2,620 tests (y creciendo). `cargo test` debe pasar siempre. |
+| Criterion para benchmarks | Cada optimización se mide, no se supone. |
+| `clippy --pedantic` | Sin advertencias. El linter es ley. |
+
+### Para la Arquitectura
+
+| Principio | Aplicación |
+|-----------|------------|
+| Un crate por dominio | 35 crates, cada uno con una responsabilidad clara. |
+| Dependencias mínimas | Cada dependencia se justifica. Sin bloat. |
+| Fases ofensivas | 25 fases → 25 capacidades, de OSINT a kernel exploit. |
+| Pipeline en 3 modos | Fast (estático), Deep (+LLM), Overnight (+exploit generation). |
+
+### Para el Usuario
+
+| Principio | Aplicación |
+|-----------|------------|
+| CLI primero | Todo comando tiene flag. Todo flag tiene `--help`. |
+| JSON machine-readable | `--output-format json` para pipelines y automatización. |
+| MCP nativo | Integración con cualquier editor/IDE que soporte MCP. |
+| Sandbox por defecto | Seccomp + Landlock + namespaces. Aislado desde el primer segundo. |
+
+---
+
+## Technical Commitments
+
+- **Rust edition 2021**, toolchain 1.85+
+- **Zero `unsafe`** en todo el workspace
+- **100% de tests pasando** antes de cada merge
+- **Benchmarks Criterion** para decisiones de rendimiento
+- **Documentación en código** (`///`) en toda API pública
+- **Semver consciente**: cambios breaking sólo en major versions
+
+---
+
+## El panorama completo
+
+Kraken no es una herramienta más. Es una plataforma que nació de una pregunta simple: *¿y si todo lo que necesitas para una operación ofensiva estuviera en un solo binario, escrito en Rust, sin `unsafe`, con ML integrado, que funciona offline, y que además entiende de kernel?*
+
+La respuesta es Kraken. 35 crates. 210,000 líneas. 2,620 tests. 0 `unsafe`.
