@@ -12,6 +12,10 @@ pub struct MitigationStatus {
     pub pie: bool,
     pub cfi: bool,
     pub fortify_source: bool,
+    pub kernel_aslr: Option<bool>,
+    pub kernel_smap: Option<bool>,
+    pub kernel_smep: Option<bool>,
+    pub kernel_kpti: Option<bool>,
 }
 
 impl MitigationChecker {
@@ -70,5 +74,9 @@ impl MitigationChecker {
             }
         }
         findings
+    }
+
+    pub fn check_kernel_config(content: &str, file_path: &Path) -> Vec<Finding> {
+        crate::kernel::KernelMitigationAuditor::check_kconfig(content, file_path)
     }
 }

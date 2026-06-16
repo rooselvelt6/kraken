@@ -11,7 +11,8 @@ use crate::memory::HuntMemory;
 use crate::recon::{AttackSurface, SurfaceRecon};
 use crate::resume::{Checkpointer, ScanCheckpoint, ScanPhase, ScanState};
 use crate::scan::VulnerabilityScanner;
-use crate::{Finding, ScanConfig, Severity};
+use crate::{Finding, KernelMitigationAuditor, ScanConfig, Severity};
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HuntMode {
@@ -74,8 +75,15 @@ impl HuntPipeline {
         let attack_surface = SurfaceRecon::enumerate_attack_surface(&target, &self.config);
         phases.push(ScanPhase::Reconnaissance);
 
-        let scanner = VulnerabilityScanner::new(self.config.clone());
-        let findings = scanner.scan();
+        let mut findings = {
+            let scanner = VulnerabilityScanner::new(self.config.clone());
+            scanner.scan()
+        };
+
+        if self.config.enable_kernel_analysis {
+            Self::run_kernel_mitigation_audit(&target, &mut findings);
+        }
+
         phases.push(ScanPhase::FileScanning);
         phases.push(ScanPhase::PatternAnalysis);
 
@@ -158,8 +166,15 @@ impl HuntPipeline {
         let attack_surface = SurfaceRecon::enumerate_attack_surface(&target, &self.config);
         phases.push(ScanPhase::Reconnaissance);
 
-        let scanner = VulnerabilityScanner::new(self.config.clone());
-        let findings = scanner.scan();
+        let mut findings = {
+            let scanner = VulnerabilityScanner::new(self.config.clone());
+            scanner.scan()
+        };
+
+        if self.config.enable_kernel_analysis {
+            Self::run_kernel_mitigation_audit(&target, &mut findings);
+        }
+
         phases.push(ScanPhase::FileScanning);
         phases.push(ScanPhase::PatternAnalysis);
 
@@ -286,12 +301,11 @@ impl HuntPipeline {
         let hunt_id = format!("overnight-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
 
         let resume_state = self.checkpointer.resume_latest();
-        let findings: Vec<Finding>;
+        let mut findings: Vec<Finding>;
 
         if let Some(state) = resume_state {
             if state.checkpoint.target_path == target {
-                let scanner = VulnerabilityScanner::new(self.config.clone());
-                findings = scanner.scan();
+                findings = VulnerabilityScanner::new(self.config.clone()).scan();
             } else {
                 let session_id = self.memory.start_session(&target);
                 let cp_state = ScanState {
@@ -313,8 +327,7 @@ impl HuntPipeline {
                 };
                 self.checkpointer.save_checkpoint(&cp_state);
 
-                let scanner = VulnerabilityScanner::new(self.config.clone());
-                findings = scanner.scan();
+                findings = VulnerabilityScanner::new(self.config.clone()).scan();
             }
         } else {
             let session_id = self.memory.start_session(&target);
@@ -337,8 +350,11 @@ impl HuntPipeline {
             };
             self.checkpointer.save_checkpoint(&cp_state);
 
-            let scanner = VulnerabilityScanner::new(self.config.clone());
-            findings = scanner.scan();
+            findings = VulnerabilityScanner::new(self.config.clone()).scan();
+        }
+
+        if self.config.enable_kernel_analysis {
+            Self::run_kernel_mitigation_audit(&target, &mut findings);
         }
 
         let attack_surface = SurfaceRecon::enumerate_attack_surface(&target, &self.config);
@@ -460,6 +476,46 @@ impl HuntPipeline {
                 ScanPhase::Complete,
             ],
             llm_analysis,
+        }
+    }
+
+    fn run_kernel_mitigation_audit(target: &Path, findings: &mut Vec<Finding>) {
+        for entry in walkdir::WalkDir::new(target)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            if fname == ".config" || fname == "config" || fname.ends_with(".config") {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if content.contains("CONFIG_") {
+                        findings.extend(KernelMitigationAuditor::check_kconfig(&content, path));
+                    }
+                }
+            }
+
+            let fname_lower = fname.to_lowercase();
+            if (fname_lower == "makefile" || fname_lower.starts_with("version.h"))
+                && (path.to_string_lossy().contains("/kernel/")
+                    || path.to_string_lossy().contains("/include/"))
+            {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if let Some(version) =
+                        crate::kernel::version::KernelVersion::from_content(&content, path)
+                    {
+                        findings.push(crate::Finding::info(
+                            format!("Kernel version detected: {}", version.full),
+                            Some(path.to_path_buf()),
+                            None,
+                            crate::DiscoveryMethod::StaticPatternMatching,
+                        ));
+                    }
+                }
+            }
         }
     }
 

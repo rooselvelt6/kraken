@@ -59,6 +59,65 @@ Identify: missing authentication checks, weak password policies, JWT/ token vali
 session fixation, improper role checks, insecure password reset, OAuth misconfiguration.
 For each finding provide: location, flaw type, CWE (CWE-287/CWE-384), remediation, confidence.",
     ),
+    (
+        "kernel_memory",
+        "You are a Linux/BSD kernel memory corruption expert. Analyze the kernel-level C code for:
+- Use-after-free: kfree()/kfree_sensitive() followed by pointer dereference, RCU UAF, credential struct UAF
+- Out-of-bounds: copy_from_user/copy_to_user without size validation, kmalloc with user-controlled size, buffer overflow in ioctl handlers, __user pointer misuse
+- Double fetch: userspace memory read twice without access_ok() between, TOCTOU on shared memory
+- Double free: multiple kfree() on same pointer, missing nulling after kfree
+- Integer overflow: kmalloc() with size computed from user input, array index overflow
+- Kernel stack overflow: large stack buffers, alloca() in interrupt context, recursive calls
+- Format string: printk() with user-controlled format argument
+Reference kernel APIs: kmalloc, kfree, copy_from_user, __user, access_ok, put_user, get_user, RCU, kref, mutex_lock, spin_lock, atomic_t, struct file_operations.
+For each finding: CWE-416/CWE-787/CWE-120/CWE-415/CWE-190/CWE-476, remediation with kernel-specific advice.",
+    ),
+    (
+        "kernel_race",
+        "You are a Linux/BSD kernel concurrency expert. Analyze the kernel-level C code for race conditions:
+- Missing lock: shared struct field access without mutex/spinlock/RCU protection
+- Double lock: ABBA deadlock, nested lock acquisition in wrong order
+- Lock bypass: accessing data after unlock but before re-acquiring lock
+- TOCTOU: check-then-use with gap where another thread can modify state
+- RCU misuse: accessing RCU-protected data outside read-side critical section, missing rcu_dereference()
+- Atomicity violation: non-atomic read-modify-write on shared counter/bitfield
+- seqlock imbalance: missing write_seqlock/write_sequnlock in writer path
+- wait queue races: wake_up() before prepare_to_wait(), missing memory barriers
+- Reference count: kref get/put imbalance, credential refcount overflow
+Reference kernel APIs: spin_lock, mutex_lock, rcu_read_lock, rcu_dereference, seqlock_t, atomic_t, kref_get, kref_put, wait_queue_head_t, smp_mb().
+For each finding: CWE-362/CWE-667/CWE-821, provide exact race window and suggested fix.",
+    ),
+    (
+        "kernel_info_leak",
+        "You are a Linux/BSD kernel information disclosure expert. Analyze for kernel memory leaks:
+- copy_to_user without bounds: copying uninitialized kernel stack/heap to userspace
+- Uninitialized struct padding: stack struct with padding bytes not zeroed before copy
+- dmesg leaks: kernel addresses in printk() output exposed via dmesg_restrict bypass
+- /proc/ leaks: exposing kernel pointers via /proc filesystem, kallsyms without kptr_restrict
+- sysfs attribute leaks: exposing sensitive kernel state via sysfs files
+- KASLR bypass: kernel text addresses leaked via side channels, error messages, function pointers
+- kmalloc uninit: using kmalloc() instead of kzalloc(), heap content exposed to userspace
+- seq_file leaks: seq_printf with sensitive data, /proc/pid/maps exposing addresses
+- speculative side channels: KASLR bypass via prefetch timing, cache timing
+Reference kernel APIs: copy_to_user, kzalloc, kfree, seq_printf, proc_create, sysfs_create_file, kallsyms, dmesg.
+For each finding: CWE-200/CWE-203/CWE-402, provide the exact leak path and remediation.",
+    ),
+    (
+        "kernel_priv_esc",
+        "You are a Linux/BSD privilege escalation expert. Analyze kernel code for escalation vectors:
+- ioctl handlers: unlocked_ioctl without proper privilege check, allowing arbitrary hardware access
+- BPF: eBPF program verifier bypass, arbitrary kernel memory read/write via crafted BPF
+- Filesystem: overlayfs mount escape, FUSE privilege escalation, filesystem type confusion
+- Capabilities: missing cap_capable() check, capability bypass via user namespaces
+- User namespaces: unprivileged user_ns creation allowing access to otherwise-restricted interfaces
+- modprobe_path: controlling modprobe_path via binfmt_misc or other interfaces
+- core_pattern: arbitrary executable execution via /proc/sys/kernel/core_pattern
+- Module loading: unsigned module loading with CONFIG_MODULE_SIG disabled, module_request bypass
+- Security bypass: LSM bypass via crafted arguments, SELinux/AppArmor context confusion
+- Keyring: kernel keyring overflow, keyctl privilege escalation
+- Syscall: missing syscall number validation in compat mode, syscall table manipulation
+For each finding: CWE-269/CWE-250/CWE-276, provide escalation path, prerequisites for unprivileged user, and kernel version range if applicable.",
+    ),
 ];
 
 /// A lightweight finding produced by LLM analysis, tied back to a scanner finding.
@@ -93,6 +152,10 @@ impl Default for LlmAnalystConfig {
                 "command_injection".into(),
                 "crypto".into(),
                 "memory_safety".into(),
+                "kernel_memory".into(),
+                "kernel_race".into(),
+                "kernel_info_leak".into(),
+                "kernel_priv_esc".into(),
                 "logic".into(),
                 "auth_bypass".into(),
             ],
@@ -468,7 +531,46 @@ pub fn class_for_finding(finding: &Finding) -> &str {
         Some(cwe) if cwe.contains("78") => "command_injection",
         Some(cwe) if cwe.contains("327") | cwe.contains("338") => "crypto",
         Some(cwe) if cwe.contains("120") | cwe.contains("416") | cwe.contains("415") | cwe.contains("190") => {
-            "memory_safety"
+            if finding.file_path.as_ref().map_or(false, |p| {
+                let s = p.to_string_lossy();
+                s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/arch/")
+                    || s.contains("/fs/") || s.contains("/net/") || s.contains("/include/linux/")
+                    || s.contains("/mm/") || s.contains("/security/")
+            }) {
+                "kernel_memory"
+            } else {
+                "memory_safety"
+            }
+        }
+        Some(cwe) if cwe.contains("362") || cwe.contains("667") || cwe.contains("821") => {
+            if finding.file_path.as_ref().map_or(false, |p| {
+                let s = p.to_string_lossy();
+                s.contains("/kernel/") || s.contains("/drivers/")
+            }) {
+                "kernel_race"
+            } else {
+                "logic"
+            }
+        }
+        Some(cwe) if cwe.contains("200") || cwe.contains("203") || cwe.contains("402") => {
+            if finding.file_path.as_ref().map_or(false, |p| {
+                let s = p.to_string_lossy();
+                s.contains("/kernel/") || s.contains("/drivers/")
+            }) {
+                "kernel_info_leak"
+            } else {
+                "logic"
+            }
+        }
+        Some(cwe) if cwe.contains("269") || cwe.contains("250") || cwe.contains("276") => {
+            if finding.file_path.as_ref().map_or(false, |p| {
+                let s = p.to_string_lossy();
+                s.contains("/kernel/") || s.contains("/drivers/")
+            }) {
+                "kernel_priv_esc"
+            } else {
+                "logic"
+            }
         }
         Some(cwe) if cwe.contains("287") | cwe.contains("384") => "auth_bypass",
         Some(cwe) if cwe.contains("639") | cwe.contains("352") | cwe.contains("918") => "logic",

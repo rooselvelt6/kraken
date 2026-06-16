@@ -13,7 +13,7 @@ thiserror = "1.0"
 walkdir = "2"
 regex = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
-tree-sitter = "0.22"
+tree-sitter = "0.23"
 tree-sitter-rust = "0.23"
 tree-sitter-c = "0.23"
 tree-sitter-cpp = "0.23"

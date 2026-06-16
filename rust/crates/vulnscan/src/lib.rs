@@ -7,6 +7,7 @@ pub mod disclosure;
 pub mod exploit;
 pub mod fuzz;
 pub mod hypothesis;
+pub mod kernel;
 pub mod lateral;
 pub mod llm_analyst;
 pub mod logic;
@@ -78,6 +79,9 @@ pub enum Language {
     Docker,
     Kubernetes,
     Terraform,
+    LinuxKernel,
+    FreeBSD,
+    OpenBSD,
     Other,
 }
 
@@ -86,6 +90,9 @@ impl Language {
         match self {
             Language::Rust => &["rs"],
             Language::C => &["c", "h"],
+            Language::LinuxKernel => &["c", "h"],
+            Language::FreeBSD => &["c", "h"],
+            Language::OpenBSD => &["c", "h"],
             Language::Cpp => &["cpp", "cc", "cxx", "hpp", "hh", "hxx"],
             Language::JavaScript => &["js", "mjs", "cjs"],
             Language::TypeScript => &["ts", "tsx", "mts", "cts"],
@@ -201,6 +208,7 @@ pub struct ScanConfig {
     pub enable_reverse_engineering: bool,
     pub enable_container_scan: bool,
     pub enable_mitigation_check: bool,
+    pub enable_kernel_analysis: bool,
     pub min_severity: Severity,
     pub max_findings_per_path: Option<usize>,
     pub model: String,
@@ -241,6 +249,7 @@ impl Default for ScanConfig {
             enable_reverse_engineering: false,
             enable_container_scan: false,
             enable_mitigation_check: false,
+            enable_kernel_analysis: false,
             min_severity: Severity::Medium,
             max_findings_per_path: Some(100),
             model: "deepseek/deepseek-chat".to_string(),
@@ -432,6 +441,11 @@ pub use disclosure::DisclosurePipeline;
 pub use exploit::ExploitGenerator;
 pub use fuzz::FuzzGuide;
 pub use hypothesis::{GeneratedHypothesis, HypothesisGenerator};
+pub use kernel::{
+    kconfig::KernelConfig,
+    version::KernelVersion,
+    KernelMitigationAuditor,
+};
 pub use lateral::{AttackGraph, AttackPath, LateralMovement};
 pub use llm_analyst::{class_for_finding, matches_class, LlmAnalyst, LlmAnalystConfig, LlmAnalysisReport, LlmValidation};
 pub use logic::LogicAnalyzer;

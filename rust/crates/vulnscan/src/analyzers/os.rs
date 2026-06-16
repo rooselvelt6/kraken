@@ -3,10 +3,10 @@ pub struct LinuxKernelAnalyzer;
 
 impl super::LanguageAnalyzer for LinuxKernelAnalyzer {
     fn language(&self) -> super::Language {
-        super::Language::C
+        super::Language::LinuxKernel
     }
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["c"]
+        vec!["c", "h"]
     }
 
     fn analyze(
@@ -16,11 +16,11 @@ impl super::LanguageAnalyzer for LinuxKernelAnalyzer {
         _config: &crate::ScanConfig,
     ) -> Vec<crate::Finding> {
         let mut findings = Vec::new();
+        let lines: Vec<&str> = content.lines().collect();
 
-        for (i, line) in content.lines().enumerate() {
+        for (i, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
 
-            // Buffer overflows in kernel code
             if trimmed.contains("strcpy")
                 || trimmed.contains("strcat")
                 || trimmed.contains("memcpy") && !trimmed.contains("n")
@@ -36,28 +36,57 @@ impl super::LanguageAnalyzer for LinuxKernelAnalyzer {
                 ));
             }
 
-            // Null pointer dereference
             if (trimmed.contains("*") || trimmed.contains("->"))
-                && !trimmed.contains("if")
+                && !trimmed.starts_with("//")
+                && !trimmed.starts_with("/*")
+                && !trimmed.contains("if ")
                 && !trimmed.contains("assert")
+                && trimmed.contains("= *")
             {
-                // Simplified check for potential null deref
+                findings.push(self.create_finding(
+                    "Potential NULL pointer dereference in kernel",
+                    "CWE-476",
+                    crate::Severity::High,
+                    i,
+                    line,
+                    file_path,
+                    "Add NULL check before dereferencing pointer",
+                ));
             }
 
-            // Race conditions (simplified)
-            if trimmed.contains("mutex_lock") || trimmed.contains("spin_lock") {
-                // Just noting we found locking - could check for missed unlocks
+            if (trimmed.contains("mutex_lock") || trimmed.contains("spin_lock"))
+                && !trimmed.starts_with("//")
+            {
+                findings.push(self.create_finding(
+                    "Lock acquired — verify unlock paths for potential deadlock",
+                    "CWE-667",
+                    crate::Severity::Medium,
+                    i,
+                    line,
+                    file_path,
+                    "Ensure every lock has a corresponding unlock on all exit paths",
+                ));
             }
 
-            // Use after free
-            if trimmed.contains("kfree")
-                && content
-                    .lines()
-                    .skip(i + 1)
-                    .take(10)
-                    .any(|l| l.contains("*") || l.contains("->"))
+            if trimmed.contains("kfree") || trimmed.contains("kfree_sensitive")
             {
-                // Simplified check
+                let next_lines: Vec<&str> = lines.iter().skip(i + 1).take(10).copied().collect();
+                let has_access = next_lines.iter().any(|l| {
+                    let t = l.trim();
+                    (t.contains("->") || t.contains("*")) && !t.starts_with("//")
+                });
+                if has_access && next_lines.iter().any(|l| l.trim().contains("->"))
+                {
+                    findings.push(self.create_finding(
+                        "Potential use-after-free: kfree followed by pointer access",
+                        "CWE-416",
+                        crate::Severity::Critical,
+                        i,
+                        line,
+                        file_path,
+                        "Set pointer to NULL after kfree and check before use",
+                    ));
+                }
             }
         }
 
@@ -70,10 +99,10 @@ pub struct OpenBSDAnalyzer;
 
 impl super::LanguageAnalyzer for OpenBSDAnalyzer {
     fn language(&self) -> super::Language {
-        super::Language::C
+        super::Language::OpenBSD
     }
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["c"]
+        vec!["c", "h"]
     }
 
     fn analyze(
@@ -136,10 +165,10 @@ pub struct FreeBSDAnalyzer;
 
 impl super::LanguageAnalyzer for FreeBSDAnalyzer {
     fn language(&self) -> super::Language {
-        super::Language::C
+        super::Language::FreeBSD
     }
     fn supported_extensions(&self) -> Vec<&'static str> {
-        vec!["c"]
+        vec!["c", "h"]
     }
 
     fn analyze(

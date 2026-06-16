@@ -96,6 +96,17 @@ impl SecurityAgent {
     }
 
     async fn estimate_bug_probability(&self, file_path: &Path) -> f32 {
+        let path_str = file_path.to_string_lossy();
+        let is_kernel = path_str.contains("/drivers/")
+            || path_str.contains("/arch/")
+            || path_str.contains("/fs/")
+            || path_str.contains("/net/")
+            || path_str.contains("/kernel/")
+            || path_str.contains("/mm/")
+            || path_str.contains("/include/linux/");
+        if is_kernel {
+            return 0.8;
+        }
         let content = match std::fs::read_to_string(file_path) {
             Ok(c) if c.len() < 20_000 => c,
             _ => return 0.3,
@@ -272,6 +283,20 @@ File: {:?}",
     }
 
     fn build_kraken_prompt(&self, content: &str, language: Language) -> String {
+        let kernel_context = matches!(
+            language,
+            Language::LinuxKernel | Language::FreeBSD | Language::OpenBSD
+        );
+
+        let instructions = if kernel_context {
+            "Focus on: kernel memory corruption (UAF, OOB, double fetch), kernel race conditions (missing locks, TOCTOU),
+kernel info leaks (uninitialized memory, address leaks), privilege escalation (ioctl, BPF, filesystem, user namespaces).
+Reference kernel-specific APIs: kmalloc/kfree, copy_from_user, __user, access_ok, mutex_lock, spin_lock, RCU.
+Consider kernel version-specific mitigations: KASLR, SMAP, SMEP, KPTI, stack protector."
+        } else {
+            "Focus on: memory safety, injection, auth bypass, crypto flaws, race conditions, logic errors."
+        };
+
         format!(
             "{}
 
@@ -299,12 +324,13 @@ For each finding, respond with a JSON array:
   }}
 ]
 
-Focus on: memory safety, injection, auth bypass, crypto flaws, race conditions, logic errors.",
+{instructions}",
             KRAKEN_SYSTEM_PROMPT,
             lang = language,
             size = content.len(),
             lang_lower = format!("{:?}", language).to_lowercase(),
-            content = content
+            content = content,
+            instructions = instructions,
         )
     }
 
