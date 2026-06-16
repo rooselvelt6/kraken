@@ -20,7 +20,7 @@
 
 ## 🚀 Kraken in 5 Seconds
 
-Kraken is an **all-in-one offensive cybersecurity platform** built entirely in Rust. It replaces **~40 Kali Linux tools** in a single ~40 MB static binary, with integrated AI capabilities, multi-layer sandboxing, and real-time machine learning threat detection.
+Kraken is an **all-in-one offensive cybersecurity platform** built entirely in Rust. It replaces **~40 Kali Linux tools** in a single ~9 MB static binary, with integrated AI capabilities, multi-layer sandboxing, and real-time machine learning threat detection.
 
 ```bash
 # Install (seconds)

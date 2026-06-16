@@ -28,7 +28,7 @@ Todo el análisis estático, los patrones de kernel, la detección de secretos, 
 
 ### 6. Rapidez como Feature
 
-Benchmarks Criterion: 24 µs de inferencia ML, 53 µs de extracción de features, 327 µs de detección de anomalías. Cada microsegundo cuenta cuando estás analizando 210,000 líneas de código. El perfil de release optimiza para tamaño (~40 MB binario estático) y velocidad.
+Benchmarks Criterion: 24 µs de inferencia ML, 53 µs de extracción de features, 327 µs de detección de anomalías. Cada microsegundo cuenta cuando estás analizando 210,000 líneas de código. El perfil de release optimiza para tamaño (~9 MB binario estático) y velocidad.
 
 ### 7. Cero Fricción, Una Dependencia
 
