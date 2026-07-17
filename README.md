@@ -12,7 +12,8 @@
   <img src="https://img.shields.io/badge/tests-2620-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/unsafe-forbidden-red" alt="Unsafe Forbidden">
   <img src="https://img.shields.io/badge/SLSA-3-purple" alt="SLSA 3">
-  <img src="https://img.shields.io/badge/roadmap-200%2F200%20(100%25)-brightgreen" alt="Roadmap 100%">
+  <img src="https://img.shields.io/badge/cosign-signed-brightgreen" alt="Cosign Signed">
+  <img src="https://img.shields.io/badge/roadmap-100%2F100-brightgreen" alt="Roadmap 100%">
   <img src="https://img.shields.io/badge/OS-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20BSD%20%7C%20RPi-brightgreen" alt="OS">
   <img src="https://img.shields.io/badge/bench-24%C2%B5s%20inference-yellow" alt="ML Inference 24µs">
 </p>
@@ -26,6 +27,12 @@ Kraken es una **plataforma de ciberseguridad ofensiva todo-en-uno** construida c
 ```bash
 # Instalar (segundos)
 curl -fsSL https://raw.githubusercontent.com/rooselvelt6/kraken/main/scripts/get-kraken.sh | sh
+
+# Homebrew (macOS / Linux)
+brew install rooselvelt6/kraken/kraken
+
+# Docker
+docker pull ghcr.io/rooselvelt6/kraken:latest
 
 # Escanear vulnerabilidades
 kraken vulnscan --dir .
@@ -295,15 +302,43 @@ kraken osint --domain ejemplo.com --all         # OSINT completo
 kraken campaign --target 10.0.0.0/24            # Campaña autónoma
 ```
 
+### Instalación
+
+| Método | Comando |
+|--------|---------|
+| Script | `curl -fsSL https://raw.githubusercontent.com/rooselvelt6/kraken/main/scripts/get-kraken.sh \| sh` |
+| Homebrew | `brew install rooselvelt6/kraken/kraken` |
+| Docker | `docker pull ghcr.io/rooselvelt6/kraken:latest` |
+| GitHub Releases | Descargar binario firmado desde [Releases](https://github.com/rooselvelt6/kraken/releases) |
+| Compilar | `git clone ... && cd kraken/rust && cargo build --release` |
+
+### Verificar firma (Cosign / Sigstore)
+
+```bash
+# Instalar cosign
+curl -LO https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+chmod +x cosign-linux-amd64 && sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+
+# Verificar binario
+cosign verify-blob kraken-linux-x86_64 \
+  --bundle kraken-linux-x86_64.cosign.bundle \
+  --certificate-identity=https://github.com/rooselvelt6/kraken/.github/workflows/release.yml@refs/tags/v* \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+```
+
 ---
 
 ## 📚 Documentación
 
 - [PHILOSOPHY.md](PHILOSOPHY.md) — Filosofía del proyecto
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Guía de contribución
+- [SECURITY.md](SECURITY.md) — Política de seguridad
+- [CHANGELOG.md](CHANGELOG.md) — Historial de cambios
+- [dashboard.html](dashboard.html) — Visor de reportes offline
 
 ---
 
 <p align="center">
   🦀 <strong>Hecho en Rust, construido en Venezuela</strong> 🦀<br>
-  <sub>210 000 líneas · 2 620 tests · 0 unsafe · 35 crates · 200 capacidades</sub>
+  <sub>210 000 líneas · 2 620 tests · 0 unsafe · 35 crates · Cosign firmado · CI/CD completo</sub>
 </p>
