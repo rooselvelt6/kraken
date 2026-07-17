@@ -71,7 +71,7 @@ impl SecurityAgent {
                 "{}\n\n[Chunk {}/{} of {}]\n```\n{}\n```",
                 KRAKEN_SYSTEM_PROMPT,
                 i + 1,
-                (content.len() + 39_999) / 40_000,
+                content.len().div_ceil(40_000),
                 file_path.display(),
                 chunk_str
             );

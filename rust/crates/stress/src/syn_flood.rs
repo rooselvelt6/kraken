@@ -20,6 +20,12 @@ pub struct SynFloodResult {
 
 pub struct SynFlooder;
 
+impl Default for SynFlooder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SynFlooder {
     pub fn new() -> Self {
         SynFlooder

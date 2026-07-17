@@ -149,6 +149,7 @@ impl super::LanguageAnalyzer for LuaAnalyzer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_finding(
     file_path: &Path,
     line_number: u32,
@@ -176,7 +177,7 @@ fn make_finding(
 }
 
 fn has_quoted_literal_path(s: &str) -> bool {
-    s.contains('\'').then(|| {
+    if s.contains('\'') { {
         let mut in_string = false;
         let mut has_concat = false;
         for (j, c) in s.char_indices() {
@@ -188,7 +189,7 @@ fn has_quoted_literal_path(s: &str) -> bool {
             }
         }
         !has_concat
-    }).unwrap_or(false)
+    } } else { false }
 }
 
 fn is_secret_assignment(s: &str) -> bool {

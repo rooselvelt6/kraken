@@ -13,6 +13,7 @@ pub enum ToolKind {
 }
 
 impl ToolKind {
+    #[must_use]
     pub fn from_name(name: &str) -> Self {
         match name {
             "read_file" | "Read" => Self::Read,
@@ -35,21 +36,27 @@ pub struct ToolBudget {
 }
 
 impl ToolBudget {
+    #[must_use]
     pub fn for_read() -> Self {
         Self { max_bytes: 10 * 1024 * 1024, max_entries: None, max_calls: 200, window_secs: 300 }
     }
+    #[must_use]
     pub fn for_write() -> Self {
         Self { max_bytes: 5 * 1024 * 1024, max_entries: None, max_calls: 100, window_secs: 300 }
     }
+    #[must_use]
     pub fn for_glob() -> Self {
         Self { max_bytes: 1024 * 1024, max_entries: Some(1000), max_calls: 50, window_secs: 300 }
     }
+    #[must_use]
     pub fn for_grep() -> Self {
         Self { max_bytes: 1024 * 1024, max_entries: None, max_calls: 100, window_secs: 300 }
     }
+    #[must_use]
     pub fn for_bash() -> Self {
         Self { max_bytes: 10 * 1024 * 1024, max_entries: None, max_calls: 100, window_secs: 300 }
     }
+    #[must_use]
     pub fn for_edit() -> Self {
         Self { max_bytes: 5 * 1024 * 1024, max_entries: None, max_calls: 100, window_secs: 300 }
     }
@@ -73,13 +80,14 @@ impl ToolUsage {
     }
 
     fn prune(&mut self) {
-        let cutoff = Instant::now() - Duration::from_secs(self.budget.window_secs);
+        let cutoff = Instant::now().checked_sub(Duration::from_secs(self.budget.window_secs)).unwrap();
         self.records.retain(|r| r.timestamp > cutoff);
     }
 
     fn call_count(&mut self) -> u32 {
         self.prune();
-        self.records.len() as u32
+        #[allow(clippy::cast_possible_truncation)]
+        { self.records.len() as u32 }
     }
 
     fn total_bytes(&mut self) -> u64 {
@@ -96,6 +104,7 @@ pub struct SizeBudgeter {
 }
 
 impl SizeBudgeter {
+    #[must_use]
     pub fn new() -> Self {
         let mut per_tool = HashMap::new();
         per_tool.insert(ToolKind::Read, ToolUsage::new(ToolBudget::for_read()));
@@ -118,14 +127,12 @@ impl SizeBudgeter {
             return Err(BudgetExceeded::SessionBytes(self.session_bytes));
         }
 
-        if !self.per_tool.contains_key(&tool) {
-            self.per_tool.insert(tool, ToolUsage::new(ToolBudget {
+        self.per_tool.entry(tool).or_insert_with(|| ToolUsage::new(ToolBudget {
                 max_bytes: 10 * 1024 * 1024,
                 max_entries: None,
                 max_calls: 1000,
                 window_secs: 300,
             }));
-        }
         let usage = self.per_tool.get_mut(&tool).expect("tool just inserted");
 
         let count = usage.call_count();
@@ -166,6 +173,7 @@ impl SizeBudgeter {
         self.check_tool_call(ToolKind::Bash, 0)
     }
 
+    #[must_use]
     pub fn session_statistics(&self) -> SessionStats {
         SessionStats {
             total_calls: self.session_calls,

@@ -17,6 +17,12 @@ pub struct NetworkInterface {
 
 pub struct MacRandomizer;
 
+impl Default for MacRandomizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MacRandomizer {
     pub fn new() -> Self {
         MacRandomizer

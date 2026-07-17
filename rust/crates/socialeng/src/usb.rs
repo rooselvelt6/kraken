@@ -12,6 +12,12 @@ pub struct UsbPayload {
 
 pub struct UsbDropper;
 
+impl Default for UsbDropper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UsbDropper {
     pub fn new() -> Self {
         UsbDropper

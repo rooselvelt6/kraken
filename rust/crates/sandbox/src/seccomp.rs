@@ -386,11 +386,10 @@ impl SeccompProfile {
             }
         }
 
-        if self.allow_ptrace {
-            if !syscalls.contains(&101) {
+        if self.allow_ptrace
+            && !syscalls.contains(&101) {
                 syscalls.push(101);
             }
-        }
 
         syscalls.sort_unstable();
         syscalls.dedup();

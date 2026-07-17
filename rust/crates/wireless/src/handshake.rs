@@ -73,14 +73,14 @@ impl HandshakeCapture {
         std::fs::create_dir_all(&self.output_dir)
             .map_err(|e| format!("Cannot create output dir: {}", e))?;
 
-        let output_file = format!("{}/handshake_{}.pcap", self.output_dir, &self.bssid.replace(':', ""));
+        let output_file = format!("{}/handshake_{}.pcap", self.output_dir, self.bssid.replace(':', ""));
 
         let mut child = Command::new("airodump-ng")
             .args([
                 &self.interface,
                 "--bssid", &self.bssid,
                 "--channel", &self.channel.to_string(),
-                "--write", &output_file.trim_end_matches(".pcap"),
+                "--write", output_file.trim_end_matches(".pcap"),
                 "--output-format", "pcap",
             ])
             .spawn()
@@ -165,7 +165,7 @@ impl HandshakeCapture {
             let h = HandshakeInfo {
                 bssid: bssid.clone(),
                 essid: String::new(),
-                client_mac: fields.get(0).unwrap_or(&"").to_string(),
+                client_mac: fields.first().unwrap_or(&"").to_string(),
                 capture_time: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
                 key_version,
                 is_complete: eapol_count >= 4,
@@ -386,7 +386,7 @@ pub fn detect_wps_pmkid(bssid: &str, essid: &str) -> Option<String> {
     let pmk = WpaCracker::compute_pmk("", essid);
 
     let mut hasher = Sha256::new();
-    hasher.update(&pmk);
+    hasher.update(pmk);
     hasher.update(b"PMK Name");
     hasher.update(&bssid_bytes);
     hasher.update(essid.as_bytes());

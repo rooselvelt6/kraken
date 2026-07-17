@@ -91,7 +91,7 @@ impl VulnerabilityChainer {
         let kernel_info_leaks: Vec<&Finding> = findings
             .iter()
             .filter(|f| {
-                f.cwe.as_deref().map_or(false, |cwe| {
+                f.cwe.as_deref().is_some_and(|cwe| {
                     cwe.contains("200") || cwe.contains("203") || cwe.contains("402")
                 }) && Self::is_kernel_path(f)
             })
@@ -99,7 +99,7 @@ impl VulnerabilityChainer {
         let kernel_mem_corruptions: Vec<&Finding> = findings
             .iter()
             .filter(|f| {
-                f.cwe.as_deref().map_or(false, |cwe| {
+                f.cwe.as_deref().is_some_and(|cwe| {
                     cwe.contains("416") || cwe.contains("787") || cwe.contains("120")
                 }) && Self::is_kernel_path(f)
             })
@@ -151,7 +151,7 @@ impl VulnerabilityChainer {
     }
 
     fn is_kernel_path(f: &Finding) -> bool {
-        f.file_path.as_ref().map_or(false, |p| {
+        f.file_path.as_ref().is_some_and(|p| {
             let s = p.to_string_lossy();
             s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/arch/")
                 || s.contains("/fs/") || s.contains("/net/") || s.contains("/include/linux/")
@@ -167,9 +167,7 @@ impl VulnerabilityChainer {
                         id: crate::new_finding_id(),
                         findings: vec![read_bug.clone(), write_bug.clone()],
                         chain_type: ChainType::ReadPlusWrite,
-                        description: format!(
-                            "Read primitive + write primitive in same component → full control"
-                        ),
+                        description: "Read primitive + write primitive in same component → full control".to_string(),
                         estimated_impact: Severity::Critical,
                     });
                 }

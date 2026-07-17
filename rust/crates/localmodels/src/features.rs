@@ -214,8 +214,8 @@ impl FeatureExtractor {
             has_ip_address: Self::bool_flag(Self::has_ip_pattern(command)),
             has_url: Self::bool_flag(lower.contains("http://") || lower.contains("https://") || lower.contains("ftp://")),
             has_port: Self::bool_flag((0..chars.len().saturating_sub(2)).any(|i| {
-                chars[i] == ':' && chars.get(i+1).map_or(false, |c| c.is_ascii_digit())
-                    && chars.get(i+2).map_or(false, |c| c.is_ascii_digit())
+                chars[i] == ':' && chars.get(i+1).is_some_and(|c| c.is_ascii_digit())
+                    && chars.get(i+2).is_some_and(|c| c.is_ascii_digit())
             })),
             has_domain_name: Self::bool_flag(lower.contains(".com") || lower.contains(".org") || lower.contains(".net") || lower.contains(".io") || lower.contains(".sh") || lower.contains(".ru")),
             has_localhost: Self::bool_flag(lower.contains("localhost") || lower.contains("127.") || lower.contains("::1")),
@@ -293,10 +293,10 @@ impl FeatureExtractor {
         for i in 0..bytes.len().saturating_sub(7) {
             if bytes[i].is_ascii_digit() {
                 let mut dots = 0;
-                for j in i..bytes.len().min(i + 15) {
-                    if bytes[j] == b'.' {
+                for b in &bytes[i..bytes.len().min(i + 15)] {
+                    if *b == b'.' {
                         dots += 1;
-                    } else if !bytes[j].is_ascii_digit() {
+                    } else if !b.is_ascii_digit() {
                         break;
                     }
                     if dots == 3 {

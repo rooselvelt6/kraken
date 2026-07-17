@@ -29,6 +29,12 @@ pub struct HttpStressResult {
 
 pub struct HttpStressor;
 
+impl Default for HttpStressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HttpStressor {
     pub fn new() -> Self {
         HttpStressor

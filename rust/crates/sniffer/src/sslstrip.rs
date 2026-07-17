@@ -129,15 +129,13 @@ fn handle_http_request(
     }
 
     let mut body = String::new();
-    for line in reader.lines() {
-        if let Ok(l) = line { body.push_str(&l); }
-    }
+    for l in reader.lines().map_while(Result::ok) { body.push_str(&l); }
 
     if let Ok(mut s) = stats.lock() {
         s.urls_logged.push(format!("{} http://{}{}", method, host, uri));
     }
 
-    let rewritten_uri = rewrite_https_links(&uri);
+    let rewritten_uri = rewrite_https_links(uri);
     if rewritten_uri != uri {
         if let Ok(mut s) = stats.lock() {
             s.https_redirects_stripped += 1;

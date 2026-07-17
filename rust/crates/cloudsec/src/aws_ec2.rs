@@ -36,6 +36,12 @@ pub struct Ec2AuditResult {
 
 pub struct Ec2Auditor;
 
+impl Default for Ec2Auditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ec2Auditor {
     pub fn new() -> Self {
         Ec2Auditor
@@ -99,7 +105,7 @@ impl Ec2Auditor {
                         category: "Management Port Open".to_string(),
                         description: format!("Port {} open on instance {}", port, inst.instance_id),
                         instance_id: inst.instance_id.clone(),
-                        recommendation: format!("Restrict SSH/RDP access with security group IP restrictions").to_string(),
+                        recommendation: "Restrict SSH/RDP access with security group IP restrictions".to_string().to_string(),
                     });
                 }
             }

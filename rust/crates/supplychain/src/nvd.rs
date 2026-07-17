@@ -69,6 +69,12 @@ pub struct NvdSearchResult {
 
 pub struct NvdClient;
 
+impl Default for NvdClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NvdClient {
     pub fn new() -> Self {
         NvdClient

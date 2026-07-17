@@ -50,7 +50,7 @@ pub fn generate_cli_report(findings: &[Finding]) {
         writeln!(
             &mut stdout,
             "[{}] {} findings",
-            format!("{:?}", sev),
+            format_args!("{:?}", sev),
             finds.len()
         )
         .unwrap();
@@ -116,7 +116,7 @@ pub fn print_summary(findings: &[Finding]) {
             stdout
                 .set_color(ColorSpec::new().set_fg(Some(color)))
                 .unwrap();
-            write!(&mut stdout, "  {}: {}", format!("{:?}", sev), count).unwrap();
+            write!(&mut stdout, "  {}: {}", format_args!("{:?}", sev), count).unwrap();
             stdout.reset().unwrap();
             writeln!(&mut stdout).unwrap();
         }

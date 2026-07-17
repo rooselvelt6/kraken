@@ -30,6 +30,12 @@ pub enum CheckResult {
 
 pub struct CisScanner;
 
+impl Default for CisScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CisScanner {
     pub fn new() -> Self {
         CisScanner

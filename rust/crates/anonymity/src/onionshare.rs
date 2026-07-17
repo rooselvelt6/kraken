@@ -59,6 +59,12 @@ pub struct ShareResult {
 
 pub struct OnionShare;
 
+impl Default for OnionShare {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OnionShare {
     pub fn new() -> Self {
         OnionShare

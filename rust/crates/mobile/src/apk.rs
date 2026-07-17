@@ -39,6 +39,12 @@ pub struct CertInfo {
 
 pub struct ApkDecompiler;
 
+impl Default for ApkDecompiler {
+    fn default() -> Self {
+        ApkDecompiler
+    }
+}
+
 impl ApkDecompiler {
     pub fn new() -> Self {
         ApkDecompiler

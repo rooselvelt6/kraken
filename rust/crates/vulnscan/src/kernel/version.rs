@@ -48,7 +48,7 @@ impl KernelVersion {
                 .map(|m| m.as_str().trim().to_string());
 
             let full = format!("{}.{}.{}{}", major, minor, patch,
-                extra.as_ref().map(|e| e.clone()).unwrap_or_default());
+                extra.clone().unwrap_or_default());
 
             return Some(KernelVersion { major, minor, patch, extra, full });
         }

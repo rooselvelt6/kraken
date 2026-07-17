@@ -154,7 +154,7 @@ impl DeauthAttack {
 }
 
 pub fn format_deauth_stats(stats: &DeauthStats) -> String {
-    let mut out = format!("Deauth Attack Results\n");
+    let mut out = "Deauth Attack Results\n".to_string();
     out.push_str(&format!("BSSID: {}\n", stats.bssid));
     out.push_str(&format!("Packets sent: {}\n", stats.packets_sent));
     out.push_str(&format!("Duration: {:.2}s\n", stats.duration_secs));

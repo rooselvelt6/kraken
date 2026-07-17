@@ -99,7 +99,7 @@ impl DnsSpoofer {
 
                                     let should_spoof = config.spoof_all
                                         || config.spoof_map.contains_key(question)
-                                        || config.domain_filter.as_ref().map_or(false, |f| question.contains(f));
+                                        || config.domain_filter.as_ref().is_some_and(|f| question.contains(f));
 
                                     if should_spoof {
                                         let spoof_ip = config.spoof_map.get(question)

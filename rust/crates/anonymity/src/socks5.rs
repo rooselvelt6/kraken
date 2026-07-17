@@ -18,6 +18,12 @@ pub struct ProxyChain {
 
 pub struct Socks5Chain;
 
+impl Default for Socks5Chain {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Socks5Chain {
     pub fn new() -> Self {
         Socks5Chain

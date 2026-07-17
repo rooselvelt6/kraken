@@ -69,6 +69,12 @@ const DANGEROUS_PERMISSIONS: &[&str] = &[
 
 pub struct ManifestAnalyzer;
 
+impl Default for ManifestAnalyzer {
+    fn default() -> Self {
+        ManifestAnalyzer
+    }
+}
+
 impl ManifestAnalyzer {
     pub fn new() -> Self {
         ManifestAnalyzer

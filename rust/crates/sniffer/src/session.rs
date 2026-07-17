@@ -32,6 +32,12 @@ pub struct HijackedCookie {
     pub timestamp: String,
 }
 
+impl Default for SessionHunter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionHunter {
     pub fn new() -> Self {
         SessionHunter {

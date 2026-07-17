@@ -28,6 +28,12 @@ pub struct GcpResult {
 
 pub struct GcpEnumerator;
 
+impl Default for GcpEnumerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GcpEnumerator {
     pub fn new() -> Self {
         GcpEnumerator

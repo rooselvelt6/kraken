@@ -80,25 +80,25 @@ impl NamespaceConfig {
     pub fn unshare_flags(&self) -> i32 {
         let mut flags = 0i32;
         if self.isolate_user {
-            flags |= nix::sched::CloneFlags::CLONE_NEWUSER.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWUSER.bits();
         }
         if self.isolate_mount {
-            flags |= nix::sched::CloneFlags::CLONE_NEWNS.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWNS.bits();
         }
         if self.isolate_pid {
-            flags |= nix::sched::CloneFlags::CLONE_NEWPID.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWPID.bits();
         }
         if self.isolate_net {
-            flags |= nix::sched::CloneFlags::CLONE_NEWNET.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWNET.bits();
         }
         if self.isolate_ipc {
-            flags |= nix::sched::CloneFlags::CLONE_NEWIPC.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWIPC.bits();
         }
         if self.isolate_uts {
-            flags |= nix::sched::CloneFlags::CLONE_NEWUTS.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWUTS.bits();
         }
         if self.isolate_cgroup {
-            flags |= nix::sched::CloneFlags::CLONE_NEWCGROUP.bits() as i32;
+            flags |= nix::sched::CloneFlags::CLONE_NEWCGROUP.bits();
         }
         // CLONE_NEWTIME (Linux 5.6+) not available in nix 0.28 bitflags
         // Time namespace is rarely needed for CLI sandboxing

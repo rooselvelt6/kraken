@@ -78,7 +78,7 @@ impl Checkpointer {
             .into_iter()
             .flatten()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
             .collect();
 
         entries.sort_by_key(|e| e.path().metadata().ok().and_then(|m| m.modified().ok()));
@@ -96,7 +96,7 @@ impl Checkpointer {
             .into_iter()
             .flatten()
             .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map_or(false, |ext| ext == "json"))
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "json"))
             .filter_map(|e| {
                 let name = e.path().file_stem()?.to_str()?.to_string();
                 Some(name)

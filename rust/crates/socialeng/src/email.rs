@@ -26,11 +26,18 @@ pub struct SendResult {
 
 pub struct PhishMailer;
 
+impl Default for PhishMailer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PhishMailer {
     pub fn new() -> Self {
         PhishMailer
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn send_email(
         smtp_host: &str,
         smtp_port: u16,

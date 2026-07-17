@@ -38,6 +38,12 @@ pub struct TaskManager {
     tasks: Arc<Mutex<HashMap<String, Task>>>,
 }
 
+impl Default for TaskManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskManager {
     pub fn new() -> Self {
         TaskManager {

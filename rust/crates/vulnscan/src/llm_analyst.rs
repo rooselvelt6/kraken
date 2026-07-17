@@ -240,7 +240,7 @@ impl LlmAnalyst {
                     "[{i}] {desc} (CWE: {cwe}, Severity: {sev})",
                     desc = f.description,
                     cwe = f.cwe.as_deref().unwrap_or("N/A"),
-                    sev = format!("{:?}", f.severity),
+                    sev = format_args!("{:?}", f.severity),
                 )
             })
             .collect();
@@ -410,7 +410,7 @@ Format as a concise report with: key risks, recommended fixes priority, attack c
             .map(|f| {
                 format!(
                     "- [{sev}] Line {line}: {desc} (CWE: {cwe})",
-                    sev = format!("{:?}", f.severity),
+                    sev = format_args!("{:?}", f.severity),
                     line = f.line_number.unwrap_or(0),
                     desc = f.description,
                     cwe = f.cwe.as_deref().unwrap_or("N/A"),
@@ -531,7 +531,7 @@ pub fn class_for_finding(finding: &Finding) -> &str {
         Some(cwe) if cwe.contains("78") => "command_injection",
         Some(cwe) if cwe.contains("327") | cwe.contains("338") => "crypto",
         Some(cwe) if cwe.contains("120") | cwe.contains("416") | cwe.contains("415") | cwe.contains("190") => {
-            if finding.file_path.as_ref().map_or(false, |p| {
+            if finding.file_path.as_ref().is_some_and(|p| {
                 let s = p.to_string_lossy();
                 s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/arch/")
                     || s.contains("/fs/") || s.contains("/net/") || s.contains("/include/linux/")
@@ -543,7 +543,7 @@ pub fn class_for_finding(finding: &Finding) -> &str {
             }
         }
         Some(cwe) if cwe.contains("362") || cwe.contains("667") || cwe.contains("821") => {
-            if finding.file_path.as_ref().map_or(false, |p| {
+            if finding.file_path.as_ref().is_some_and(|p| {
                 let s = p.to_string_lossy();
                 s.contains("/kernel/") || s.contains("/drivers/")
             }) {
@@ -553,7 +553,7 @@ pub fn class_for_finding(finding: &Finding) -> &str {
             }
         }
         Some(cwe) if cwe.contains("200") || cwe.contains("203") || cwe.contains("402") => {
-            if finding.file_path.as_ref().map_or(false, |p| {
+            if finding.file_path.as_ref().is_some_and(|p| {
                 let s = p.to_string_lossy();
                 s.contains("/kernel/") || s.contains("/drivers/")
             }) {
@@ -563,7 +563,7 @@ pub fn class_for_finding(finding: &Finding) -> &str {
             }
         }
         Some(cwe) if cwe.contains("269") || cwe.contains("250") || cwe.contains("276") => {
-            if finding.file_path.as_ref().map_or(false, |p| {
+            if finding.file_path.as_ref().is_some_and(|p| {
                 let s = p.to_string_lossy();
                 s.contains("/kernel/") || s.contains("/drivers/")
             }) {

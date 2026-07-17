@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ToolCallDigest {
-    /// Hash of (tool_name, arg_hash)
+    /// Hash of (`tool_name`, `arg_hash`)
     pub digest: [u8; 32],
     pub tool_name: String,
 }
@@ -20,6 +20,7 @@ pub struct ToolCallFingerprinter {
 }
 
 impl ToolCallFingerprinter {
+    #[must_use]
     pub fn new(window_size: usize) -> Self {
         Self {
             window: VecDeque::with_capacity(window_size),
@@ -48,12 +49,14 @@ impl ToolCallFingerprinter {
     }
 
     /// Returns true if the same tool+arg pattern appears more than `threshold` times in the window.
+    #[must_use]
     pub fn is_repetitive(&self, tool_name: &str, arg_hash: &[u8]) -> bool {
         let digest = compute_digest(tool_name, arg_hash);
         self.freq.get(&digest.digest).copied().unwrap_or(0) > 3
     }
 
     /// Detect reconnaissance patterns: read many different files in succession.
+    #[must_use]
     pub fn detect_recon(&self) -> bool {
         if self.window.len() < 5 {
             return false;
@@ -71,10 +74,14 @@ impl ToolCallFingerprinter {
             .len();
 
         // Many reads of unique files = potential recon
-        read_calls >= 5 && unique as f64 / self.window.len() as f64 > 0.7
+        #[allow(clippy::cast_precision_loss)]
+        {
+            read_calls >= 5 && unique as f64 / self.window.len() as f64 > 0.7
+        }
     }
 
     /// Detect scanning pattern: glob then read pattern.
+    #[must_use]
     pub fn detect_scan_chain(&self) -> bool {
         if self.window.len() < 4 {
             return false;
@@ -87,6 +94,7 @@ impl ToolCallFingerprinter {
     }
 
     /// Detect exfiltration pattern: many consecutive reads of large files.
+    #[must_use]
     pub fn detect_exfil(&self) -> bool {
         if self.window.len() < 10 {
             return false;
@@ -107,6 +115,7 @@ impl ToolCallFingerprinter {
     }
 
     /// Return the current window of digests
+    #[must_use]
     pub fn window(&self) -> &VecDeque<ToolCallDigest> {
         &self.window
     }
@@ -135,6 +144,7 @@ fn compute_digest(tool_name: &str, arg_hash: &[u8]) -> ToolCallDigest {
     }
 }
 
+#[must_use]
 pub fn hash_arguments(args: &str) -> Vec<u8> {
     let mut hasher = Sha256::new();
     hasher.update(args.as_bytes());

@@ -32,6 +32,12 @@ pub struct CampaignPhase {
 
 pub struct CampaignPlanner;
 
+impl Default for CampaignPlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CampaignPlanner {
     pub fn new() -> Self {
         CampaignPlanner

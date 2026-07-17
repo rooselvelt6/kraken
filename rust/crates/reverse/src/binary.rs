@@ -85,7 +85,7 @@ impl BinaryAnalyzer {
         let sections: Vec<SectionInfo> = elf.section_headers.iter().filter_map(|shdr| {
             let name = elf.shdr_strtab.get_at(shdr.sh_name).unwrap_or("unknown").to_string();
             if name.is_empty() { return None; }
-            let flags = shdr.sh_flags as u64;
+            let flags = shdr.sh_flags;
             let perms = format!("{}{}{}",
                 if flags & goblin::elf::section_header::SHF_WRITE as u64 != 0 { "W" } else { "" },
                 if flags & goblin::elf::section_header::SHF_ALLOC as u64 != 0 { "A" } else { "" },
@@ -233,8 +233,7 @@ impl BinaryAnalyzer {
 
         let mut sections = Vec::new();
         for seg_iter in mach_o.segments.sections() {
-            for item in seg_iter {
-                if let Ok((sec, _data)) = item {
+            for (sec, _data) in seg_iter.flatten() {
                 let perms = format!("{}{}{}",
                     if sec.flags & 0x80000000 != 0 { "W" } else { "" },
                     if sec.flags & 0x00000004 != 0 { "X" } else { "" },
@@ -258,7 +257,6 @@ impl BinaryAnalyzer {
                     permissions: perms,
                     entropy: ent,
                 });
-            }
             }
         }
 

@@ -174,7 +174,7 @@ impl EvilTwin {
             .map_err(|e| format!("airbase-ng failed: {}", e))?;
 
         if self.captive_portal {
-            let html_file = format!("/tmp/kraken_portal_{}.html", &self.target_essid.replace(' ', ""));
+            let html_file = format!("/tmp/kraken_portal_{}.html", self.target_essid.replace(' ', ""));
             std::fs::write(&html_file, &self.portal_html).ok();
 
             let _ = Command::new("python3")

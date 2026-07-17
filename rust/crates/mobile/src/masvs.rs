@@ -32,6 +32,12 @@ pub enum CheckStatus {
 
 pub struct MasvsChecker;
 
+impl Default for MasvsChecker {
+    fn default() -> Self {
+        MasvsChecker
+    }
+}
+
 impl MasvsChecker {
     pub fn new() -> Self {
         MasvsChecker

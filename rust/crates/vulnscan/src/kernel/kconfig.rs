@@ -7,6 +7,12 @@ pub struct KernelConfig {
     pub is_present: bool,
 }
 
+impl Default for KernelConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KernelConfig {
     pub fn new() -> Self {
         KernelConfig {
@@ -44,11 +50,11 @@ impl KernelConfig {
     }
 
     pub fn is_enabled(&self, config: &str) -> bool {
-        self.options.get(config).map_or(false, |v| v == "y" || v == "m")
+        self.options.get(config).is_some_and(|v| v == "y" || v == "m")
     }
 
     pub fn is_disabled(&self, config: &str) -> bool {
-        self.options.get(config).map_or(true, |v| v == "n" || v.is_empty())
+        self.options.get(config).is_none_or(|v| v == "n" || v.is_empty())
     }
 
     pub fn value(&self, config: &str) -> Option<&str> {

@@ -15,6 +15,7 @@ pub struct SessionAuditor {
 }
 
 impl SessionAuditor {
+    #[must_use]
     pub fn new(session_id: &str) -> Self {
         let (sk, vk) = generate_audit_keypair();
 
@@ -38,6 +39,7 @@ impl SessionAuditor {
         }
     }
 
+    #[must_use]
     pub fn new_without_signing(session_id: &str) -> Self {
         let mut log = AuditLog::new();
         log.log(
@@ -64,7 +66,7 @@ impl SessionAuditor {
         let mut log = self.audit_log.lock().unwrap();
         log.log(action, target);
 
-        if count % self.block_size as u64 == 0 {
+        if count.is_multiple_of(self.block_size as u64) {
             if let Some(ref sk) = self.signing_key {
                 log.sign_block(sk);
             }
@@ -104,6 +106,7 @@ impl SessionAuditor {
         );
     }
 
+    #[must_use]
     pub fn verify_chain(&self) -> bool {
         self.audit_log.lock().unwrap().verify()
     }
@@ -112,26 +115,32 @@ impl SessionAuditor {
         self.audit_log.lock().unwrap().verify_chain_integrity()
     }
 
+    #[must_use]
     pub fn log_ref(&self) -> Arc<Mutex<AuditLog>> {
         self.audit_log.clone()
     }
 
+    #[must_use]
     pub fn signing_key(&self) -> Option<&SigningKey> {
         self.signing_key.as_ref()
     }
 
+    #[must_use]
     pub fn verifying_key(&self) -> Option<&VerifyingKey> {
         self.verifying_key.as_ref()
     }
 
+    #[must_use]
     pub fn session_id(&self) -> &str {
         &self.session_id
     }
 
+    #[must_use]
     pub fn tool_call_count(&self) -> u64 {
         self.tool_call_count.load(std::sync::atomic::Ordering::SeqCst)
     }
 
+    #[must_use]
     pub fn uptime_secs(&self) -> u64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -170,7 +179,7 @@ where
     F: FnOnce(&SessionAuditor) -> R,
 {
     let guard = global_auditor().lock().unwrap();
-    guard.as_ref().map(|a| f(a))
+    guard.as_ref().map(f)
 }
 
 pub struct AuditGuard {
@@ -195,6 +204,7 @@ impl AuditGuard {
         }
     }
 
+    #[must_use]
     pub fn elapsed(&self) -> Duration {
         self.started_at.elapsed()
     }

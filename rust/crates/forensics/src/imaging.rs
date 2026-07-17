@@ -22,6 +22,12 @@ pub enum ImageFormat {
 
 pub struct DiskImager;
 
+impl Default for DiskImager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiskImager {
     pub fn new() -> Self {
         DiskImager
@@ -92,11 +98,10 @@ impl DiskImager {
             if let Ok(entries) = std::fs::read_dir("/dev") {
                 for entry in entries.flatten() {
                     let name = entry.file_name().to_string_lossy().to_string();
-                    if name.starts_with("sd") || name.starts_with("nvme") || name.starts_with("mmcblk") {
-                        if !name.chars().any(|c| c.is_ascii_digit()) {
+                    if (name.starts_with("sd") || name.starts_with("nvme") || name.starts_with("mmcblk"))
+                        && !name.chars().any(|c| c.is_ascii_digit()) {
                             disks.push(format!("/dev/{}", name));
                         }
-                    }
                 }
             }
         }

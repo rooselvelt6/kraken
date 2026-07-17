@@ -101,7 +101,7 @@ impl HuntPipeline {
         for h in &hypotheses {
             self.memory.add_hypothesis(
                 &session_id,
-                HypothesisGenerator::to_hypothesis_notes(&[h.clone()])
+                HypothesisGenerator::to_hypothesis_notes(std::slice::from_ref(h))
                     .into_iter()
                     .next()
                     .unwrap(),
@@ -113,7 +113,7 @@ impl HuntPipeline {
             .filter(|f| f.severity == Severity::High || f.severity == Severity::Critical)
             .count();
         self.memory.store_cross_session_note(
-            &format!("last-hunt-{}", &hunt_id),
+            &format!("last-hunt-{}", hunt_id),
             &format!(
                 "{} high/critical findings in {}",
                 high_count,
@@ -244,7 +244,7 @@ impl HuntPipeline {
 
         for orphan_id in &deorphaned {
             if let Some(finding) = findings.iter().find(|f| f.id == *orphan_id) {
-                let hyps = HypothesisGenerator::generate_from_findings(&[finding.clone()]);
+                let hyps = HypothesisGenerator::generate_from_findings(std::slice::from_ref(finding));
                 all_hypotheses.extend(hyps);
             }
         }
@@ -252,7 +252,7 @@ impl HuntPipeline {
         for h in &all_hypotheses {
             self.memory.add_hypothesis(
                 &session_id,
-                HypothesisGenerator::to_hypothesis_notes(&[h.clone()])
+                HypothesisGenerator::to_hypothesis_notes(std::slice::from_ref(h))
                     .into_iter()
                     .next()
                     .unwrap(),
@@ -260,7 +260,7 @@ impl HuntPipeline {
         }
 
         self.memory.store_cross_session_note(
-            &format!("deep-hunt-{}", &hunt_id),
+            &format!("deep-hunt-{}", hunt_id),
             &format!(
                 "{} hypotheses generated from {} findings",
                 all_hypotheses.len(),

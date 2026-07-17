@@ -19,6 +19,12 @@ pub struct ClonedForm {
 
 pub struct SiteCloner;
 
+impl Default for SiteCloner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SiteCloner {
     pub fn new() -> Self {
         SiteCloner

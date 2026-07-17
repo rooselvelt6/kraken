@@ -18,11 +18,11 @@ pub enum CircuitLevel {
 }
 
 impl CircuitLevel {
+    #[must_use]
     pub fn parent(&self) -> Option<Self> {
         match self {
             Self::Tool => Some(Self::Provider),
-            Self::Provider => Some(Self::Global),
-            Self::McpServer => Some(Self::Global),
+            Self::Provider | Self::McpServer => Some(Self::Global),
             Self::Global => None,
         }
     }
@@ -52,6 +52,7 @@ pub struct CircuitNode {
 }
 
 impl CircuitNode {
+    #[must_use]
     pub fn new(name: &str, level: CircuitLevel, failure_threshold: u64, recovery_timeout: Duration) -> Self {
         Self {
             name: name.to_string(),
@@ -76,10 +77,10 @@ impl CircuitNode {
         }
     }
 
+    #[must_use]
     pub fn can_execute(&self) -> bool {
         match self.state {
-            CircuitState::Closed => true,
-            CircuitState::HalfOpen => true,
+            CircuitState::Closed | CircuitState::HalfOpen => true,
             CircuitState::Open => {
                 if let Some(opened) = self.opened_at {
                     let elapsed = opened.elapsed();
@@ -165,10 +166,13 @@ impl CircuitNode {
         self.compute_latency_percentiles();
     }
 
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         matches!(self.state, CircuitState::Closed)
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn failure_rate(&self) -> f64 {
         let total = self.failure_count + self.success_count;
         if total == 0 {
@@ -178,6 +182,7 @@ impl CircuitNode {
         }
     }
 
+    #[must_use]
     pub fn recovery_time_remaining(&self) -> Option<Duration> {
         if matches!(self.state, CircuitState::Open) {
             self.opened_at.map(|opened| {
@@ -185,7 +190,7 @@ impl CircuitNode {
                 if elapsed >= self.recovery_timeout {
                     Duration::ZERO
                 } else {
-                    self.recovery_timeout - elapsed
+                    self.recovery_timeout.checked_sub(elapsed).unwrap()
                 }
             })
         } else {
@@ -194,7 +199,7 @@ impl CircuitNode {
     }
 
     fn should_attempt_recovery(&self) -> bool {
-        self.opened_at.map_or(false, |opened| opened.elapsed() >= self.recovery_timeout)
+        self.opened_at.is_some_and(|opened| opened.elapsed() >= self.recovery_timeout)
     }
 
     pub fn reset(&mut self) {
@@ -214,13 +219,16 @@ impl CircuitNode {
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let len = sorted.len();
 
-        let p50_idx = ((len as f64) * 0.50).ceil() as usize - 1;
-        let p95_idx = ((len as f64) * 0.95).ceil() as usize - 1;
-        let p99_idx = ((len as f64) * 0.99).ceil() as usize - 1;
+        #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        {
+            let p50_idx = ((len as f64) * 0.50).ceil() as usize - 1;
+            let p95_idx = ((len as f64) * 0.95).ceil() as usize - 1;
+            let p99_idx = ((len as f64) * 0.99).ceil() as usize - 1;
 
-        self.latency_p50_ms = sorted[p50_idx.min(len - 1)];
-        self.latency_p95_ms = sorted[p95_idx.min(len - 1)];
-        self.latency_p99_ms = sorted[p99_idx.min(len - 1)];
+            self.latency_p50_ms = sorted[p50_idx.min(len - 1)];
+            self.latency_p95_ms = sorted[p95_idx.min(len - 1)];
+            self.latency_p99_ms = sorted[p99_idx.min(len - 1)];
+        }
     }
 }
 
@@ -230,7 +238,14 @@ pub struct CircuitForest {
     parent_map: HashMap<String, Option<String>>,
 }
 
+impl Default for CircuitForest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CircuitForest {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             nodes: HashMap::new(),
@@ -257,6 +272,7 @@ impl CircuitForest {
         self.parent_map.insert(name.to_string(), parent_name);
     }
 
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&CircuitNode> {
         self.nodes.get(name)
     }
@@ -275,7 +291,7 @@ impl CircuitForest {
         if let Some(node) = self.nodes.get_mut(name) {
             node.record_failure();
             if node.state == CircuitState::Open {
-                if let Some(parent) = self.parent_map.get(name).and_then(|p| p.as_ref().cloned()) {
+                if let Some(parent) = self.parent_map.get(name).and_then(std::clone::Clone::clone) {
                     if let Some(pnode) = self.nodes.get_mut(&parent) {
                         pnode.record_failure();
                     }
@@ -284,6 +300,7 @@ impl CircuitForest {
         }
     }
 
+    #[must_use]
     pub fn can_execute(&self, name: &str) -> bool {
         if let Some(node) = self.nodes.get(name) {
             if !node.can_execute() {
@@ -302,10 +319,12 @@ impl CircuitForest {
         }
     }
 
+    #[must_use]
     pub fn is_healthy(&self, name: &str) -> bool {
-        self.nodes.get(name).map_or(true, |n| n.is_healthy())
+        self.nodes.get(name).is_none_or(CircuitNode::is_healthy)
     }
 
+    #[must_use]
     pub fn degraded_providers(&self) -> Vec<String> {
         self.nodes
             .iter()
@@ -314,6 +333,7 @@ impl CircuitForest {
             .collect()
     }
 
+    #[must_use]
     pub fn open_circuits(&self) -> Vec<&CircuitNode> {
         self.nodes
             .values()
@@ -333,7 +353,7 @@ static CIRCUIT_FOREST: OnceLock<Mutex<CircuitForest>> = OnceLock::new();
 pub fn global_circuit_forest() -> &'static Mutex<CircuitForest> {
     CIRCUIT_FOREST.get_or_init(|| {
         let mut forest = CircuitForest::new();
-        forest.register("global", CircuitLevel::Global, 3, Duration::from_secs(60));
+        forest.register("global", CircuitLevel::Global, 3, Duration::from_mins(1));
         forest.register("mcp", CircuitLevel::McpServer, 3, Duration::from_secs(30));
         Mutex::new(forest)
     })
@@ -345,7 +365,7 @@ pub fn init_circuit_forest(providers: &[&str], tools: &[(&str, &str)], mcp_serve
         .lock()
         .unwrap();
 
-    forest.register("global", CircuitLevel::Global, 3, Duration::from_secs(60));
+    forest.register("global", CircuitLevel::Global, 3, Duration::from_mins(1));
 
     for provider in providers {
         forest.register(

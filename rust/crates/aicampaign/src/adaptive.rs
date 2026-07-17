@@ -28,6 +28,12 @@ pub struct AdaptationReport {
 
 pub struct AdaptiveTargeting;
 
+impl Default for AdaptiveTargeting {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AdaptiveTargeting {
     pub fn new() -> Self {
         AdaptiveTargeting

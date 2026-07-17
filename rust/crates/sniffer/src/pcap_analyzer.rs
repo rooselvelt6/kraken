@@ -42,6 +42,12 @@ pub struct PcapAnalyzer {
     pub packets: Vec<PacketInfo>,
 }
 
+impl Default for PcapAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PcapAnalyzer {
     pub fn new() -> Self {
         PcapAnalyzer {
@@ -170,7 +176,7 @@ impl PcapAnalyzer {
             }
         }
         let mut talkers_vec: Vec<(String, usize)> = talkers.into_iter().collect();
-        talkers_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        talkers_vec.sort_by_key(|x| std::cmp::Reverse(x.1));
         self.analysis.top_talkers = talkers_vec.into_iter().take(10).collect();
 
         Ok(&self.analysis)

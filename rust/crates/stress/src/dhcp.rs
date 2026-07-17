@@ -27,6 +27,12 @@ pub struct DhcpDiscover {
 
 pub struct DhcpStarver;
 
+impl Default for DhcpStarver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DhcpStarver {
     pub fn new() -> Self {
         DhcpStarver

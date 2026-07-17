@@ -27,6 +27,12 @@ pub struct UartProbePoint {
 
 pub struct UartDetector;
 
+impl Default for UartDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UartDetector {
     pub fn new() -> Self {
         UartDetector

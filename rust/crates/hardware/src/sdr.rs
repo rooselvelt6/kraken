@@ -36,6 +36,12 @@ pub struct SdrDevice {
 
 pub struct SdrScanner;
 
+impl Default for SdrScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SdrScanner {
     pub fn new() -> Self {
         SdrScanner

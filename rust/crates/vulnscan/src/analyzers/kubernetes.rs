@@ -48,8 +48,8 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
 
             let ind = indent_of(line);
 
-            if trimmed.starts_with("kind:") {
-                let kind = trimmed[5..].trim().to_lowercase();
+            if let Some(rest) = trimmed.strip_prefix("kind:") {
+                let kind = rest.trim().to_lowercase();
                 if kind == "clusterrole" || kind == "clusterrolebinding" {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
@@ -90,20 +90,20 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
             }
 
             if in_security_context {
-                if trimmed.starts_with("privileged:") {
-                    let val = trimmed["privileged:".len()..].trim();
+                if let Some(rest) = trimmed.strip_prefix("privileged:") {
+                    let val = rest.trim();
                     has_privileged = val.eq_ignore_ascii_case("true");
                 }
-                if trimmed.starts_with("allowPrivilegeEscalation:") {
-                    let val = trimmed["allowPrivilegeEscalation:".len()..].trim();
+                if let Some(rest) = trimmed.strip_prefix("allowPrivilegeEscalation:") {
+                    let val = rest.trim();
                     has_allow_escalation = val.eq_ignore_ascii_case("true");
                 }
-                if trimmed.starts_with("readOnlyRootFilesystem:") {
-                    let val = trimmed["readOnlyRootFilesystem:".len()..].trim();
+                if let Some(rest) = trimmed.strip_prefix("readOnlyRootFilesystem:") {
+                    let val = rest.trim();
                     has_read_only_rootfs = val.eq_ignore_ascii_case("true");
                 }
-                if trimmed.starts_with("runAsNonRoot:") {
-                    let val = trimmed["runAsNonRoot:".len()..].trim();
+                if let Some(rest) = trimmed.strip_prefix("runAsNonRoot:") {
+                    let val = rest.trim();
                     has_run_as_non_root = val.eq_ignore_ascii_case("true");
                 }
                 if trimmed.starts_with("seccompProfile:") || trimmed.starts_with("seLinuxOptions:") {
@@ -129,8 +129,8 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
                 }
             }
 
-            if trimmed.starts_with("hostNetwork:") {
-                let val = trimmed["hostNetwork:".len()..].trim();
+            if let Some(rest) = trimmed.strip_prefix("hostNetwork:") {
+                let val = rest.trim();
                 if val.eq_ignore_ascii_case("true") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
@@ -143,8 +143,8 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
                 }
             }
 
-            if trimmed.starts_with("hostPID:") {
-                let val = trimmed["hostPID:".len()..].trim();
+            if let Some(rest) = trimmed.strip_prefix("hostPID:") {
+                let val = rest.trim();
                 if val.eq_ignore_ascii_case("true") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
@@ -157,8 +157,8 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
                 }
             }
 
-            if trimmed.starts_with("privileged:") {
-                let val = trimmed["privileged:".len()..].trim();
+            if let Some(rest) = trimmed.strip_prefix("privileged:") {
+                let val = rest.trim();
                 if val.eq_ignore_ascii_case("true") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
@@ -172,8 +172,8 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
             }
 
             let lower = trimmed.to_lowercase();
-            if lower.contains("password") || lower.contains("secret") || lower.contains("token") || lower.contains("api_key") {
-                if !lower.starts_with("#") && (lower.contains(": ") || lower.contains(":  ")) {
+            if (lower.contains("password") || lower.contains("secret") || lower.contains("token") || lower.contains("api_key"))
+                && !lower.starts_with("#") && (lower.contains(": ") || lower.contains(":  ")) {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::High,
@@ -183,7 +183,6 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
                         0.85,
                     ));
                 }
-            }
         }
 
         if in_container {
@@ -194,6 +193,7 @@ impl super::LanguageAnalyzer for KubernetesAnalyzer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn flush_container(
     findings: &mut Vec<Finding>,
     file_path: &Path,
@@ -273,6 +273,7 @@ fn flush_container(
     *has_seccomp = false;
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_finding(
     file_path: &Path,
     line_number: u32,

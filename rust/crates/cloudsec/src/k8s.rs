@@ -34,6 +34,12 @@ pub struct K8sAuditResult {
 
 pub struct K8sAuditor;
 
+impl Default for K8sAuditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl K8sAuditor {
     pub fn new() -> Self {
         K8sAuditor
@@ -79,8 +85,8 @@ impl K8sAuditor {
                 recommendation: "Set runAsNonRoot: true and runAsUser to non-zero ID".to_string(),
             });
         }
-        if lower.contains("cap_add:") || lower.contains("capadd:") {
-            if !lower.contains("cap_drop:") && !lower.contains("capdrop:") {
+        if (lower.contains("cap_add:") || lower.contains("capadd:"))
+            && !lower.contains("cap_drop:") && !lower.contains("capdrop:") {
                 findings.push(K8sFinding {
                     severity: "MEDIUM".to_string(),
                     category: "Linux Capabilities".to_string(),
@@ -89,7 +95,6 @@ impl K8sAuditor {
                     recommendation: "Drop all capabilities, then add only needed ones".to_string(),
                 });
             }
-        }
         if lower.contains("imagepullpolicy: never") || lower.contains("imagePullPolicy: Never") {
             findings.push(K8sFinding {
                 severity: "LOW".to_string(),

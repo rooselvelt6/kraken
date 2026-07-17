@@ -31,6 +31,12 @@ pub struct EgressCheck {
 
 pub struct ProxyAwareClient;
 
+impl Default for ProxyAwareClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProxyAwareClient {
     pub fn new() -> Self {
         ProxyAwareClient

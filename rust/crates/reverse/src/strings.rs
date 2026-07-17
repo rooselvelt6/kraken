@@ -20,7 +20,7 @@ impl StringExtractor {
         Self::extract_ascii(&data, min_length, &mut strings);
         Self::extract_unicode(&data, min_length, &mut strings);
 
-        strings.sort_by(|a, b| a.offset.cmp(&b.offset));
+        strings.sort_by_key(|a| a.offset);
         Ok(strings)
     }
 
@@ -117,21 +117,21 @@ impl StringExtractor {
     pub fn extract_urls(strings: &[StringEntry]) -> Vec<&StringEntry> {
         let url_re = regex::Regex::new(r"(https?://[^\s]+)").ok();
         strings.iter().filter(|s| {
-            url_re.as_ref().map_or(false, |re| re.is_match(&s.value))
+            url_re.as_ref().is_some_and(|re| re.is_match(&s.value))
         }).collect()
     }
 
     pub fn extract_emails(strings: &[StringEntry]) -> Vec<&StringEntry> {
         let email_re = regex::Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").ok();
         strings.iter().filter(|s| {
-            email_re.as_ref().map_or(false, |re| re.is_match(&s.value))
+            email_re.as_ref().is_some_and(|re| re.is_match(&s.value))
         }).collect()
     }
 
     pub fn extract_ip_addresses(strings: &[StringEntry]) -> Vec<&StringEntry> {
         let ip_re = regex::Regex::new(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b").ok();
         strings.iter().filter(|s| {
-            ip_re.as_ref().map_or(false, |re| re.is_match(&s.value))
+            ip_re.as_ref().is_some_and(|re| re.is_match(&s.value))
         }).collect()
     }
 }

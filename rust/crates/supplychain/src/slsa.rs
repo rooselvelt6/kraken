@@ -80,6 +80,12 @@ pub struct SlsaCheck {
 
 pub struct SlsaVerifier;
 
+impl Default for SlsaVerifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SlsaVerifier {
     pub fn new() -> Self {
         SlsaVerifier

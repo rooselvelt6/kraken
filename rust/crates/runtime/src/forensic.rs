@@ -14,6 +14,7 @@ pub struct ForensicEntry {
 }
 
 impl ForensicEntry {
+    #[allow(clippy::items_after_statements)]
     pub fn new(event_type: &str) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -30,11 +31,13 @@ impl ForensicEntry {
         }
     }
 
+    #[must_use]
     pub fn with(mut self, key: &str, value: &str) -> Self {
         self.data.insert(key.to_string(), value.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_env(mut self) -> Self {
         for (key, value) in std::env::vars() {
             self.data.insert(format!("env:{key}"), value);
@@ -42,6 +45,7 @@ impl ForensicEntry {
         self
     }
 
+    #[must_use]
     pub fn with_cwd(mut self) -> Self {
         if let Ok(cwd) = std::env::current_dir() {
             self.data
@@ -50,6 +54,7 @@ impl ForensicEntry {
         self
     }
 
+    #[must_use]
     pub fn to_json(&self) -> serde_json::Value {
         let mut map = serde_json::Map::new();
         map.insert(
@@ -84,6 +89,7 @@ pub struct ForensicRecorder {
 }
 
 impl ForensicRecorder {
+    #[must_use]
     pub fn new(max_entries: usize) -> Self {
         Self {
             enabled: false,
@@ -105,6 +111,7 @@ impl ForensicRecorder {
         self.enabled = false;
     }
 
+    #[must_use]
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -169,20 +176,24 @@ impl ForensicRecorder {
         );
     }
 
+    #[must_use]
     pub fn entries(&self) -> &[ForensicEntry] {
         &self.entries
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    #[must_use]
     pub fn export_json(&self) -> Vec<serde_json::Value> {
-        self.entries.iter().map(|e| e.to_json()).collect()
+        self.entries.iter().map(ForensicEntry::to_json).collect()
     }
 }
 

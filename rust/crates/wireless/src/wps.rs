@@ -218,10 +218,7 @@ pub fn format_wps_result(result: &WpsPinResult) -> String {
         Some(pin) => out.push_str(&format!("WPS PIN: {}\n", pin)),
         None => out.push_str("WPS PIN: NOT FOUND\n"),
     }
-    match &result.psk {
-        Some(psk) => out.push_str(&format!("WPA PSK: {}\n", psk)),
-        None => {}
-    }
+    if let Some(psk) = &result.psk { out.push_str(&format!("WPA PSK: {}\n", psk)) }
     out
 }
 

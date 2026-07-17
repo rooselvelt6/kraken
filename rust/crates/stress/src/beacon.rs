@@ -29,6 +29,12 @@ pub struct FakeAp {
 
 pub struct BeaconFlooder;
 
+impl Default for BeaconFlooder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BeaconFlooder {
     pub fn new() -> Self {
         BeaconFlooder
@@ -71,7 +77,7 @@ impl BeaconFlooder {
             bssid,
             channel: channels[(index as usize) % channels.len()],
             encryption: encryptions[(index as usize) % encryptions.len()].to_string(),
-            signal_dbm: (-30 - (index as i8 % 60)) as i8,
+            signal_dbm: (-30 - (index as i8 % 60)),
         }
     }
 

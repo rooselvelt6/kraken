@@ -17,6 +17,7 @@ pub struct TrainedModel {
 }
 
 impl TrainedModel {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
         version: &str,

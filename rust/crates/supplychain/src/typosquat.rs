@@ -18,6 +18,12 @@ pub struct TyposquatMatch {
 
 pub struct TyposquatDetector;
 
+impl Default for TyposquatDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TyposquatDetector {
     pub fn new() -> Self {
         TyposquatDetector
@@ -206,11 +212,11 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     let n = b.len();
     let mut dp = vec![vec![0usize; n + 1]; m + 1];
 
-    for i in 0..=m {
-        dp[i][0] = i;
+    for (i, row) in dp.iter_mut().enumerate() {
+        row[0] = i;
     }
-    for j in 0..=n {
-        dp[0][j] = j;
+    for (j, val) in dp[0].iter_mut().enumerate() {
+        *val = j;
     }
 
     for i in 1..=m {

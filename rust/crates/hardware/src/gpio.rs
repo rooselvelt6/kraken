@@ -42,6 +42,12 @@ pub struct AltFunction {
 
 pub struct GpioController;
 
+impl Default for GpioController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpioController {
     pub fn new() -> Self {
         GpioController
@@ -75,7 +81,7 @@ impl GpioController {
         match pin {
             2 | 3 => Some("I2C (SDA/SCL)".to_string()),
             14 | 15 => Some("UART (TX/RX)".to_string()),
-            9 | 10 | 11 | 8 | 7 => Some("SPI".to_string()),
+            7..=11 => Some("SPI".to_string()),
             12 | 13 => Some("PWM".to_string()),
             _ => None,
         }

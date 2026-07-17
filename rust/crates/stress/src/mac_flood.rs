@@ -20,6 +20,12 @@ pub struct MacFloodResult {
 
 pub struct MacFlooder;
 
+impl Default for MacFlooder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MacFlooder {
     pub fn new() -> Self {
         MacFlooder

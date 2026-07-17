@@ -22,6 +22,12 @@ pub struct KubeBenchResult {
 
 pub struct KubeBenchRunner;
 
+impl Default for KubeBenchRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KubeBenchRunner {
     pub fn new() -> Self {
         KubeBenchRunner

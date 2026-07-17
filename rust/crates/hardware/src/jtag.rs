@@ -34,6 +34,12 @@ pub struct DebugInterfaceResult {
 
 pub struct JtagDetector;
 
+impl Default for JtagDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JtagDetector {
     pub fn new() -> Self {
         JtagDetector
@@ -119,9 +125,7 @@ impl JtagDetector {
             jtag.confidence = 0.5;
         }
 
-        if swd.swdio_pin.is_some() && swd.swclk_pin.is_some() {
-            swd.detected = true;
-        } else if swd.swdio_pin.is_some() || swd.swclk_pin.is_some() {
+        if swd.swdio_pin.is_some() || swd.swclk_pin.is_some() {
             swd.detected = true;
         }
 

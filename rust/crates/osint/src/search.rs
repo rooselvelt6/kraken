@@ -20,13 +20,10 @@ impl SearchAggregator {
         let mut all_results: Vec<SearchResult> = Vec::new();
 
         for source in sources {
-            match *source {
-                "web" => {
-                    if let Ok(results) = Self::search_web(query) {
-                        all_results.extend(results);
-                    }
+            if *source == "web" {
+                if let Ok(results) = Self::search_web(query) {
+                    all_results.extend(results);
                 }
-                _ => {}
             }
         }
 
@@ -106,7 +103,7 @@ impl SearchAggregator {
                 .select(&link_selector)
                 .next()
                 .and_then(|e| e.value().attr("href"))
-                .map(|h| decode_redirect(h))
+                .map(decode_redirect)
                 .unwrap_or_default();
 
             let snippet = result_elem

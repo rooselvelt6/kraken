@@ -124,11 +124,11 @@ impl YaraScanner {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 2 { return None; }
 
-        let identifier = parts.get(0)?.to_string();
+        let identifier = parts.first()?.to_string();
         let offset_str = parts.get(1)?.trim_end_matches(':');
 
-        let offset = if offset_str.starts_with("0x") {
-            u64::from_str_radix(&offset_str[2..], 16).ok()
+        let offset = if let Some(hex) = offset_str.strip_prefix("0x") {
+            u64::from_str_radix(hex, 16).ok()
         } else {
             offset_str.parse::<u64>().ok()
         }?;

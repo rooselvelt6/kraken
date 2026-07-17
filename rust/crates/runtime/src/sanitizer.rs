@@ -15,6 +15,7 @@ pub enum SanitizerStage {
 }
 
 impl SanitizerStage {
+    #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Normalization => "normalization",
@@ -41,6 +42,7 @@ pub enum SanitizerIssue {
 }
 
 impl SanitizerIssue {
+    #[must_use]
     pub fn description(&self) -> String {
         match self {
             Self::PathTraversal(p) => format!("path traversal detected: {p}"),
@@ -65,11 +67,13 @@ pub struct SanitizerResult {
 }
 
 impl SanitizerResult {
+    #[must_use]
     pub fn is_allowed(&self) -> bool {
         self.issues.is_empty()
     }
 }
 
+#[allow(clippy::struct_excessive_bools)]
 pub struct SanitizerConfig {
     pub max_read_size: u64,
     pub max_write_size: u64,
@@ -103,14 +107,17 @@ pub struct Sanitizer {
 }
 
 impl Sanitizer {
+    #[must_use]
     pub fn new(config: SanitizerConfig) -> Self {
         Self { config }
     }
 
+    #[must_use]
     pub fn with_defaults() -> Self {
         Self::new(SanitizerConfig::default())
     }
 
+    #[must_use]
     pub fn sanitize_for_read(
         &self,
         path: &str,
@@ -130,6 +137,7 @@ impl Sanitizer {
         SanitizerResult { path, stages_passed, issues }
     }
 
+    #[must_use]
     pub fn sanitize_for_write(
         &self,
         path: &str,
@@ -149,6 +157,7 @@ impl Sanitizer {
         SanitizerResult { path, stages_passed, issues }
     }
 
+    #[must_use]
     pub fn sanitize_path(
         &self,
         path: &str,
@@ -167,6 +176,7 @@ impl Sanitizer {
         SanitizerResult { path, stages_passed, issues }
     }
 
+    #[allow(clippy::unused_self)]
     fn stage_normalization(
         &self,
         path: &str,
@@ -184,16 +194,17 @@ impl Sanitizer {
         }
 
         // Resolve `.` and `..` components in path string
-        let path_buf = if normalized.contains("..") {
+        
+
+        if normalized.contains("..") {
             let resolved = resolve_dotdot(&normalized);
             PathBuf::from(resolved)
         } else {
             PathBuf::from(&normalized)
-        };
-
-        path_buf
+        }
     }
 
+    #[allow(clippy::unused_self)]
     fn stage_canonicalization(
         &self,
         path: &Path,
@@ -248,8 +259,7 @@ impl Sanitizer {
                     Err(e) => {
                         // Broken symlink
                         issues.push(SanitizerIssue::SymlinkEscape(format!(
-                            "broken symlink: {}",
-                            e
+                            "broken symlink: {e}"
                         )));
                         path.to_path_buf()
                     }
@@ -274,6 +284,7 @@ impl Sanitizer {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn stage_scope_check(
         &self,
         path: &Path,
@@ -311,13 +322,13 @@ impl Sanitizer {
 
         for detection in &detections {
             match detection.kind {
-                crate::path_traversal::TraversalKind::DirectoryDotDot => {
+                crate::path_traversal::TraversalKind::DirectoryDotDot
+                | crate::path_traversal::TraversalKind::ProcSelfFd
+                | crate::path_traversal::TraversalKind::WindowsAlternateDataStream => {
                     issues.push(SanitizerIssue::PathTraversal(path_str.to_string()));
                 }
-                crate::path_traversal::TraversalKind::DoubleEncoding => {
-                    issues.push(SanitizerIssue::EncodingAttack(path_str.to_string()));
-                }
-                crate::path_traversal::TraversalKind::UnicodeNormalization => {
+                crate::path_traversal::TraversalKind::DoubleEncoding
+                | crate::path_traversal::TraversalKind::UnicodeNormalization => {
                     issues.push(SanitizerIssue::EncodingAttack(path_str.to_string()));
                 }
                 crate::path_traversal::TraversalKind::NullByte => {
@@ -326,17 +337,12 @@ impl Sanitizer {
                 crate::path_traversal::TraversalKind::DeviceFile => {
                     issues.push(SanitizerIssue::DeviceFile(path_str.to_string()));
                 }
-                crate::path_traversal::TraversalKind::ProcSelfFd => {
-                    issues.push(SanitizerIssue::PathTraversal(path_str.to_string()));
-                }
-                crate::path_traversal::TraversalKind::WindowsAlternateDataStream => {
-                    issues.push(SanitizerIssue::PathTraversal(path_str.to_string()));
-                }
                 _ => {}
             }
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn stage_size_check(
         &self,
         path: &Path,
@@ -359,21 +365,21 @@ impl Sanitizer {
 
     fn stage_allowlist(
         &self,
-        _path: &Path,
+        path: &Path,
         stages: &mut Vec<SanitizerStage>,
         issues: &mut Vec<SanitizerIssue>,
     ) {
         stages.push(SanitizerStage::Allowlist);
 
-        if _path.to_string_lossy().contains('\0') {
-            issues.push(SanitizerIssue::NullByte(_path.display().to_string()));
+        if path.to_string_lossy().contains('\0') {
+            issues.push(SanitizerIssue::NullByte(path.display().to_string()));
         }
 
         if self.config.block_device_files {
-            let lower = _path.to_string_lossy().to_lowercase();
+            let lower = path.to_string_lossy().to_lowercase();
             if lower.starts_with("/dev/") || lower.starts_with("/proc/") || lower.starts_with("/sys/")
             {
-                issues.push(SanitizerIssue::DeviceFile(_path.display().to_string()));
+                issues.push(SanitizerIssue::DeviceFile(path.display().to_string()));
             }
         }
     }

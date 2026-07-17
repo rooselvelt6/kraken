@@ -42,6 +42,12 @@ pub struct BrowserCredential {
 
 pub struct BrowserForensics;
 
+impl Default for BrowserForensics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BrowserForensics {
     pub fn new() -> Self {
         BrowserForensics

@@ -446,7 +446,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             cli.set_reasoning_effort(reasoning_effort);
             cli.run_turn_with_output(&effective_prompt, output_format, compact)?;
             with_adaptive(|a| a.cleanup());
-            global_shutdown("prompt done");
+            let _ = global_shutdown("prompt done");
         }
         CliAction::Doctor { output_format } => run_doctor(output_format)?,
         CliAction::Acp { output_format } => print_acp_status(output_format)?,
@@ -3674,7 +3674,7 @@ fn run_repl(
                 if matches!(trimmed.as_str(), "/exit" | "/quit") {
                     cli.persist_session()?;
                     with_adaptive(|a| a.cleanup());
-                    global_shutdown("repl /exit");
+                    let _ = global_shutdown("repl /exit");
                     break;
                 }
                 match SlashCommand::parse(&trimmed) {
@@ -3708,14 +3708,14 @@ fn run_repl(
             input::ReadOutcome::Exit => {
                 cli.persist_session()?;
                 with_adaptive(|a| a.cleanup());
-                global_shutdown("repl EOF");
+                let _ = global_shutdown("repl EOF");
                 break;
             }
         }
     }
 
     with_adaptive(|a| a.cleanup());
-    global_shutdown("repl done");
+    let _ = global_shutdown("repl done");
     Ok(())
 }
 
@@ -4659,10 +4659,10 @@ impl LiveCli {
                 false
             }
             SlashCommand::Effort { level } => self.set_effort(level)?,
-            SlashCommand::Notes { action, target } => self.run_notes(action, target)?,
-            SlashCommand::Team { action, name } => self.run_team(action, name)?,
+            SlashCommand::Notes { action, target } => self.run_notes(action.as_deref(), target.as_deref())?,
+            SlashCommand::Team { action, name } => self.run_team(action.as_deref(), name.as_deref())?,
             SlashCommand::PlanWithTeam { objective, decomposition } => {
-                self.run_plan_with_team(objective, decomposition)?
+                self.run_plan_with_team(&objective, &decomposition)?
             }
             SlashCommand::Unknown(name) => {
                 eprintln!("{}", format_unknown_slash_command(&name));
@@ -4932,14 +4932,14 @@ impl LiveCli {
 
     fn run_notes(
         &self,
-        action: Option<String>,
-        target: Option<String>,
+        action: Option<&str>,
+        target: Option<&str>,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         let dir = std::env::current_dir()
             .map_err(|e| format!("cannot get cwd: {e}"))?
             .join(".kraken")
             .join("memory");
-        match action.as_deref() {
+        match action {
             None | Some("list") => {
                 if !dir.is_dir() {
                     println!("No notes found.");
@@ -4971,16 +4971,12 @@ impl LiveCli {
                     return Ok(false);
                 };
                 let path = dir.join(format!("{key}.md"));
-                match std::fs::read_to_string(&path) {
-                    Ok(content) => {
-                        println!("--- {key} ---\n{content}");
-                        Ok(false)
-                    }
-                    Err(_) => {
-                        eprintln!("Note '{key}' not found.");
-                        Ok(false)
-                    }
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    println!("--- {key} ---\n{content}");
+                } else {
+                    eprintln!("Note '{key}' not found.");
                 }
+                Ok(false)
             }
             Some("write") => {
                 let Some(combined) = target else {
@@ -5009,11 +5005,11 @@ impl LiveCli {
 
     fn run_team(
         &self,
-        action: Option<String>,
-        name: Option<String>,
+        action: Option<&str>,
+        name: Option<&str>,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        match action.as_deref() {
-            None | Some("list") | Some("status") => {
+        match action {
+            None | Some("list" | "status") => {
                 println!("Teams can be created with the TeamCreate tool. Use /team create <name> to create one.");
                 Ok(false)
             }
@@ -5042,8 +5038,8 @@ impl LiveCli {
 
     fn run_plan_with_team(
         &self,
-        objective: String,
-        decomposition: Vec<String>,
+        objective: &str,
+        decomposition: &[String],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         println!("Plan objective: {objective}");
         if decomposition.is_empty() {
@@ -5523,8 +5519,8 @@ impl LiveCli {
         }
 
         let hunt_mode = match mode {
-            Some("--deep") | Some("-d") => HuntMode::Deep,
-            Some("--overnight") | Some("-o") => HuntMode::Overnight,
+            Some("--deep" | "-d") => HuntMode::Deep,
+            Some("--overnight" | "-o") => HuntMode::Overnight,
             _ => HuntMode::Fast,
         };
 

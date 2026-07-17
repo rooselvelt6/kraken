@@ -28,6 +28,12 @@ pub struct BytePattern {
 
 pub struct FirmwareDiffer;
 
+impl Default for FirmwareDiffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FirmwareDiffer {
     pub fn new() -> Self {
         FirmwareDiffer

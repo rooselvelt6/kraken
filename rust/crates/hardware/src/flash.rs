@@ -38,6 +38,12 @@ pub struct FlashResult {
 
 pub struct FlashReader;
 
+impl Default for FlashReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FlashReader {
     pub fn new() -> Self {
         FlashReader

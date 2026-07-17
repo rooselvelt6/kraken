@@ -31,8 +31,8 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
 
             let lower = trimmed.to_lowercase();
 
-            if lower.contains("acl") && (lower.contains("public-read") || lower.contains("public-read-write")) {
-                if !lower.starts_with("#") && !lower.starts_with("//") {
+            if lower.contains("acl") && (lower.contains("public-read") || lower.contains("public-read-write"))
+                && !lower.starts_with("#") && !lower.starts_with("//") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::High,
@@ -42,7 +42,6 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
                         0.9,
                     ));
                 }
-            }
 
             if lower.contains("effect") && lower.contains("\"allow\"") && lower.contains("action") && lower.contains("\"*\"") || (lower.contains("actions") && lower.contains("[\"*\"]") || lower.contains("actions") && lower.contains("[\"*\"") || lower.contains("action") && lower.contains("[\"*\"]")) {
                 findings.push(make_finding(
@@ -100,8 +99,8 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
                 ));
             }
 
-            if lower.contains("version") && !lower.contains("required_version") && !lower.contains("terraform") {
-                if lower.contains("= \"~>") || lower.contains("= \">=") || lower.contains("= \"<") || lower.contains("latest") {
+            if lower.contains("version") && !lower.contains("required_version") && !lower.contains("terraform")
+                && (lower.contains("= \"~>") || lower.contains("= \">=") || lower.contains("= \"<") || lower.contains("latest")) {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::Medium,
@@ -111,10 +110,9 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
                         0.75,
                     ));
                 }
-            }
 
-            if lower.starts_with("provider ") && lower.contains("\"") {
-                if !lower.contains("version") && !lower.contains("required_providers") {
+            if lower.starts_with("provider ") && lower.contains("\"")
+                && !lower.contains("version") && !lower.contains("required_providers") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::Medium,
@@ -124,10 +122,9 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
                         0.8,
                     ));
                 }
-            }
 
-            if lower.contains("source  = \"hashicorp/") || lower.contains("source = \"hashicorp/") {
-                if !lower.contains("version") {
+            if (lower.contains("source  = \"hashicorp/") || lower.contains("source = \"hashicorp/"))
+                && !lower.contains("version") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::Medium,
@@ -137,7 +134,6 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
                         0.8,
                     ));
                 }
-            }
 
             if lower.contains("backend") && lower.contains("s3") {
                 findings.push(make_finding(
@@ -155,6 +151,7 @@ impl super::LanguageAnalyzer for TerraformAnalyzer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_finding(
     file_path: &Path,
     line_number: u32,

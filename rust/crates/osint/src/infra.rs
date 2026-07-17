@@ -635,7 +635,7 @@ impl IPEnricher {
                                 },
                                 kind: FindingKind::Custom("ReverseDNS".into()),
                                 value: format!("PTR: {} -> {}", ip, data),
-                                context: Some(format!("Reverse DNS lookup via Google DNS over HTTPS")),
+                                context: Some("Reverse DNS lookup via Google DNS over HTTPS".to_string()),
                                 confidence: 0.9,
                                 timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                             });

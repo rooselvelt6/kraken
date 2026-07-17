@@ -42,6 +42,12 @@ pub struct ServiceEntry {
 
 pub struct RegistryParser;
 
+impl Default for RegistryParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RegistryParser {
     pub fn new() -> Self {
         RegistryParser
@@ -75,22 +81,21 @@ impl RegistryParser {
         let mut users = Vec::new();
         let strings = Self::extract_strings(&content);
         for entry in &strings {
-            if entry.value_name.contains("SAM") || entry.key_path.contains("SAM") {
-                if entry.value_name == "F" || entry.value_name == "V" {
+            if (entry.value_name.contains("SAM") || entry.key_path.contains("SAM"))
+                && (entry.value_name == "F" || entry.value_name == "V") {
                     users.push(SamEntry {
-                        username: entry.key_path.split('\\').last().unwrap_or("?").to_string(),
+                        username: entry.key_path.split('\\').next_back().unwrap_or("?").to_string(),
                         rid: "?".to_string(),
                         hash: Some(entry.value_data.chars().take(32).collect()),
                         account_type: "SAM".to_string(),
                     });
                 }
-            }
         }
 
         if users.is_empty() {
             for entry in &strings {
                 users.push(SamEntry {
-                    username: entry.key_path.split('\\').last().unwrap_or("?").to_string(),
+                    username: entry.key_path.split('\\').next_back().unwrap_or("?").to_string(),
                     rid: "?".to_string(),
                     hash: None,
                     account_type: "RegistryString".to_string(),
@@ -115,7 +120,7 @@ impl RegistryParser {
         let services = strings.iter()
             .filter(|e| e.key_path.contains("Services\\") && !e.value_type.is_empty())
             .map(|e| ServiceEntry {
-                name: e.key_path.split('\\').last().unwrap_or("?").to_string(),
+                name: e.key_path.split('\\').next_back().unwrap_or("?").to_string(),
                 display_name: e.value_data.clone(),
                 start_type: e.value_type.clone(),
                 binary_path: String::new(),
@@ -156,7 +161,7 @@ impl RegistryParser {
             }
         }
 
-        entries.sort_by(|a, b| b.key_path.len().cmp(&a.key_path.len()));
+        entries.sort_by_key(|e| std::cmp::Reverse(e.key_path.len()));
         let mut deduped: Vec<RegistryEntry> = Vec::new();
         for entry in entries {
             let is_sub = deduped.iter().any(|e| e.key_path.ends_with(&entry.key_path));

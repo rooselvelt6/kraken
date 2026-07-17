@@ -138,8 +138,8 @@ impl super::LanguageAnalyzer for DockerAnalyzer {
                 ));
             }
 
-            if trimmed.starts_with("HEALTHCHECK ") && !trimmed.contains("NONE") {
-                if !trimmed.contains("--retries") && !trimmed.contains("--timeout") {
+            if trimmed.starts_with("HEALTHCHECK ") && !trimmed.contains("NONE")
+                && !trimmed.contains("--retries") && !trimmed.contains("--timeout") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::Info,
@@ -149,7 +149,6 @@ impl super::LanguageAnalyzer for DockerAnalyzer {
                         0.55,
                     ));
                 }
-            }
 
             if trimmed.starts_with("SHELL ") && (lower.contains("sh") || lower.contains("bash")) {
                 findings.push(make_finding(
@@ -167,6 +166,7 @@ impl super::LanguageAnalyzer for DockerAnalyzer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_finding(
     file_path: &Path,
     line_number: u32,

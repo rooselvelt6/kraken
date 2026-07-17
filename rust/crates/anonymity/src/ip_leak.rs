@@ -14,6 +14,12 @@ pub struct IpLeakResult {
 
 pub struct IpLeakTester;
 
+impl Default for IpLeakTester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IpLeakTester {
     pub fn new() -> Self {
         IpLeakTester

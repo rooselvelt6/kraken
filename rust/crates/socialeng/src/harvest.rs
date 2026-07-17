@@ -23,6 +23,12 @@ pub struct CredHarvester {
     creds: Mutex<Vec<HarvestedCred>>,
 }
 
+impl Default for CredHarvester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CredHarvester {
     pub fn new() -> Self {
         CredHarvester {

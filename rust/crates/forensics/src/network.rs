@@ -50,6 +50,12 @@ pub struct ConnectionInfo {
 
 pub struct NetworkForensics;
 
+impl Default for NetworkForensics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetworkForensics {
     pub fn new() -> Self {
         NetworkForensics
@@ -132,7 +138,7 @@ impl NetworkForensics {
 
     pub fn parse_dns(data: &[u8]) -> Vec<DnsQuery> {
         let mut queries = Vec::new();
-        let text = String::from_utf8_lossy(&data);
+        let text = String::from_utf8_lossy(data);
         let re = regex::Regex::new(r"(?i)([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}").ok();
 
         if let Some(re) = re {

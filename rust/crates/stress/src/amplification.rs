@@ -20,6 +20,12 @@ pub struct AmplificationScanResult {
 
 pub struct AmplificationScanner;
 
+impl Default for AmplificationScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AmplificationScanner {
     pub fn new() -> Self {
         AmplificationScanner

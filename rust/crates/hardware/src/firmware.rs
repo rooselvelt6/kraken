@@ -36,6 +36,12 @@ pub struct ExtractionResult {
 
 pub struct FirmwareExtractor;
 
+impl Default for FirmwareExtractor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FirmwareExtractor {
     pub fn new() -> Self {
         FirmwareExtractor

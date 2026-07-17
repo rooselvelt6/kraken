@@ -1352,6 +1352,7 @@ pub fn execute_tool(name: &str, input: &Value) -> Result<String, String> {
     execute_tool_with_enforcer(None, name, input)
 }
 
+#[allow(clippy::too_many_lines)]
 fn execute_tool_with_enforcer(
     enforcer: Option<&PermissionEnforcer>,
     name: &str,
@@ -1387,10 +1388,10 @@ fn execute_tool_with_enforcer(
         }
         "WebFetch" => from_value::<WebFetchInput>(input).and_then(run_web_fetch),
         "WebSearch" => from_value::<WebSearchInput>(input).and_then(run_web_search),
-        "ShodanSearch" => from_value::<ShodanSearchInput>(input).and_then(run_shodan_search),
-        "OsintCollect" => from_value::<OsintCollectInput>(input).and_then(run_osint_collect),
-        "DnsLookup" => from_value::<DnsLookupInput>(input).and_then(run_dns_lookup),
-        "WhoisQuery" => from_value::<WhoisQueryInput>(input).and_then(run_whois_query),
+        "ShodanSearch" => from_value::<ShodanSearchInput>(input).and_then(|i| run_shodan_search(&i)),
+        "OsintCollect" => from_value::<OsintCollectInput>(input).and_then(|i| run_osint_collect(&i)),
+        "DnsLookup" => from_value::<DnsLookupInput>(input).and_then(|i| run_dns_lookup(&i)),
+        "WhoisQuery" => from_value::<WhoisQueryInput>(input).and_then(|i| run_whois_query(&i)),
         "TodoWrite" => from_value::<TodoWriteInput>(input).and_then(run_todo_write),
         "Skill" => from_value::<SkillInput>(input).and_then(run_skill),
         "Agent" => from_value::<AgentInput>(input).and_then(run_agent),
@@ -1452,11 +1453,11 @@ fn execute_tool_with_enforcer(
         "MCP" => from_value::<McpToolInput>(input).and_then(run_mcp_tool),
         "PlanMigration" => {
             maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<PlanMigrationInput>(input).and_then(run_plan_migration)
+            from_value::<PlanMigrationInput>(input).and_then(|i| run_plan_migration(&i))
         }
         "BatchEdit" => {
             maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<BatchEditInput>(input).and_then(run_batch_edit)
+            from_value::<BatchEditInput>(input).and_then(|i| run_batch_edit(&i))
         }
         "VerifyMigration" => {
             maybe_enforce_permission_check(enforcer, name, input)?;
@@ -2014,12 +2015,12 @@ fn run_testing_permission(input: TestingPermissionInput) -> Result<String, Strin
     }))
 }
 
-fn run_plan_migration(input: PlanMigrationInput) -> Result<String, String> {
+fn run_plan_migration(input: &PlanMigrationInput) -> Result<String, String> {
     let mut files_info = Vec::new();
     for file in &input.files {
         let output = match read_file(file, None, None) {
             Ok(c) => c,
-            Err(e) => return Err(format!("Cannot read {file}: {}", e)),
+            Err(e) => return Err(format!("Cannot read {file}: {e}")),
         };
         files_info.push(json!({
             "path": file,
@@ -2039,7 +2040,7 @@ fn run_plan_migration(input: PlanMigrationInput) -> Result<String, String> {
     }))
 }
 
-fn run_batch_edit(input: BatchEditInput) -> Result<String, String> {
+fn run_batch_edit(input: &BatchEditInput) -> Result<String, String> {
     let mut results = Vec::new();
     let mut all_ok = true;
     for edit in &input.edits {
@@ -2357,7 +2358,8 @@ fn run_web_search(input: WebSearchInput) -> Result<String, String> {
     to_pretty_json(execute_web_search(&input)?)
 }
 
-fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
+#[allow(clippy::too_many_lines)]
+fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
     let api_key = std::env::var("SHODAN_API_KEY")
         .map_err(|_| "SHODAN_API_KEY environment variable is not set".to_string())?;
     let client = reqwest::blocking::Client::builder()
@@ -2379,8 +2381,8 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
                 .map_err(|e| format!("Shodan search request failed: {e}"))?
                 .json()
                 .map_err(|e| format!("Shodan search parse failed: {e}"))?;
-            let matches = resp.get("matches").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
-            let total = resp.get("total").and_then(|t| t.as_u64()).unwrap_or(0);
+            let matches = resp.get("matches").and_then(|m| m.as_array()).map(std::vec::Vec::len).unwrap_or(0);
+            let total = resp.get("total").and_then(serde_json::Value::as_u64).unwrap_or(0);
             Ok(to_pretty_json(json!({
                 "total": total,
                 "matches_shown": matches,
@@ -2390,7 +2392,7 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
         }
         "host" => {
             let ip = input.ip.as_deref().ok_or("ip is required for host action")?;
-            let url = format!("https://api.shodan.io/shodan/host/{}?key={}", ip, api_key);
+            let url = format!("https://api.shodan.io/shodan/host/{ip}?key={api_key}");
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
@@ -2424,7 +2426,7 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
             Ok(to_pretty_json(resp)?)
         }
         "myip" => {
-            let url = format!("https://api.shodan.io/tools/myip?key={}", api_key);
+            let url = format!("https://api.shodan.io/tools/myip?key={api_key}");
             let resp = client
                 .get(&url)
                 .send()
@@ -2434,7 +2436,7 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
             Ok(json!({ "ip": resp.trim() }).to_string())
         }
         "info" => {
-            let url = format!("https://api.shodan.io/api-info?key={}", api_key);
+            let url = format!("https://api.shodan.io/api-info?key={api_key}");
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
@@ -2444,7 +2446,7 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
             Ok(to_pretty_json(resp)?)
         }
         "ports" => {
-            let url = format!("https://api.shodan.io/shodan/ports?key={}", api_key);
+            let url = format!("https://api.shodan.io/shodan/ports?key={api_key}");
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
@@ -2454,7 +2456,7 @@ fn run_shodan_search(input: ShodanSearchInput) -> Result<String, String> {
             Ok(to_pretty_json(resp)?)
         }
         "protocols" => {
-            let url = format!("https://api.shodan.io/shodan/protocols?key={}", api_key);
+            let url = format!("https://api.shodan.io/shodan/protocols?key={api_key}");
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
@@ -2473,13 +2475,13 @@ fn urlencode(s: &str) -> String {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => result.push(byte as char),
             b' ' => result.push_str("%20"),
-            _ => result.push_str(&format!("%{:02X}", byte)),
+            _ => { use std::fmt::Write; let _ = write!(result, "%{byte:02X}"); }
         }
     }
     result
 }
 
-fn run_osint_collect(input: OsintCollectInput) -> Result<String, String> {
+fn run_osint_collect(input: &OsintCollectInput) -> Result<String, String> {
     use osint::collector::DataCollector;
 
     let kind = input.kind.as_deref().unwrap_or("domain");
@@ -2495,7 +2497,7 @@ fn run_osint_collect(input: OsintCollectInput) -> Result<String, String> {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .map_err(|e| format!("http client: {e}"))?;
-        if let Ok(resp) = client.get(&url).send().and_then(|r| r.text()) {
+        if let Ok(resp) = client.get(&url).send().and_then(reqwest::blocking::Response::text) {
             let findings = DataCollector::extract_from_html(&resp, Some(&url));
             all_findings.extend(findings);
         }
@@ -2517,10 +2519,10 @@ fn run_osint_collect(input: OsintCollectInput) -> Result<String, String> {
     to_pretty_json(report)
 }
 
-fn run_dns_lookup(input: DnsLookupInput) -> Result<String, String> {
+fn run_dns_lookup(input: &DnsLookupInput) -> Result<String, String> {
     use osint::dns::{DnsResolver, RecordType};
 
-    let rt = input.record_type.as_deref().and_then(RecordType::from_str).unwrap_or(RecordType::A);
+    let rt = input.record_type.as_deref().and_then(RecordType::parse_str).unwrap_or(RecordType::A);
     let findings = DnsResolver::resolve_all(&input.domain, &[rt.clone()]);
     let ips = DnsResolver::resolve_a(&input.domain);
 
@@ -2534,7 +2536,7 @@ fn run_dns_lookup(input: DnsLookupInput) -> Result<String, String> {
     to_pretty_json(result)
 }
 
-fn run_whois_query(input: WhoisQueryInput) -> Result<String, String> {
+fn run_whois_query(input: &WhoisQueryInput) -> Result<String, String> {
     use osint::dns::DnsResolver;
 
     let whois_text = DnsResolver::whois_lookup(&input.domain)?;

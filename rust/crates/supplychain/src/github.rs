@@ -32,6 +32,12 @@ pub struct AdvisoryQueryResult {
 
 pub struct GithubAdvisoryClient;
 
+impl Default for GithubAdvisoryClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GithubAdvisoryClient {
     pub fn new() -> Self {
         GithubAdvisoryClient

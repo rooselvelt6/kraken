@@ -18,6 +18,12 @@ pub struct QrCodeResult {
 
 pub struct QrPhish;
 
+impl Default for QrPhish {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QrPhish {
     pub fn new() -> Self {
         QrPhish
@@ -56,16 +62,14 @@ impl QrPhish {
                     let border = r == 0 || r == size - 1 || c == 0 || c == size - 1;
                     let finder = (r < 7 && c < 7) || (r < 7 && c >= size - 7) || (r >= size - 7 && c < 7);
                     if finder {
-                        let _inner = (r > 0 && r < 6) && (c > 0 && c < 6) && !((r == 1 || r == 5) && (c >= 0 && c < 7)) && !((c == 1 || c == 5) && (r >= 0 && r < 7));
+                        let _inner = (r > 0 && r < 6) && (c > 0 && c < 6) && !((r == 1 || r == 5) && (0..7).contains(&c)) && !((c == 1 || c == 5) && (0..7).contains(&r));
                         let is_outer = r == 0 || r == 6 || c == 0 || c == 6;
-                        if is_outer || (r >= 2 && r <= 4 && c >= 2 && c <= 4) {
+                        if is_outer || ((2..=4).contains(&r) && (2..=4).contains(&c)) {
                             qr.push('█');
                         } else {
                             qr.push(' ');
                         }
-                    } else if border {
-                        qr.push('█');
-                    } else if bit {
+                    } else if border || bit {
                         qr.push('█');
                     } else {
                         qr.push(' ');
@@ -78,7 +82,7 @@ impl QrPhish {
     }
 
     pub fn encode_url(original_url: &str, redirect_to: &str) -> String {
-        let encoded = urlencoding(&redirect_to);
+        let encoded = urlencoding(redirect_to);
         format!("{}?r={}", original_url, encoded)
     }
 

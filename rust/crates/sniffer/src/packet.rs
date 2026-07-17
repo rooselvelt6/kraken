@@ -320,9 +320,7 @@ pub fn ip_to_string(ip: &[u8; 4]) -> String {
 }
 
 pub fn parse_packet(data: &[u8], len: usize) -> PacketInfo {
-    let mut info = PacketInfo::default();
-    info.len = len;
-    info.payload = data.to_vec();
+    let mut info = PacketInfo { len, payload: data.to_vec(), ..Default::default() };
 
     let eth = EthernetHeader::parse(data);
     if let Some(eth) = eth {

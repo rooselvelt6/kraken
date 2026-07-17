@@ -12,6 +12,12 @@ pub struct FridaScript {
 
 pub struct FridaGenerator;
 
+impl Default for FridaGenerator {
+    fn default() -> Self {
+        FridaGenerator
+    }
+}
+
 impl FridaGenerator {
     pub fn new() -> Self {
         FridaGenerator

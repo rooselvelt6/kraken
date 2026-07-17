@@ -16,6 +16,7 @@ pub enum ConcurrencyCategory {
 }
 
 impl ConcurrencyCategory {
+    #[must_use]
     pub fn default_limit(&self) -> usize {
         match self {
             Self::Bash => 5,
@@ -26,6 +27,7 @@ impl ConcurrencyCategory {
         }
     }
 
+    #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
             Self::Bash => "bash",
@@ -44,7 +46,14 @@ pub struct ConcurrencyManager {
     limits: HashMap<ConcurrencyCategory, Arc<AtomicUsize>>,
 }
 
+impl Default for ConcurrencyManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConcurrencyManager {
+    #[must_use]
     pub fn new() -> Self {
         let mut semaphores = HashMap::new();
         let mut active_count = HashMap::new();
@@ -79,7 +88,8 @@ impl ConcurrencyManager {
         loop {
             let active = self.active_count(category);
             if active < limit {
-                if let Some(semaphore) = self.semaphores.get(&category) {
+                {
+                    let semaphore = self.semaphores.get(&category)?;
                     match semaphore.clone().try_acquire_owned() {
                         Ok(permit) => {
                             if let Some(counter) = self.active_count.get(&category) {
@@ -95,8 +105,6 @@ impl ConcurrencyManager {
                             tokio::time::sleep(Duration::from_millis(10)).await;
                         }
                     }
-                } else {
-                    return None;
                 }
             } else {
                 tokio::time::sleep(Duration::from_millis(50)).await;
@@ -104,6 +112,7 @@ impl ConcurrencyManager {
         }
     }
 
+    #[must_use]
     pub fn try_acquire(
         &self,
         category: ConcurrencyCategory,
@@ -134,24 +143,28 @@ impl ConcurrencyManager {
         }
     }
 
+    #[must_use]
     pub fn is_throttled(&self, category: ConcurrencyCategory) -> bool {
         let limit = self.limit(category);
         let active = self.active_count(category);
         active >= limit
     }
 
+    #[must_use]
     pub fn available_permits(&self, category: ConcurrencyCategory) -> usize {
         let limit = self.limit(category);
         let active = self.active_count(category);
         limit.saturating_sub(active)
     }
 
+    #[must_use]
     pub fn active_count(&self, category: ConcurrencyCategory) -> usize {
         self.active_count
             .get(&category)
             .map_or(0, |c| c.load(Ordering::SeqCst))
     }
 
+    #[must_use]
     pub fn limit(&self, category: ConcurrencyCategory) -> usize {
         self.limits
             .get(&category)
@@ -164,6 +177,7 @@ impl ConcurrencyManager {
         }
     }
 
+    #[must_use]
     pub fn status(&self) -> Vec<ConcurrencyStatus> {
         let mut statuses = Vec::new();
         for category in &[
@@ -193,6 +207,7 @@ pub struct ConcurrencyGuard {
 }
 
 impl ConcurrencyGuard {
+    #[must_use]
     pub fn category(&self) -> ConcurrencyCategory {
         self.category
     }

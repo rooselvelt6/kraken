@@ -117,14 +117,14 @@ impl EntropyAnalyzer {
 }
 
 pub fn format_entropy_result(result: &EntropyResult) -> String {
-    let mut out = format!("Entropy Analysis\n");
+    let mut out = "Entropy Analysis\n".to_string();
     out.push_str(&format!("Global entropy: {:.4}\n", result.global_entropy));
     out.push_str(&format!("Packed: {} (confidence: {:.1}%)\n",
         if result.is_packed { "YES" } else { "NO" },
         result.packer_confidence * 100.0));
 
     if !result.section_entropies.is_empty() {
-        out.push_str(&format!("\nSection Entropies:\n"));
+        out.push_str("\nSection Entropies:\n");
         for (name, ent) in &result.section_entropies {
             let marker = if *ent > 6.5 { " *** HIGH" } else { "" };
             out.push_str(&format!("  {:<12}: {:.4}{}\n", name, ent, marker));

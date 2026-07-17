@@ -37,6 +37,12 @@ pub struct Anomaly {
 
 pub struct IotProtocolFuzzer;
 
+impl Default for IotProtocolFuzzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IotProtocolFuzzer {
     pub fn new() -> Self {
         IotProtocolFuzzer
@@ -152,7 +158,7 @@ impl IotProtocolFuzzer {
             let (ptype, description, data) = match i % 8 {
                 0 => ("GET", "Oversized token", {
                     let mut d = vec![0x40, 0x01, 0x00, 0x00];
-                    d.extend(std::iter::repeat(0x41).take(64));
+                    d.extend(std::iter::repeat_n(0x41, 64));
                     d
                 }),
                 1 => ("POST", "Malformed option", vec![0x50, 0x02, 0x00, 0x01, 0xff, 0xff, 0xff]),
@@ -161,7 +167,7 @@ impl IotProtocolFuzzer {
                 4 => ("GET", "Invalid code", vec![0x40, 0x00, 0x00, 0x00]),
                 5 => ("POST", "Max payload size", {
                     let mut d = vec![0x50, 0x02, 0x00, 0x01];
-                    d.extend(std::iter::repeat(0x42).take(2048));
+                    d.extend(std::iter::repeat_n(0x42, 2048));
                     d
                 }),
                 6 => ("GET", "Observable flag", vec![0x60, 0x01, 0x00, 0x01]),
@@ -186,7 +192,7 @@ impl IotProtocolFuzzer {
                 0 => ("Beacon", "Invalid superframe spec", vec![0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00]),
                 1 => ("Data", "Oversized payload", {
                     let mut d = vec![0x61, 0x88];
-                    d.extend(std::iter::repeat(0x90).take(256));
+                    d.extend(std::iter::repeat_n(0x90, 256));
                     d
                 }),
                 2 => ("NWK Command", "Invalid command ID", vec![0x00, 0x00, 0xff, 0x00, 0x00]),
@@ -238,7 +244,7 @@ impl IotProtocolFuzzer {
                 1 => ("Read Property", "Invalid property ID", vec![0x01, 0x0c, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x00, 0x00, 0xff, 0xff]),
                 2 => ("Write Property", "Oversized value", {
                     let mut d = vec![0x01, 0x0f, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00];
-                    d.extend(std::iter::repeat(0x41).take(512));
+                    d.extend(std::iter::repeat_n(0x41, 512));
                     d
                 }),
                 3 => ("Subscribe COV", "Invalid lifetime", vec![0x01, 0x1e, 0x00, 0x00, 0x01, 0x00, 0x0c, 0x00, 0x00, 0x01, 0xff, 0xff, 0xff, 0xff]),

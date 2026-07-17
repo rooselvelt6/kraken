@@ -39,6 +39,12 @@ pub enum PayloadType {
 
 pub struct PayloadStager;
 
+impl Default for PayloadStager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PayloadStager {
     pub fn new() -> Self {
         PayloadStager

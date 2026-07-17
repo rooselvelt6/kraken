@@ -159,7 +159,7 @@ impl SecretsDetector {
         let mut current_file = String::new();
         let mut added_lines = Vec::new();
 
-        for (_i, line) in git_output.lines().enumerate() {
+        for line in git_output.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("commit ") {
                 if !current_commit.is_empty() && !added_lines.is_empty() {
@@ -248,7 +248,6 @@ impl SecretsDetector {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -304,7 +303,6 @@ impl SecretsDetector {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }

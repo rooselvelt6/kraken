@@ -10,6 +10,7 @@ pub enum ProviderState {
 }
 
 impl ProviderState {
+    #[must_use]
     pub fn can_serve(&self) -> bool {
         matches!(self, Self::Available | Self::Degraded)
     }
@@ -39,6 +40,7 @@ impl ProviderChain {
         }
     }
 
+    #[must_use]
     pub fn new(primary: Option<String>, fallbacks: Vec<String>) -> Self {
         Self {
             primary,
@@ -47,6 +49,7 @@ impl ProviderChain {
         }
     }
 
+    #[must_use]
     pub fn best_available(&self) -> Option<String> {
         if let Some(ref primary) = self.primary {
             if self.is_provider_available(primary) {
@@ -63,19 +66,17 @@ impl ProviderChain {
         None
     }
 
+    #[must_use]
     pub fn next_after(&self, failed_provider: &str) -> Option<String> {
         let all: Vec<&str> = self
             .primary
             .iter()
-            .map(|s| s.as_str())
-            .chain(self.fallbacks.iter().map(|s| s.as_str()))
+            .map(std::string::String::as_str)
+            .chain(self.fallbacks.iter().map(std::string::String::as_str))
             .collect();
 
-        let start_idx = match all.iter().position(|&p| p == failed_provider) {
-            Some(idx) => idx,
-            None => {
-                return self.best_available();
-            }
+        let Some(start_idx) = all.iter().position(|&p| p == failed_provider) else {
+            return self.best_available();
         };
 
         for provider in all.iter().skip(start_idx + 1) {
@@ -91,6 +92,7 @@ impl ProviderChain {
         None
     }
 
+    #[must_use]
     pub fn all_available(&self) -> Vec<String> {
         let mut available = Vec::new();
 
@@ -109,6 +111,7 @@ impl ProviderChain {
         available
     }
 
+    #[must_use]
     pub fn status(&self) -> Vec<ProviderChainStatus> {
         let mut statuses = Vec::new();
         let forest = global_circuit_forest().lock().unwrap();
@@ -125,6 +128,7 @@ impl ProviderChain {
         statuses
     }
 
+    #[allow(clippy::unused_self)]
     fn is_provider_available(&self, provider: &str) -> bool {
         if provider == "offline" {
             return true;
@@ -152,12 +156,11 @@ fn build_status(
 ) -> ProviderChainStatus {
     let circuit_ok = forest.can_execute(provider);
     let circuit_node = forest.get(provider);
-    let recovery_time = circuit_node.and_then(|n| n.recovery_time_remaining());
+    let recovery_time = circuit_node.and_then(super::circuit_breaker::CircuitNode::recovery_time_remaining);
 
     let health_status = registry
         .get(provider)
-        .map(|t| t.status)
-        .unwrap_or(HealthStatus::Unknown);
+        .map_or(HealthStatus::Unknown, |t| t.status);
 
     let state = if !circuit_ok || health_status == HealthStatus::Unhealthy {
         ProviderState::Unavailable
@@ -172,7 +175,10 @@ fn build_status(
         state,
         circuit_ok,
         health_status,
-        recovery_time_remaining_ms: recovery_time.map(|d| d.as_millis() as u64),
+        recovery_time_remaining_ms: recovery_time.map(|d| {
+            #[allow(clippy::cast_possible_truncation)]
+            { d.as_millis() as u64 }
+        }),
     }
 }
 

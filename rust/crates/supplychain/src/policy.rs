@@ -45,6 +45,12 @@ pub struct PolicyViolation {
 
 pub struct PolicyEngine;
 
+impl Default for PolicyEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PolicyEngine {
     pub fn new() -> Self {
         PolicyEngine

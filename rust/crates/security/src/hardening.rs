@@ -76,7 +76,7 @@ pub fn unlock_memory(_data: &mut [u8]) {}
 #[cfg(unix)]
 pub fn mark_no_dump() -> bool {
     unsafe {
-        let fd = libc::open("/proc/self/oom_score_adj\0".as_ptr() as *const std::ffi::c_char, libc::O_WRONLY);
+        let fd = libc::open(c"/proc/self/oom_score_adj".as_ptr() as *const std::ffi::c_char, libc::O_WRONLY);
         if fd >= 0 {
             libc::close(fd);
         }

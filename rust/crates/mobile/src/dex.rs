@@ -89,6 +89,12 @@ pub struct ProtoDef {
 
 pub struct DexParser;
 
+impl Default for DexParser {
+    fn default() -> Self {
+        DexParser
+    }
+}
+
 impl DexParser {
     pub fn new() -> Self {
         DexParser

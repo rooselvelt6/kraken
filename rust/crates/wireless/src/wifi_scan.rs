@@ -193,7 +193,7 @@ fn parse_iw_scan(output: &str) -> Vec<AccessPoint> {
                 let s = trimmed.split_whitespace().nth(1).unwrap_or("0");
                 ap.signal_dbm = s.trim_end_matches(".00").parse().unwrap_or(0);
             } else if trimmed.starts_with("SSID:") {
-                ap.ssid = trimmed[5..].trim().to_string();
+                ap.ssid = trimmed.strip_prefix("SSID:").unwrap_or(trimmed).trim().to_string();
             } else if trimmed.contains("WPA") || trimmed.contains("RSN") {
                 if trimmed.contains("Group cipher:") {
                     ap.cipher = trimmed.split("Group cipher:").nth(1).unwrap_or("").trim().to_string();
@@ -201,15 +201,14 @@ fn parse_iw_scan(output: &str) -> Vec<AccessPoint> {
                 if trimmed.contains("Authentication suites:") {
                     ap.auth = trimmed.split("Authentication suites:").nth(1).unwrap_or("").trim().to_string();
                 }
-                if !ap.encryption.contains("WPA") {
-                    if trimmed.starts_with("RSN:") || trimmed.starts_with("* ") {
+                if !ap.encryption.contains("WPA")
+                    && (trimmed.starts_with("RSN:") || trimmed.starts_with("* ")) {
                         ap.encryption = if ap.encryption.is_empty() {
                             "WPA2".to_string()
                         } else {
                             ap.encryption.clone()
                         };
                     }
-                }
             } else if trimmed == "* Version: 1" && ap.encryption.is_empty() {
                 ap.encryption = "WPA".to_string();
             } else if trimmed.starts_with("WPS:") {
@@ -257,7 +256,7 @@ pub fn format_scan_result(result: &ScanResult) -> String {
             out.push_str(&format!("   Auth: {}\n", ap.auth));
         }
         if ap.wps {
-            out.push_str(&format!("   WPS: enabled\n"));
+            out.push_str("   WPS: enabled\n");
         }
         out.push('\n');
     }

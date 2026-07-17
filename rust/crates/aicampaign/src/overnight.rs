@@ -33,6 +33,12 @@ pub struct OvernightReport {
 
 pub struct OvernightMode;
 
+impl Default for OvernightMode {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OvernightMode {
     pub fn new() -> Self {
         OvernightMode

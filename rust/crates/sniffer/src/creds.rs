@@ -20,6 +20,12 @@ pub struct CredSniffer {
     pub service_filters: Vec<String>,
 }
 
+impl Default for CredSniffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CredSniffer {
     pub fn new() -> Self {
         CredSniffer {

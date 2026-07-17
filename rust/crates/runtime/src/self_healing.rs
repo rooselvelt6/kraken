@@ -25,7 +25,7 @@ pub const MAX_WAL_ENTRIES: usize = 100;
 /// Health monitor poll interval.
 pub const HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(5);
 /// Max backoff delay for restarts.
-pub const MAX_BACKOFF: Duration = Duration::from_secs(120);
+pub const MAX_BACKOFF: Duration = Duration::from_mins(2);
 /// Initial backoff delay.
 pub const INITIAL_BACKOFF: Duration = Duration::from_secs(1);
 
@@ -83,6 +83,7 @@ pub struct SessionCheckpointer {
 }
 
 impl SessionCheckpointer {
+    #[must_use]
     pub fn new(checkpoint_dir: &Path, session_id: &str) -> Self {
         Self {
             checkpoint_dir: checkpoint_dir.to_path_buf(),
@@ -97,24 +98,29 @@ impl SessionCheckpointer {
         }
     }
 
+    #[must_use]
     pub fn with_intervals(mut self, calls: u64, secs: u64) -> Self {
         self.interval_calls = calls;
         self.interval_secs = secs;
         self
     }
 
+    #[must_use]
     pub fn session_id(&self) -> &str {
         &self.session_id
     }
 
+    #[must_use]
     pub fn checkpoint_dir(&self) -> &Path {
         &self.checkpoint_dir
     }
 
+    #[must_use]
     pub fn wal_entries(&self) -> &[WalEntry] {
         &self.wal_entries
     }
 
+    #[must_use]
     pub fn sequence_counter(&self) -> u64 {
         self.sequence_counter
     }
@@ -206,6 +212,7 @@ impl SessionCheckpointer {
     }
 
     /// Find the latest valid checkpoint for recovery.
+    #[must_use]
     pub fn find_latest_checkpoint(checkpoint_dir: &Path) -> Option<CheckpointManifest> {
         let entries = match fs::read_dir(checkpoint_dir) {
             Ok(e) => e.flatten().collect::<Vec<_>>(),
@@ -282,6 +289,8 @@ pub struct SystemMetrics {
 }
 
 impl SystemMetrics {
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn is_memory_critical(&self) -> bool {
         if self.memory_total_kb == 0 {
             return false;
@@ -290,6 +299,8 @@ impl SystemMetrics {
         free_ratio < 0.05
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn is_disk_critical(&self) -> bool {
         if self.disk_total_kb == 0 {
             return false;
@@ -330,14 +341,17 @@ pub struct HealthReport {
 }
 
 impl HealthReport {
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         self.all_healthy
     }
 
+    #[must_use]
     pub fn has_degraded(&self) -> bool {
         self.degraded_count > 0
     }
 
+    #[must_use]
     pub fn has_unhealthy(&self) -> bool {
         self.unhealthy_count > 0
     }
@@ -351,6 +365,7 @@ pub struct HealthMonitor {
 }
 
 impl HealthMonitor {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             components: Arc::new(Mutex::new(HashMap::new())),
@@ -402,12 +417,14 @@ impl HealthMonitor {
         }
     }
 
+    #[must_use]
     pub fn component_health(&self, name: &str) -> ComponentHealth {
         let comps = self.components.lock().unwrap();
-        comps.get(name).map(|c| c.health).unwrap_or(ComponentHealth::Unknown)
+        comps.get(name).map_or(ComponentHealth::Unknown, |c| c.health)
     }
 
     /// Gather current system metrics.
+    #[must_use]
     pub fn collect_metrics(&self) -> SystemMetrics {
         let (mem_avail, mem_total) = read_memory_stats();
         let (disk_free, disk_total) = read_disk_stats(std::path::Path::new("."));
@@ -431,6 +448,7 @@ impl HealthMonitor {
     }
 
     /// Generate a full health report.
+    #[must_use]
     pub fn report(&self) -> HealthReport {
         let system = self.collect_metrics();
         let comps = self.components.lock().unwrap();
@@ -449,6 +467,7 @@ impl HealthMonitor {
     }
 
     /// Start the background monitoring loop.
+    #[must_use]
     pub fn start(&self) -> Arc<AtomicBool> {
         self.running.store(true, std::sync::atomic::Ordering::Relaxed);
         let running = self.running.clone();
@@ -523,6 +542,7 @@ pub struct RestartableComponent {
 }
 
 impl RestartableComponent {
+    #[must_use]
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -534,9 +554,14 @@ impl RestartableComponent {
     }
 
     /// Return the delay before the next restart attempt.
+    #[must_use]
     pub fn next_delay(&self) -> Duration {
         let delay = self.backoff.initial_delay.as_secs_f64()
-            * self.backoff.multiplier.powi(self.attempt as i32);
+            * self.backoff.multiplier.powi({
+                #[allow(clippy::cast_possible_truncation)]
+                let v: i32 = self.attempt as i32;
+                v
+            });
         let jitter_amount = delay * self.backoff.jitter;
         let jittered = delay + jitter_amount * (std::time::Duration::from_secs(1).as_secs_f64());
         Duration::from_secs_f64(jittered.min(self.backoff.max_delay.as_secs_f64()))
@@ -556,6 +581,7 @@ impl RestartableComponent {
     }
 
     /// Check if the component has exceeded max restart attempts.
+    #[must_use]
     pub fn should_escalate(&self) -> bool {
         self.attempt >= self.max_attempts
     }
@@ -568,6 +594,7 @@ pub struct AutoRestarter {
 }
 
 impl AutoRestarter {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             components: Mutex::new(HashMap::new()),
@@ -575,6 +602,7 @@ impl AutoRestarter {
         }
     }
 
+    #[must_use]
     pub fn with_health_monitor(mut self, health: Arc<HealthMonitor>) -> Self {
         self.health = Some(health);
         self
@@ -613,13 +641,13 @@ impl AutoRestarter {
     /// Check if a component should be escalated to human.
     pub fn should_escalate(&self, name: &str) -> bool {
         let comps = self.components.lock().unwrap();
-        comps.get(name).map(|c| c.should_escalate()).unwrap_or(false)
+        comps.get(name).is_some_and(RestartableComponent::should_escalate)
     }
 
     /// Get the current attempt number for a component.
     pub fn attempt_count(&self, name: &str) -> u64 {
         let comps = self.components.lock().unwrap();
-        comps.get(name).map(|c| c.attempt).unwrap_or(0)
+        comps.get(name).map_or(0, |c| c.attempt)
     }
 
     /// Get all registered component names.
@@ -659,27 +687,28 @@ pub struct CorruptionRepair;
 
 impl CorruptionRepair {
     /// Verify checksum of a file.
+    #[must_use]
     pub fn verify_file_checksum(path: &Path, expected_hex: &str) -> bool {
-        let data = match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return false,
+        let Ok(data) = fs::read(path) else {
+            return false;
         };
         let actual = to_hex(&Sha256::digest(&data));
         actual == expected_hex
     }
 
     /// Compute SHA-256 checksum of a file.
+    #[must_use]
     pub fn compute_checksum(path: &Path) -> Option<String> {
         let data = fs::read(path).ok()?;
         Some(to_hex(&Sha256::digest(&data)))
     }
 
     /// Verify all session state files in a directory.
+    #[must_use]
     pub fn verify_all(checkpoint_dir: &Path) -> Vec<(PathBuf, String)> {
         let mut corruptions = Vec::new();
-        let dir = match fs::read_dir(checkpoint_dir) {
-            Ok(d) => d,
-            Err(_) => return corruptions,
+        let Ok(dir) = fs::read_dir(checkpoint_dir) else {
+            return corruptions;
         };
 
         for entry in dir.flatten() {
@@ -701,6 +730,7 @@ impl CorruptionRepair {
     ///   2. Try last good snapshot
     ///   3. Try any remaining snapshot
     ///   4. Fresh session
+    #[must_use]
     pub fn repair(checkpoint_dir: &Path) -> RepairResult {
         // Step 1: Check if there's a valid checkpoint to restore from
         if let Some(manifest) = SessionCheckpointer::find_latest_checkpoint(checkpoint_dir) {
@@ -738,6 +768,7 @@ impl CorruptionRepair {
 
 /// Shutdown actions to execute.
 #[derive(Debug, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct ShutdownActions {
     pub should_flush_audit: bool,
     pub should_checkpoint: bool,
@@ -764,6 +795,7 @@ pub struct GracefulShutdown {
 }
 
 impl GracefulShutdown {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             signal_received: Arc::new(AtomicBool::new(false)),
@@ -772,22 +804,26 @@ impl GracefulShutdown {
         }
     }
 
+    #[must_use]
     pub fn with_health_monitor(mut self, health: Arc<HealthMonitor>) -> Self {
         self.health = Some(health);
         self
     }
 
+    #[must_use]
     pub fn with_actions(mut self, actions: ShutdownActions) -> Self {
         self.actions = actions;
         self
     }
 
+    #[must_use]
     pub fn signal_received(&self) -> bool {
         self.signal_received.load(Ordering::Relaxed)
     }
 
     /// Register signal handlers (SIGTERM, SIGINT).
     /// Returns the shared signal flag.
+    #[must_use]
     pub fn register_handlers(&self) -> Arc<AtomicBool> {
         let flag = self.signal_received.clone();
 
@@ -807,7 +843,7 @@ impl GracefulShutdown {
         let f2 = flag.clone();
         std::thread::spawn(move || {
             loop {
-                if let Ok(_) = std::io::stdin().lock().fill_buf() {
+                if std::io::stdin().lock().fill_buf().is_ok() {
                     // stdin closed => signal
                     f2.store(true, Ordering::Relaxed);
                     break;
@@ -832,7 +868,7 @@ impl GracefulShutdown {
             let auditor = crate::audit_integration::global_auditor();
             if let Ok(mut guard) = auditor.lock() {
                 if let Some(ref mut a) = *guard {
-                    let _ = a.end_session();
+                    let () = a.end_session();
                 }
             }
         }
@@ -864,7 +900,10 @@ impl GracefulShutdown {
         let elapsed = start.elapsed();
         ShutdownResult {
             success: true,
-            elapsed_ms: elapsed.as_millis() as u64,
+            elapsed_ms: {
+                #[allow(clippy::cast_possible_truncation)]
+                { elapsed.as_millis() as u64 }
+            },
             message: message.to_string(),
         }
     }
@@ -897,6 +936,7 @@ pub struct SelfHealingOrchestrator {
 }
 
 impl SelfHealingOrchestrator {
+    #[must_use]
     pub fn new(checkpoint_dir: &Path) -> Self {
         let health = Arc::new(HealthMonitor::new());
         let restarter = Arc::new(AutoRestarter::new().with_health_monitor(health.clone()));
@@ -920,8 +960,8 @@ impl SelfHealingOrchestrator {
 
     /// Start all background loops.
     pub fn start(&self) {
-        self.health_monitor.start();
-        self.shutdown.register_handlers();
+        let _ = self.health_monitor.start();
+        let _ = self.shutdown.register_handlers();
 
         // Register default components
         self.health_monitor.register_component("runtime");
@@ -937,6 +977,7 @@ impl SelfHealingOrchestrator {
     }
 
     /// Get a health report.
+    #[must_use]
     pub fn health_report(&self) -> HealthReport {
         self.health_monitor.report()
     }
@@ -962,6 +1003,7 @@ impl SelfHealingOrchestrator {
     }
 
     /// Attempt to recover from a component failure.
+    #[must_use]
     pub fn attempt_restart(&self, component: &str) -> Duration {
         self.health_monitor.report_failure(component, "restarting");
         self.restarter.record_attempt(component)
@@ -1008,6 +1050,7 @@ where
 }
 
 /// Initiate global graceful shutdown.
+#[must_use]
 pub fn global_shutdown(reason: &str) -> Option<ShutdownResult> {
     with_global_healing(|o| o.shutdown(reason))
 }
@@ -1018,6 +1061,7 @@ pub fn global_heartbeat(component: &str) {
 }
 
 /// Record a tool call through the global orchestrator.
+#[must_use]
 pub fn global_record_tool_call(tool: &str, input: &serde_json::Value, session_data: Option<serde_json::Value>) -> Option<CheckpointManifest> {
     with_global_healing(|o| o.record_tool_call(tool, input, session_data)).flatten()
 }
@@ -1031,10 +1075,13 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64
+    #[allow(clippy::cast_possible_truncation)]
+    {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
+    }
 }
 
 fn atomic_write(path: &Path, data: &[u8]) -> std::io::Result<()> {
@@ -1080,7 +1127,7 @@ fn prune_checkpoints(dir: &Path, keep: usize) {
             }
         }
     }
-    snapshots.sort_by(|a, b| b.0.cmp(&a.0)); // descending
+    snapshots.sort_by_key(|b| std::cmp::Reverse(b.0)); // descending
 
     for (_, path) in snapshots.iter().skip(keep) {
         let _ = fs::remove_file(path);
@@ -1168,7 +1215,8 @@ fn read_uptime() -> u64 {
         if let Ok(content) = fs::read_to_string("/proc/uptime") {
             if let Some(secs) = content.split_whitespace().next() {
                 if let Ok(f) = secs.parse::<f64>() {
-                    return f as u64;
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    { return f as u64; }
                 }
             }
         }

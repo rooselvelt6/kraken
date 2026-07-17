@@ -21,6 +21,7 @@ pub struct AdaptiveTokenBucket {
 }
 
 impl AdaptiveTokenBucket {
+    #[must_use]
     pub fn new(
         name: &str,
         base_capacity: f64,
@@ -58,6 +59,7 @@ impl AdaptiveTokenBucket {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn try_consume(&mut self, cost: f64) -> Result<(), ()> {
         self.refill();
         if self.tokens >= cost {
@@ -76,6 +78,7 @@ impl AdaptiveTokenBucket {
     pub fn record_success(&mut self) {
     }
 
+    #[allow(clippy::cast_precision_loss)]
     pub fn adjust(&mut self) {
         if self.last_adjustment.elapsed() < self.adjustment_interval {
             return;
@@ -108,6 +111,7 @@ impl AdaptiveTokenBucket {
         self.last_adjustment = Instant::now();
     }
 
+    #[must_use]
     pub fn remaining(&self) -> f64 {
         self.tokens
     }
@@ -131,10 +135,12 @@ impl AdaptiveTokenBucket {
         }
     }
 
+    #[must_use]
     pub fn utilization(&self) -> f64 {
         self.tokens / self.current_capacity.max(1.0)
     }
 
+    #[must_use]
     pub fn is_exhausted(&self) -> bool {
         self.tokens < 1.0
     }
@@ -150,6 +156,7 @@ pub struct TokenBucketRegistry {
 }
 
 impl TokenBucketRegistry {
+    #[must_use]
     pub fn new(
         default_base_capacity: f64,
         default_refill_rate: f64,
@@ -205,7 +212,7 @@ impl TokenBucketRegistry {
         let local_ok = self
             .buckets
             .get_mut(name)
-            .map_or(true, |b| b.allow(cost));
+            .is_none_or(|b| b.allow(cost));
 
         if !local_ok {
             return false;
@@ -245,12 +252,14 @@ impl TokenBucketRegistry {
         }
     }
 
+    #[must_use]
     pub fn remaining(&self, name: &str) -> Option<f64> {
-        self.buckets.get(name).map(|b| b.remaining())
+        self.buckets.get(name).map(AdaptiveTokenBucket::remaining)
     }
 
+    #[must_use]
     pub fn is_exhausted(&self, name: &str) -> bool {
-        self.buckets.get(name).map_or(false, |b| b.is_exhausted())
+        self.buckets.get(name).is_some_and(AdaptiveTokenBucket::is_exhausted)
     }
 
     pub fn reset(&mut self, name: &str) {
@@ -259,6 +268,7 @@ impl TokenBucketRegistry {
         }
     }
 
+    #[must_use]
     pub fn bucket_names(&self) -> Vec<String> {
         self.buckets.keys().cloned().collect()
     }

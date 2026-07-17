@@ -25,6 +25,12 @@ pub struct EntropyRegion {
 
 pub struct EntropyScanner;
 
+impl Default for EntropyScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EntropyScanner {
     pub fn new() -> Self {
         EntropyScanner
@@ -114,7 +120,7 @@ impl EntropyScanner {
                 count += 1;
             } else if !above && in_region {
                 let avg = sum / count as f64;
-                let region_size = (w.offset - start) as u64 + window_size as u64 / 2;
+                let region_size = (w.offset - start) + window_size as u64 / 2;
                 regions.push(EntropyRegion {
                     start,
                     end: w.offset,

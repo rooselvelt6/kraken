@@ -3,6 +3,7 @@ use chrono::Utc;
 use crate::throttle::RateLimiter;
 use crate::{FindingKind, OsintFinding, OsintSource, Reliability};
 
+#[allow(dead_code)]
 fn tor_limiter() -> &'static RateLimiter {
     static L: std::sync::OnceLock<RateLimiter> = std::sync::OnceLock::new();
     L.get_or_init(|| RateLimiter::new(3, 10))

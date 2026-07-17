@@ -389,8 +389,8 @@ impl PhoneOSINT {
         ];
 
         for (code, _iso, name) in &country_codes {
-            if digits.starts_with(code) {
-                let national = digits[code.len()..].to_string();
+            if let Some(stripped) = digits.strip_prefix(code) {
+                let national = stripped.to_string();
                 return (Some(code.to_string()), national, Some(name.to_string()));
             }
         }
@@ -399,8 +399,8 @@ impl PhoneOSINT {
     }
 
     fn detect_carrier(digits: &str) -> Option<String> {
-        if digits.starts_with("58") && digits.len() >= 10 {
-            if digits.len() == 11 || digits.len() == 12 || digits.len() == 13 {
+        if digits.starts_with("58") && digits.len() >= 10
+            && (digits.len() == 11 || digits.len() == 12 || digits.len() == 13) {
                 let national = if digits.len() > 10 { &digits[2..] } else { digits };
                 if national.starts_with("412") || national.starts_with("414") || national.starts_with("416") {
                     return Some("Movistar".into());
@@ -412,7 +412,6 @@ impl PhoneOSINT {
                     return Some("Digitel".into());
                 }
             }
-        }
         if digits.starts_with("52") && digits.len() >= 12 {
             return Some("Mexico (generic)".into());
         }

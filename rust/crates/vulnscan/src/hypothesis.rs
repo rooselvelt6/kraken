@@ -98,7 +98,7 @@ impl HypothesisGenerator {
             .filter(|f| {
                 f.vulnerable_code_snippet
                     .as_ref()
-                    .map_or(false, |s| s.contains("unsafe"))
+                    .is_some_and(|s| s.contains("unsafe"))
                     || f.description.to_lowercase().contains("pointer")
                     || f.description.to_lowercase().contains("buffer")
             })
@@ -134,7 +134,7 @@ impl HypothesisGenerator {
         let concurrency_hits: Vec<&Finding> = findings
             .iter()
             .filter(|f| {
-                f.vulnerable_code_snippet.as_ref().map_or(false, |s| {
+                f.vulnerable_code_snippet.as_ref().is_some_and(|s| {
                     s.contains("thread")
                         || s.contains("spawn")
                         || s.contains("lock")
@@ -175,11 +175,11 @@ impl HypothesisGenerator {
                 f.description.to_lowercase().contains("auth")
                     || f.cwe
                         .as_ref()
-                        .map_or(false, |c| c.contains("CWE-287") || c.contains("CWE-306"))
+                        .is_some_and(|c| c.contains("CWE-287") || c.contains("CWE-306"))
             })
             .collect();
 
-        if auth_hits.len() >= 1 {
+        if !auth_hits.is_empty() {
             let ids: Vec<String> = auth_hits.iter().map(|f| f.id.clone()).collect();
             hyps.push(GeneratedHypothesis {
                 id: format!("hyp-auth-{}", chrono::Utc::now().timestamp()),
@@ -208,7 +208,7 @@ impl HypothesisGenerator {
         let unsafe_count = findings
             .iter()
             .filter(|f| {
-                f.vulnerable_code_snippet.as_ref().map_or(false, |s| {
+                f.vulnerable_code_snippet.as_ref().is_some_and(|s| {
                     s.contains("unsafe") || s.contains("raw pointer") || s.contains("transmute")
                 })
             })
@@ -220,7 +220,7 @@ impl HypothesisGenerator {
                 .filter(|f| {
                     f.vulnerable_code_snippet
                         .as_ref()
-                        .map_or(false, |s| s.contains("unsafe"))
+                        .is_some_and(|s| s.contains("unsafe"))
                 })
                 .map(|f| f.id.clone())
                 .collect();
@@ -254,7 +254,7 @@ impl HypothesisGenerator {
                 f.description.to_lowercase().contains("aes-ecb")
                     || f.description.to_lowercase().contains("md5")
                     || f.description.to_lowercase().contains("sha1")
-                    || f.cwe.as_ref().map_or(false, |c| c.contains("CWE-327"))
+                    || f.cwe.as_ref().is_some_and(|c| c.contains("CWE-327"))
             })
             .collect();
 

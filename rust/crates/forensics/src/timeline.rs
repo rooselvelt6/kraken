@@ -22,6 +22,12 @@ pub struct TimelineResult {
 
 pub struct TimelineAnalyzer;
 
+impl Default for TimelineAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimelineAnalyzer {
     pub fn new() -> Self {
         TimelineAnalyzer

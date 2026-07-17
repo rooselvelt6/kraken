@@ -30,6 +30,12 @@ pub struct S3ScanResult {
 
 pub struct S3Enumerator;
 
+impl Default for S3Enumerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl S3Enumerator {
     pub fn new() -> Self {
         S3Enumerator

@@ -54,7 +54,7 @@ fuzz_target!(|data: &[byte]| {{
     pub fn run_cargo_fuzz(target_dir: &Path, duration_secs: u64) -> Vec<Finding> {
         let mut findings = Vec::new();
         let output = Command::new("cargo")
-            .args(&[
+            .args([
                 "fuzz",
                 "run",
                 "target",
@@ -96,7 +96,6 @@ fuzz_target!(|data: &[byte]| {{
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }

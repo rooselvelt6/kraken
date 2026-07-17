@@ -75,8 +75,8 @@ impl super::LanguageAnalyzer for CloudFormationAnalyzer {
             }
 
             let secret_kws = ["password", "secret", "token", "api_key", "apikey", "private_key", "access_key"];
-            if secret_kws.iter().any(|kw| lower.contains(kw)) && lower.contains(": \"") {
-                if !lower.contains("ssm") && !lower.contains("secretsmanager") && !lower.contains("aws::ssm") && !lower.contains("resolve:ssm") {
+            if secret_kws.iter().any(|kw| lower.contains(kw)) && lower.contains(": \"")
+                && !lower.contains("ssm") && !lower.contains("secretsmanager") && !lower.contains("aws::ssm") && !lower.contains("resolve:ssm") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::High,
@@ -86,10 +86,9 @@ impl super::LanguageAnalyzer for CloudFormationAnalyzer {
                         0.85,
                     ));
                 }
-            }
 
-            if lower.contains("password") && !lower.contains("secretsmanager") {
-                if (lower.contains("masteruserpassword") || lower.contains("masterpassword")) && lower.contains(": \"") {
+            if lower.contains("password") && !lower.contains("secretsmanager")
+                && (lower.contains("masteruserpassword") || lower.contains("masterpassword")) && lower.contains(": \"") {
                     findings.push(make_finding(
                         file_path, lineno, trimmed,
                         Severity::Medium,
@@ -99,13 +98,13 @@ impl super::LanguageAnalyzer for CloudFormationAnalyzer {
                         0.8,
                     ));
                 }
-            }
         }
 
         findings
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_finding(
     file_path: &Path,
     line_number: u32,

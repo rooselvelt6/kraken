@@ -459,7 +459,7 @@ impl VulnDB {
 
     fn scan_rust_deps(&self, dir: &Path, findings: &mut Vec<Finding>) {
         let output = std::process::Command::new("cargo")
-            .args(&["audit", "--json"])
+            .args(["audit", "--json"])
             .current_dir(dir)
             .output();
         if let Ok(output) = output {
@@ -504,21 +504,21 @@ impl VulnDB {
 
     fn scan_python_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
         let _ = std::process::Command::new("pip-audit")
-            .args(&["--format", "json"])
+            .args(["--format", "json"])
             .current_dir(dir)
             .output();
     }
 
     fn scan_node_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
         let _ = std::process::Command::new("npm")
-            .args(&["audit", "--json"])
+            .args(["audit", "--json"])
             .current_dir(dir)
             .output();
     }
 
     fn scan_ruby_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
         let _ = std::process::Command::new("bundle-audit")
-            .args(&["check", "--format", "json"])
+            .args(["check", "--format", "json"])
             .current_dir(dir)
             .output();
     }

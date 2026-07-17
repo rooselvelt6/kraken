@@ -22,6 +22,7 @@ pub struct SmbCommand {
 }
 
 pub struct SmbBeacon {
+    #[allow(dead_code)]
     config: SmbBeaconConfig,
     agent_id: String,
 }

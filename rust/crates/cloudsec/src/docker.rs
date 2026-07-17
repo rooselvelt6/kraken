@@ -33,6 +33,12 @@ pub struct DockerAuditResult {
 
 pub struct DockerAuditor;
 
+impl Default for DockerAuditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DockerAuditor {
     pub fn new() -> Self {
         DockerAuditor

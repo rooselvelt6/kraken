@@ -51,6 +51,7 @@ impl Severity {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "critical" => Severity::Critical,
@@ -348,6 +349,7 @@ impl Default for Finding {
 }
 
 impl Finding {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         severity: Severity,
         description: impl Into<String>,

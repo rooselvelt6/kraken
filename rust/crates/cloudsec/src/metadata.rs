@@ -18,6 +18,12 @@ pub struct MetadataFinding {
 
 pub struct CloudMetadataApi;
 
+impl Default for CloudMetadataApi {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CloudMetadataApi {
     pub fn new() -> Self {
         CloudMetadataApi

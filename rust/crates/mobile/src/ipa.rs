@@ -28,6 +28,12 @@ pub struct Entitlement {
 
 pub struct IpaAnalyzer;
 
+impl Default for IpaAnalyzer {
+    fn default() -> Self {
+        IpaAnalyzer
+    }
+}
+
 impl IpaAnalyzer {
     pub fn new() -> Self {
         IpaAnalyzer
@@ -248,7 +254,7 @@ impl IpaAnalyzer {
             findings.push("Push notifications enabled — verify APNs certificate security".to_string());
         }
 
-        if info.min_os < "13.0".to_string() {
+        if info.min_os.as_str() < "13.0" {
             findings.push(format!("Minimum iOS version {} is outdated (13.0+ recommended)", info.min_os));
         }
 

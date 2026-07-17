@@ -88,7 +88,7 @@ impl LateralMovement {
             nodes.push(node);
         }
 
-        for (_finding_id, from_id) in &id_map {
+        for from_id in id_map.values() {
             for chained_id in &findings[*from_id].chained_findings {
                 if let Some(to_id) = id_map.get(chained_id) {
                     edges.push(AttackEdge {

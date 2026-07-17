@@ -56,7 +56,6 @@ impl LogicAnalyzer {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -98,7 +97,6 @@ impl LogicAnalyzer {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }
@@ -135,7 +133,6 @@ impl LogicAnalyzer {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }
@@ -174,7 +171,6 @@ impl LogicAnalyzer {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }

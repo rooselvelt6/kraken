@@ -3,18 +3,15 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum HealthStatus {
+    #[default]
     Unknown,
     Healthy,
     Degraded,
     Unhealthy,
 }
 
-impl Default for HealthStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct LatencyWindow {
@@ -23,6 +20,7 @@ pub struct LatencyWindow {
 }
 
 impl LatencyWindow {
+    #[must_use]
     pub fn new(max_samples: usize) -> Self {
         Self {
             samples: VecDeque::with_capacity(max_samples),
@@ -37,6 +35,8 @@ impl LatencyWindow {
         }
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub fn percentile(&self, p: f64) -> Option<f64> {
         if self.samples.is_empty() {
             return None;
@@ -47,26 +47,33 @@ impl LatencyWindow {
         Some(sorted[idx.min(sorted.len() - 1)])
     }
 
+    #[must_use]
     pub fn p50(&self) -> Option<f64> {
         self.percentile(50.0)
     }
 
+    #[must_use]
     pub fn p95(&self) -> Option<f64> {
         self.percentile(95.0)
     }
 
+    #[must_use]
     pub fn p99(&self) -> Option<f64> {
         self.percentile(99.0)
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.samples.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.samples.is_empty()
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn average(&self) -> Option<f64> {
         if self.samples.is_empty() {
             return None;
@@ -75,6 +82,7 @@ impl LatencyWindow {
         Some(sum / self.samples.len() as f64)
     }
 
+    #[must_use]
     pub fn max(&self) -> Option<f64> {
         self.samples.iter().copied().max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
     }
@@ -99,6 +107,7 @@ pub struct ProbeTarget {
 }
 
 impl ProbeTarget {
+    #[must_use]
     pub fn new(name: &str, interval: Duration, timeout_threshold_ms: f64) -> Self {
         Self {
             name: name.to_string(),
@@ -114,6 +123,7 @@ impl ProbeTarget {
         }
     }
 
+    #[must_use]
     pub fn due_for_probe(&self) -> bool {
         match self.last_probe {
             None => true,
@@ -154,10 +164,13 @@ impl ProbeTarget {
         }
     }
 
+    #[must_use]
     pub fn is_available(&self) -> bool {
         matches!(self.status, HealthStatus::Unknown | HealthStatus::Healthy | HealthStatus::Degraded)
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn error_rate(&self) -> f64 {
         if self.total_probes == 0 {
             0.0
@@ -166,6 +179,7 @@ impl ProbeTarget {
         }
     }
 
+    #[must_use]
     pub fn report(&self) -> ProbeReport {
         ProbeReport {
             name: self.name.clone(),
@@ -199,19 +213,22 @@ pub struct ProbeReport {
 }
 
 impl ProbeReport {
+    #[must_use]
     pub fn is_healthy(&self) -> bool {
         matches!(self.status, HealthStatus::Healthy)
     }
 
+    #[must_use]
     pub fn should_degrade(&self) -> bool {
-        self.p95_ms.map_or(false, |p95| p95 > 5000.0)
-            || self.p99_ms.map_or(false, |p99| p99 > 10000.0)
+        self.p95_ms.is_some_and(|p95| p95 > 5000.0)
+            || self.p99_ms.is_some_and(|p99| p99 > 10000.0)
             || self.error_rate > 0.1
             || self.consecutive_failures >= 3
     }
 
+    #[must_use]
     pub fn should_open_circuit(&self) -> bool {
-        self.p99_ms.map_or(false, |p99| p99 > 10000.0)
+        self.p99_ms.is_some_and(|p99| p99 > 10000.0)
             || self.error_rate > 0.5
             || self.consecutive_failures >= 5
     }
@@ -221,7 +238,14 @@ pub struct HealthProbeRegistry {
     targets: HashMap<String, ProbeTarget>,
 }
 
+impl Default for HealthProbeRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HealthProbeRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             targets: HashMap::new(),
@@ -232,6 +256,7 @@ impl HealthProbeRegistry {
         self.targets.insert(target.name.clone(), target);
     }
 
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&ProbeTarget> {
         self.targets.get(name)
     }
@@ -252,6 +277,7 @@ impl HealthProbeRegistry {
         }
     }
 
+    #[must_use]
     pub fn due_targets(&self) -> Vec<String> {
         self.targets
             .values()
@@ -260,14 +286,17 @@ impl HealthProbeRegistry {
             .collect()
     }
 
+    #[must_use]
     pub fn reports(&self) -> Vec<ProbeReport> {
-        self.targets.values().map(|t| t.report()).collect()
+        self.targets.values().map(ProbeTarget::report).collect()
     }
 
+    #[must_use]
     pub fn report_for(&self, name: &str) -> Option<ProbeReport> {
-        self.targets.get(name).map(|t| t.report())
+        self.targets.get(name).map(ProbeTarget::report)
     }
 
+    #[must_use]
     pub fn unhealthy_targets(&self) -> Vec<String> {
         self.targets
             .values()
@@ -276,6 +305,7 @@ impl HealthProbeRegistry {
             .collect()
     }
 
+    #[must_use]
     pub fn degraded_targets(&self) -> Vec<String> {
         self.targets
             .values()

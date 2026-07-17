@@ -28,6 +28,12 @@ pub struct AzureResult {
 
 pub struct AzureEnumerator;
 
+impl Default for AzureEnumerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AzureEnumerator {
     pub fn new() -> Self {
         AzureEnumerator

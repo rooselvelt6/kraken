@@ -25,6 +25,12 @@ pub struct RootIndicator {
 
 pub struct RootDetector;
 
+impl Default for RootDetector {
+    fn default() -> Self {
+        RootDetector
+    }
+}
+
 impl RootDetector {
     pub fn new() -> Self {
         RootDetector

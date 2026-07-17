@@ -23,6 +23,12 @@ pub struct ScrubResult {
 
 pub struct MetadataScrubber;
 
+impl Default for MetadataScrubber {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetadataScrubber {
     pub fn new() -> Self {
         MetadataScrubber
@@ -134,8 +140,8 @@ impl MetadataScrubber {
             }
         }
 
-        if data.len() > 2 && data[0..2] == [0xff, 0xd8] {
-            if !entries.iter().any(|e| e.name == "Camera Model") {
+        if data.len() > 2 && data[0..2] == [0xff, 0xd8]
+            && !entries.iter().any(|e| e.name == "Camera Model") {
                 entries.push(MetadataEntry {
                     name: "Make".to_string(),
                     value: "Canon".to_string(),
@@ -151,7 +157,6 @@ impl MetadataScrubber {
                     removed: false,
                 });
             }
-        }
 
         entries
     }
@@ -161,7 +166,7 @@ impl MetadataScrubber {
         let after = &content[idx + keyword.len()..];
         if let Some(colon) = after.find(':') {
             let after_colon = after[colon + 1..].trim();
-            let value = after_colon.split(|c: char| c == '\n' || c == '\r')
+            let value = after_colon.split(['\n', '\r'])
                 .next().unwrap_or("").trim().to_string();
             if !value.is_empty() && value.len() < 100 {
                 return Some(value);

@@ -31,6 +31,12 @@ struct FileSignature {
     max_size: u64,
 }
 
+impl Default for FileCarver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileCarver {
     pub fn new() -> Self {
         FileCarver {

@@ -69,7 +69,6 @@ impl MitigationChecker {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }

@@ -164,9 +164,9 @@ impl MitmFramework {
 
             let cap = pcap::Capture::from_device(config.interface.as_str())
                 .and_then(|d| d.promisc(true).snaplen(65535).timeout(1000).open())
-                .and_then(|mut c| {
+                .map(|mut c| {
                     c.filter("tcp port 80 or tcp port 8080 or tcp port 21 or udp port 53", true).ok();
-                    Ok(c)
+                    c
                 });
 
             match cap {

@@ -19,6 +19,7 @@ use crate::heuristic_engine::{HeuristicEngine, RiskLevel};
 /// Default threat intel update interval (hours).
 const THREAT_INTEL_UPDATE_HOURS: u64 = 24;
 /// Default confidence threshold for honeytoken detection.
+#[allow(dead_code)]
 const HONEYTOKEN_CONFIDENCE_THRESHOLD: f64 = 0.9;
 /// Default FP rate threshold for auto-tuning (%). Exceeding triggers threshold raise.
 const FP_RATE_THRESHOLD_PCT: f64 = 5.0;
@@ -168,6 +169,8 @@ pub struct AbTestArm {
 }
 
 impl AbTestArm {
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn fp_rate(&self) -> f64 {
         if self.samples == 0 {
             return 0.0;
@@ -175,6 +178,8 @@ impl AbTestArm {
         self.fp_count as f64 / self.samples as f64 * 100.0
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn fn_rate(&self) -> f64 {
         if self.samples == 0 {
             return 0.0;
@@ -182,6 +187,7 @@ impl AbTestArm {
         self.fn_count as f64 / self.samples as f64 * 100.0
     }
 
+    #[must_use]
     pub fn combined_score(&self) -> f64 {
         self.fp_rate() * 0.5 + self.fn_rate() * 0.5
     }
@@ -199,6 +205,7 @@ pub struct ThreatIntel {
 }
 
 impl ThreatIntel {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             feeds: Vec::new(),
@@ -208,11 +215,13 @@ impl ThreatIntel {
         }
     }
 
+    #[must_use]
     pub fn with_feed_path(mut self, path: &Path) -> Self {
         self.feed_path = Some(path.to_path_buf());
         self
     }
 
+    #[must_use]
     pub fn needs_update(&self) -> bool {
         self.last_update.elapsed() >= self.update_interval
     }
@@ -239,10 +248,12 @@ impl ThreatIntel {
         Ok(count)
     }
 
+    #[must_use]
     pub fn check_indicator(&self, value: &str) -> Vec<&ThreatFeedEntry> {
         self.feeds.iter().filter(|e| e.indicator == value).collect()
     }
 
+    #[must_use]
     pub fn check_ip(&self, ip: &str) -> Vec<&ThreatFeedEntry> {
         self.check_indicator(ip)
             .into_iter()
@@ -250,6 +261,7 @@ impl ThreatIntel {
             .collect()
     }
 
+    #[must_use]
     pub fn check_domain(&self, domain: &str) -> Vec<&ThreatFeedEntry> {
         self.check_indicator(domain)
             .into_iter()
@@ -257,6 +269,7 @@ impl ThreatIntel {
             .collect()
     }
 
+    #[must_use]
     pub fn check_url(&self, url: &str) -> Vec<&ThreatFeedEntry> {
         self.check_indicator(url)
             .into_iter()
@@ -264,6 +277,7 @@ impl ThreatIntel {
             .collect()
     }
 
+    #[must_use]
     pub fn check_cve(&self, cve: &str) -> Vec<&ThreatFeedEntry> {
         self.check_indicator(cve)
             .into_iter()
@@ -271,6 +285,7 @@ impl ThreatIntel {
             .collect()
     }
 
+    #[must_use]
     pub fn check_hash(&self, hash: &str) -> Vec<&ThreatFeedEntry> {
         self.check_indicator(hash)
             .into_iter()
@@ -301,6 +316,7 @@ impl ThreatIntel {
             .fold(0.0, f64::max)
     }
 
+    #[must_use]
     pub fn feed_count(&self) -> usize {
         self.feeds.len()
     }
@@ -405,12 +421,14 @@ fn builtin_threat_feeds() -> Vec<ThreatFeedEntry> {
 
 pub struct HoneytokenManager {
     tokens: Vec<HoneytokenFile>,
+    #[allow(dead_code)]
     workspace_root: PathBuf,
     enabled: bool,
     trigger_count: AtomicU64,
 }
 
 impl HoneytokenManager {
+    #[must_use]
     pub fn new(workspace_root: &Path) -> Self {
         Self {
             tokens: default_honeytokens(workspace_root),
@@ -431,8 +449,8 @@ impl HoneytokenManager {
             }
             let content = format!("{}\n# DO NOT MODIFY: security test file", token.content_pattern);
             match fs::write(&token.path, &content) {
-                Ok(_) => count += 1,
-                Err(e) => log::warn!("Failed to deploy honeytoken {:?}: {}", token.path, e),
+                Ok(()) => count += 1,
+                Err(e) => log::warn!("Failed to deploy honeytoken {}: {}", token.path.display(), e),
             }
         }
         Ok(count)
@@ -557,6 +575,7 @@ pub struct AutoThreshold {
     tune_interval: Duration,
 }
 
+#[allow(dead_code)]
 struct ThresholdEvaluation {
     timestamp: u64,
     heuristic_score: f64,
@@ -566,6 +585,7 @@ struct ThresholdEvaluation {
 }
 
 impl AutoThreshold {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: ThresholdConfig::default(),
@@ -575,6 +595,7 @@ impl AutoThreshold {
         }
     }
 
+    #[must_use]
     pub fn with_interval(mut self, hours: u64) -> Self {
         self.tune_interval = Duration::from_secs(hours * 3600);
         self
@@ -604,6 +625,8 @@ impl AutoThreshold {
         }
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn fp_rate(&self) -> f64 {
         if self.config.total_evaluations == 0 {
             return 0.0;
@@ -611,6 +634,8 @@ impl AutoThreshold {
         self.config.fp_count as f64 / self.config.total_evaluations as f64 * 100.0
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn fn_rate(&self) -> f64 {
         if self.config.total_evaluations == 0 {
             return 0.0;
@@ -618,6 +643,7 @@ impl AutoThreshold {
         self.config.fn_count as f64 / self.config.total_evaluations as f64 * 100.0
     }
 
+    #[must_use]
     pub fn needs_tune(&self) -> bool {
         self.config.total_evaluations >= 10 && self.last_tune.elapsed() >= self.tune_interval
     }
@@ -634,7 +660,7 @@ impl AutoThreshold {
             adjustments.low_max_delta = 0.05 * factor;
             adjustments.medium_max_delta = 0.03 * factor;
             adjustments.high_max_delta = 0.02 * factor;
-            adjustments.reason = format!("FP rate {:.1}% > {:.0}% — raising thresholds", fp, FP_RATE_THRESHOLD_PCT);
+            adjustments.reason = format!("FP rate {fp:.1}% > {FP_RATE_THRESHOLD_PCT:.0}% — raising thresholds");
         }
 
         if fn_rate_val > FN_RATE_THRESHOLD_PCT {
@@ -644,7 +670,7 @@ impl AutoThreshold {
             adjustments.low_max_delta = -0.05 * factor;
             adjustments.medium_max_delta = -0.03 * factor;
             adjustments.high_max_delta = -0.02 * factor;
-            adjustments.reason = format!("FN rate {:.1}% > {:.0}% — lowering thresholds", fn_rate_val, FN_RATE_THRESHOLD_PCT);
+            adjustments.reason = format!("FN rate {fn_rate_val:.1}% > {FN_RATE_THRESHOLD_PCT:.0}% — lowering thresholds");
         }
 
         // Apply adjustments within bounds
@@ -668,10 +694,12 @@ impl AutoThreshold {
         adjustments
     }
 
+    #[must_use]
     pub fn config(&self) -> &ThresholdConfig {
         &self.config
     }
 
+    #[must_use]
     pub fn threshold_for(&self, risk_level: RiskLevel) -> f64 {
         match risk_level {
             RiskLevel::Safe => self.config.safe_max,
@@ -717,6 +745,7 @@ pub struct IncidentResponse {
 }
 
 impl IncidentResponse {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             incidents: Vec::new(),
@@ -727,6 +756,7 @@ impl IncidentResponse {
         }
     }
 
+    #[must_use]
     pub fn with_snapshot_dir(mut self, dir: &Path) -> Self {
         self.snapshot_dir = Some(dir.to_path_buf());
         self
@@ -768,7 +798,7 @@ impl IncidentResponse {
             id: incident_id,
             timestamp,
             threat_score: score,
-            trigger: format!("score {:.3} >= 0.95", score),
+            trigger: format!("score {score:.3} >= 0.95"),
             command: command.to_string(),
             tool: tool.to_string(),
             snapshot_path,
@@ -781,12 +811,7 @@ impl IncidentResponse {
         // Logged via log::error! below — audit integration is handled at a higher level.
 
         log::error!(
-            "INCIDENT #{}: score={:.3} tool={} command={:?} action={:?}",
-            incident_id,
-            score,
-            tool,
-            command,
-            action
+            "INCIDENT #{incident_id}: score={score:.3} tool={tool} command={command:?} action={action:?}"
         );
 
         action
@@ -855,6 +880,7 @@ pub struct PostMortem {
 }
 
 impl PostMortem {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             reports: Vec::new(),
@@ -915,6 +941,7 @@ impl PostMortem {
         report
     }
 
+    #[must_use]
     pub fn reports(&self) -> &[PostMortemReport] {
         &self.reports
     }
@@ -938,6 +965,7 @@ pub struct PolicyEvolution {
 }
 
 impl PolicyEvolution {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             history: Vec::new(),
@@ -956,10 +984,12 @@ impl PolicyEvolution {
         *self.rule_adjustments.entry(rule_name.to_string()).or_insert(0.0) += adjustment;
     }
 
+    #[must_use]
     pub fn adjustment_for(&self, rule_name: &str) -> f64 {
         self.rule_adjustments.get(rule_name).copied().unwrap_or(0.0).clamp(-0.5, 0.5)
     }
 
+    #[must_use]
     pub fn needs_review(&self) -> bool {
         self.last_review.elapsed() >= self.review_interval
     }
@@ -976,7 +1006,7 @@ impl PolicyEvolution {
                 policy_name: rule_name.clone(),
                 weight_adjustment: *adjustment,
                 severity_adjustment: 0.0,
-                reason: format!("Automatic adjustment from feedback: {:.3}", adjustment),
+                reason: format!("Automatic adjustment from feedback: {adjustment:.3}"),
                 applied_at: now_secs(),
                 effect_fp_rate: 0.0,
                 effect_fn_rate: 0.0,
@@ -991,6 +1021,7 @@ impl PolicyEvolution {
         new_records
     }
 
+    #[must_use]
     pub fn history(&self) -> &[PolicyRecord] {
         &self.history
     }
@@ -1019,6 +1050,7 @@ pub struct AbTestEngine {
 }
 
 impl AbTestEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             arms: Self::default_arms(),
@@ -1065,6 +1097,7 @@ impl AbTestEngine {
         ]
     }
 
+    #[must_use]
     pub fn current_arm(&self) -> &AbTestArm {
         &self.arms[self.active_arm_index]
     }
@@ -1073,17 +1106,18 @@ impl AbTestEngine {
         &mut self.arms[self.active_arm_index]
     }
 
-    pub fn record_result(&mut self, was_fp: bool, was_fn: bool) {
+    pub fn record_result(&mut self, was_fp: bool, was_false_neg: bool) {
         let arm = self.active_arm_mut();
         arm.samples += 1;
         if was_fp {
             arm.fp_count += 1;
         }
-        if was_fn {
+        if was_false_neg {
             arm.fn_count += 1;
         }
     }
 
+    #[must_use]
     pub fn has_conclusive(&self) -> Option<usize> {
         if self.arms.iter().any(|a| a.samples < self.min_samples) {
             return None;
@@ -1110,6 +1144,7 @@ impl AbTestEngine {
         Some(&self.arms[best_idx])
     }
 
+    #[must_use]
     pub fn arm_count(&self) -> usize {
         self.arms.len()
     }
@@ -1142,6 +1177,7 @@ pub struct AdaptiveEngine {
 }
 
 impl AdaptiveEngine {
+    #[must_use]
     pub fn new(workspace_root: &Path, snapshot_dir: Option<&Path>) -> Self {
         Self {
             threat_intel: ThreatIntel::new(),
@@ -1193,7 +1229,7 @@ impl AdaptiveEngine {
         total_boost += intel_boost;
 
         // 2. Honeytoken check
-        if let Some(ref p) = path {
+        if let Some(p) = path {
             if let Some(boost) = self.honeytokens.check_access(p) {
                 total_boost += boost;
             }
@@ -1293,7 +1329,7 @@ impl AdaptiveEngine {
         &mut self,
         rule_name: &str,
         was_fp: bool,
-        was_fn: bool,
+        was_false_neg: bool,
         user_approved: bool,
         score: f64,
         risk_level: RiskLevel,
@@ -1304,21 +1340,20 @@ impl AdaptiveEngine {
 
         // Auto-threshold feedback
         self.auto_threshold
-            .record_evaluation(score, risk_level, user_approved, !was_fp && !was_fn);
+            .record_evaluation(score, risk_level, user_approved, !was_fp && !was_false_neg);
 
         // Policy evolution feedback
         self.policy_evolution
-            .record_feedback(rule_name, was_fp, was_fn);
+            .record_feedback(rule_name, was_fp, was_false_neg);
 
         // A/B test feedback
-        self.ab_test.record_result(was_fp, was_fn);
+        self.ab_test.record_result(was_fp, was_false_neg);
 
         // Check if A/B test is conclusive
         if self.ab_test.arm_count() >= 2 {
             if let Some(best_idx) = self.ab_test.has_conclusive() {
                 log::info!(
-                    "AdaptiveEngine: A/B test conclusive — arm {} selected",
-                    best_idx
+                    "AdaptiveEngine: A/B test conclusive — arm {best_idx} selected"
                 );
             }
         }
@@ -1379,13 +1414,13 @@ pub fn global_adaptive_evaluate(
 pub fn global_adaptive_feedback(
     rule_name: &str,
     was_fp: bool,
-    was_fn: bool,
+    was_false_neg: bool,
     user_approved: bool,
     score: f64,
     risk_level: RiskLevel,
 ) {
     let _ = with_adaptive(|a| {
-        a.record_feedback(rule_name, was_fp, was_fn, user_approved, score, risk_level)
+        a.record_feedback(rule_name, was_fp, was_false_neg, user_approved, score, risk_level);
     });
 }
 

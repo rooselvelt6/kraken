@@ -55,7 +55,7 @@ impl RecordType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
             "A" => Some(Self::A),
             "AAAA" => Some(Self::AAAA),
@@ -300,13 +300,13 @@ mod tests {
     #[test]
     fn record_type_roundtrip() {
         for name in &["A", "AAAA", "MX", "TXT", "NS", "SOA", "CNAME"] {
-            let rt = RecordType::from_str(name).unwrap();
+            let rt = RecordType::parse_str(name).unwrap();
             assert_eq!(rt.as_str(), *name);
         }
     }
 
     #[test]
     fn invalid_record_type_returns_none() {
-        assert!(RecordType::from_str("INVALID").is_none());
+        assert!(RecordType::parse_str("INVALID").is_none());
     }
 }

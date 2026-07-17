@@ -19,6 +19,12 @@ pub struct SmsCampaign {
 
 pub struct SmsPhisher;
 
+impl Default for SmsPhisher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SmsPhisher {
     pub fn new() -> Self {
         SmsPhisher

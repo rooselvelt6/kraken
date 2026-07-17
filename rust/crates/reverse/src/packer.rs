@@ -220,7 +220,7 @@ impl PackerDetector {
 }
 
 pub fn format_packer_detection(detection: &PackerDetection) -> String {
-    let mut out = format!("Packer Detection\n");
+    let mut out = "Packer Detection\n".to_string();
     out.push_str(&format!("Packed: {}\n", if detection.detected { "YES" } else { "NO" }));
     out.push_str(&format!("Entropy: {:.4}\n", detection.entropy_score));
 

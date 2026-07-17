@@ -11,6 +11,8 @@ pub enum SiemFormat {
 }
 
 impl SiemFormat {
+    #[must_use]
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "ecs" => Some(Self::Ecs),
@@ -21,6 +23,7 @@ impl SiemFormat {
         }
     }
 
+    #[must_use]
     pub fn extensions(&self) -> &'static str {
         match self {
             Self::Ecs => "ecs.json",
@@ -30,12 +33,12 @@ impl SiemFormat {
         }
     }
 
+    #[must_use]
     pub fn content_type(&self) -> &'static str {
         match self {
             Self::Ecs => "application/ecs+json",
             Self::SplunkHec => "application/x-splunk-json",
-            Self::OpenTelemetry => "application/json",
-            Self::Json => "application/json",
+            Self::OpenTelemetry | Self::Json => "application/json",
         }
     }
 }
@@ -47,6 +50,7 @@ pub struct SiemExporter {
 }
 
 impl SiemExporter {
+    #[must_use]
     pub fn new(format: SiemFormat) -> Self {
         Self {
             format,
@@ -55,11 +59,13 @@ impl SiemExporter {
         }
     }
 
+    #[must_use]
     pub fn with_output_dir(mut self, dir: &str) -> Self {
         self.output_dir = Some(dir.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_pretty(mut self, pretty: bool) -> Self {
         self.pretty = pretty;
         self

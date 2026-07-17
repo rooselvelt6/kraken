@@ -21,6 +21,12 @@ pub struct AnonSurfConfig {
 
 pub struct AnonSurf;
 
+impl Default for AnonSurf {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnonSurf {
     pub fn new() -> Self {
         AnonSurf

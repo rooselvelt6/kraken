@@ -57,6 +57,12 @@ pub struct OsvEvent {
 
 pub struct OsvClient;
 
+impl Default for OsvClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OsvClient {
     pub fn new() -> Self {
         OsvClient

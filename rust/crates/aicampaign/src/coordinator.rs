@@ -31,6 +31,12 @@ pub struct CoordinationResult {
 
 pub struct CampaignCoordinator;
 
+impl Default for CampaignCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CampaignCoordinator {
     pub fn new() -> Self {
         CampaignCoordinator

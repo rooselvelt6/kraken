@@ -20,6 +20,12 @@ pub struct DomainPinning {
 
 pub struct CertPinningChecker;
 
+impl Default for CertPinningChecker {
+    fn default() -> Self {
+        CertPinningChecker
+    }
+}
+
 impl CertPinningChecker {
     pub fn new() -> Self {
         CertPinningChecker
@@ -169,7 +175,7 @@ impl CertPinningChecker {
             recs.push("No certificate pinning detected — implement pinning to prevent MITM".to_string());
         }
         for api in bypass_apis {
-            if api == &"ALLOW_ALL_HOSTNAME_VERIFIER" || api == &"ALLOW_ALL" || api == &"NOP" {
+            if api == "ALLOW_ALL_HOSTNAME_VERIFIER" || api == "ALLOW_ALL" || api == "NOP" {
                 recs.push(format!("Dangerous: {} allows all certificates", api));
             } else {
                 recs.push(format!("SSL bypass API detected: {}", api));

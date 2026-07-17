@@ -331,7 +331,7 @@ impl SocialSearcher {
 
                 handles.push(std::thread::spawn(move || {
                     let _p = permit;
-                    let exists = client_c.as_ref().map_or(false, |c| {
+                    let exists = client_c.as_ref().is_some_and(|c| {
                         check_profile_exists(c, &url_c)
                     });
                     (plat_name, user, url_c, exists)

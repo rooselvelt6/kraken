@@ -29,6 +29,12 @@ pub struct ReplayResult {
 
 pub struct CampaignReplay;
 
+impl Default for CampaignReplay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CampaignReplay {
     pub fn new() -> Self {
         CampaignReplay

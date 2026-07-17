@@ -19,6 +19,12 @@ pub struct TorCircuit {
 
 pub struct TorProxy;
 
+impl Default for TorProxy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TorProxy {
     pub fn new() -> Self {
         TorProxy

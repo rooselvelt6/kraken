@@ -21,6 +21,12 @@ pub struct DeauthResult {
 
 pub struct DeauthFlooder;
 
+impl Default for DeauthFlooder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeauthFlooder {
     pub fn new() -> Self {
         DeauthFlooder

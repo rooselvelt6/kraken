@@ -175,7 +175,7 @@ impl EmailEnricher {
             timestamp: Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         });
 
-        if let Some(api_key) = std::env::var("HIBP_API_KEY").ok() {
+        if let Ok(api_key) = std::env::var("HIBP_API_KEY") {
             if let Ok(breaches) = Self::hibp_api_request(email, &api_key) {
                 for breach in breaches {
                     findings.push(OsintFinding {

@@ -6,6 +6,12 @@ pub struct Cwe190Matcher {
     re: Regex,
 }
 
+impl Default for Cwe190Matcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cwe190Matcher {
     pub fn new() -> Self {
         Self {
@@ -38,6 +44,12 @@ impl Cwe190Matcher {
 
 pub struct Cwe415Matcher {
     re: Regex,
+}
+
+impl Default for Cwe415Matcher {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Cwe415Matcher {

@@ -41,6 +41,12 @@ pub struct IamAuditResult {
 
 pub struct IamAuditor;
 
+impl Default for IamAuditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IamAuditor {
     pub fn new() -> Self {
         IamAuditor

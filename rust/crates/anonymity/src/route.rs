@@ -33,6 +33,12 @@ pub struct RouteStatus {
 
 pub struct RouteManager;
 
+impl Default for RouteManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RouteManager {
     pub fn new() -> Self {
         RouteManager

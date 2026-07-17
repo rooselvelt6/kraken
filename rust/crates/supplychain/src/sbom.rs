@@ -49,6 +49,12 @@ pub struct VersionChange {
 
 pub struct SbomDiffer;
 
+impl Default for SbomDiffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SbomDiffer {
     pub fn new() -> Self {
         SbomDiffer

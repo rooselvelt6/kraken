@@ -269,9 +269,8 @@ pub fn credentials_path() -> io::Result<PathBuf> {
 }
 
 fn try_init_vault() -> Result<Option<CredentialVault>, String> {
-    let master_key = match MasterKey::from_env() {
-        Some(k) => k,
-        None => return Ok(None),
+    let Some(master_key) = MasterKey::from_env() else {
+        return Ok(None);
     };
     let vault = open_credential_vault(&master_key)?;
     Ok(Some(vault))
@@ -308,7 +307,7 @@ pub fn save_oauth_credentials(token_set: &OAuthTokenSet) -> io::Result<()> {
     if let Ok(Some(mut vault)) = try_init_vault() {
         vault.set("oauth", value);
         if let Some(mk) = MasterKey::from_env() {
-            vault.save(&mk).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            vault.save(&mk).map_err(io::Error::other)?;
         }
         return Ok(());
     }
@@ -323,7 +322,7 @@ pub fn clear_oauth_credentials() -> io::Result<()> {
     if let Ok(Some(mut vault)) = try_init_vault() {
         vault.remove("oauth");
         if let Some(mk) = MasterKey::from_env() {
-            vault.save(&mk).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            vault.save(&mk).map_err(io::Error::other)?;
         }
         return Ok(());
     }

@@ -48,7 +48,6 @@ impl SupplyChainAnalyzer {
                 discovered_at: Utc::now(),
                 disclosed: false,
                 disclosure_hash: None,
-                ..Default::default()
             });
         }
         findings
@@ -79,7 +78,6 @@ impl SupplyChainAnalyzer {
                 discovered_at: Utc::now(),
                 disclosed: false,
                 disclosure_hash: None,
-                ..Default::default()
             });
         }
         findings
@@ -115,7 +113,6 @@ impl SupplyChainAnalyzer {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }

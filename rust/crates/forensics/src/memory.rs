@@ -41,6 +41,12 @@ pub struct MemoryAnalysisResult {
 
 pub struct MemoryAnalyzer;
 
+impl Default for MemoryAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryAnalyzer {
     pub fn new() -> Self {
         MemoryAnalyzer
@@ -147,7 +153,7 @@ impl MemoryAnalyzer {
                             let remote = parts[2];
                             let state_hex = parts[3];
                             let pid_info = parts.last().unwrap_or(&"");
-                            let pid = pid_info.split('/').last().unwrap_or("0").parse().unwrap_or(0);
+                            let pid = pid_info.split('/').next_back().unwrap_or("0").parse().unwrap_or(0);
 
                             let (local_addr, local_port) = Self::parse_socket_addr(local);
                             let (remote_addr, remote_port) = Self::parse_socket_addr(remote);

@@ -31,6 +31,12 @@ pub struct PdfStream {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PdfForensics;
 
+impl Default for PdfForensics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PdfForensics {
     pub fn new() -> Self {
         PdfForensics
@@ -66,7 +72,7 @@ impl PdfForensics {
         let s = std::str::from_utf8(data).ok()?;
         let first_line = s.lines().next()?;
         if first_line.starts_with('%') {
-            let v = first_line[1..].trim();
+            let v = first_line.strip_prefix('%').unwrap_or(first_line).trim();
             if v.starts_with("PDF-") {
                 return Some(v.to_string());
             }

@@ -41,6 +41,12 @@ const RESTRICTED_LICENSES: &[&str] = &[
 
 pub struct LicenseChecker;
 
+impl Default for LicenseChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LicenseChecker {
     pub fn new() -> Self {
         LicenseChecker

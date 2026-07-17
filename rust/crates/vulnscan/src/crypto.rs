@@ -51,7 +51,6 @@ impl CryptoAnalyzer {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -85,7 +84,6 @@ impl CryptoAnalyzer {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }
@@ -126,7 +124,6 @@ impl CryptoAnalyzer {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -169,7 +166,6 @@ impl CryptoAnalyzer {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -203,7 +199,6 @@ impl CryptoAnalyzer {
                 discovered_at: Utc::now(),
                 disclosed: false,
                 disclosure_hash: None,
-                ..Default::default()
             });
         }
         findings

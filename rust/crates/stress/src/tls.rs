@@ -22,6 +22,12 @@ pub struct TlsStressResult {
 
 pub struct TlsStressor;
 
+impl Default for TlsStressor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TlsStressor {
     pub fn new() -> Self {
         TlsStressor

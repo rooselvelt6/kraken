@@ -618,6 +618,7 @@ fn classify_git_command(command: &str) -> CommandIntent {
 
 /// Granular intent classifier used by the Heuristic Anomaly Engine.
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn classify_detailed(command: &str) -> DetailedIntent {
     let first = extract_first_command(command);
     let trimmed = command.trim();
@@ -652,7 +653,7 @@ pub fn classify_detailed(command: &str) -> DetailedIntent {
 
         // Network
         "curl" | "wget" | "ftp" | "nc" | "ncat" => {
-            if trimmed.contains("-o") || trimmed.contains("--output") || trimmed.contains(">") {
+            if trimmed.contains("-o") || trimmed.contains("--output") || trimmed.contains('>') {
                 DetailedIntent::NetworkDownload
             } else if trimmed.contains("-d") || trimmed.contains("--data") || trimmed.contains("--post") {
                 DetailedIntent::NetworkUpload
@@ -690,8 +691,7 @@ pub fn classify_detailed(command: &str) -> DetailedIntent {
         }
 
         // Test
-        "cargo" if trimmed.contains("test") => DetailedIntent::Test,
-        "npm" if trimmed.contains("test") => DetailedIntent::Test,
+        "cargo" | "npm" if trimmed.contains("test") => DetailedIntent::Test,
         "pytest" | "mocha" | "jest" | "vitest" | "go test" | "rspec" | "cabal test" => {
             DetailedIntent::Test
         }
@@ -701,16 +701,13 @@ pub fn classify_detailed(command: &str) -> DetailedIntent {
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             let sub = parts.iter().skip(1).find(|p| !p.starts_with('-'));
             match sub {
-                Some(&"status") | Some(&"log") | Some(&"diff") | Some(&"show")
-                | Some(&"branch") | Some(&"tag") | Some(&"remote") | Some(&"ls-files")
-                | Some(&"ls-tree") | Some(&"cat-file") | Some(&"rev-parse") | Some(&"describe")
-                | Some(&"shortlog") | Some(&"blame") | Some(&"bisect") | Some(&"reflog") => {
+                Some(&"status" | &"log" | &"diff" | &"show" | &"branch" | &"tag" | &"remote" |
+&"ls-files" | &"ls-tree" | &"cat-file" | &"rev-parse" | &"describe" |
+&"shortlog" | &"blame" | &"bisect" | &"reflog") => {
                     DetailedIntent::GitRead
                 }
-                Some(&"stash") => DetailedIntent::GitRead,
-                Some(&"config") => DetailedIntent::GitRead,
+                Some(&"stash" | &"config") | None => DetailedIntent::GitRead,
                 Some(_) => DetailedIntent::GitWrite,
-                None => DetailedIntent::GitRead,
             }
         }
 

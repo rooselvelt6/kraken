@@ -35,6 +35,12 @@ pub struct EmailAddress {
 
 pub struct EmailForensics;
 
+impl Default for EmailForensics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EmailForensics {
     pub fn new() -> Self {
         EmailForensics

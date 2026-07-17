@@ -4230,6 +4230,7 @@ fn mcp_server_json(name: &str, server: &ScopedMcpServerConfig) -> Value {
 }
 
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn handle_slash_command(
     input: &str,
     session: &Session,

@@ -20,6 +20,12 @@ pub struct DnsServer {
 
 pub struct DnsLeakTester;
 
+impl Default for DnsLeakTester {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DnsLeakTester {
     pub fn new() -> Self {
         DnsLeakTester

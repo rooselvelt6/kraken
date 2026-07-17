@@ -14,6 +14,7 @@ pub enum TraversalKind {
 }
 
 impl TraversalKind {
+    #[must_use]
     pub fn description(&self) -> &'static str {
         match self {
             Self::DirectoryDotDot => "directory traversal via ../",
@@ -36,6 +37,7 @@ pub struct TraversalDetection {
     pub detail: String,
 }
 
+#[must_use]
 pub fn detect_traversal(path: &str) -> Vec<TraversalDetection> {
     let mut detections = Vec::new();
 

@@ -31,6 +31,12 @@ pub struct LearningResult {
 
 pub struct LearningEngine;
 
+impl Default for LearningEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LearningEngine {
     pub fn new() -> Self {
         LearningEngine

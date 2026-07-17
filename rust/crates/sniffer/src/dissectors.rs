@@ -317,8 +317,7 @@ pub fn dissect_icmp(data: &[u8]) -> Option<IcmpMessage> {
 pub fn extract_credentials_from_http(data: &[u8]) -> Option<(String, String)> {
     if let Some(req) = dissect_http_request(data) {
         if let Some(auth) = &req.authorization {
-            if auth.starts_with("Basic ") {
-                let encoded = &auth[6..];
+            if let Some(encoded) = auth.strip_prefix("Basic ") {
                 if let Ok(decoded) = base64_decode(encoded) {
                     if let Some(idx) = decoded.find(':') {
                         return Some((decoded[..idx].to_string(), decoded[idx + 1..].to_string()));

@@ -19,6 +19,7 @@ pub enum RiskLevel {
 }
 
 impl RiskLevel {
+    #[must_use]
     pub fn from_score(score: f64) -> Self {
         if score >= 0.95 {
             Self::Critical
@@ -33,6 +34,7 @@ impl RiskLevel {
         }
     }
 
+    #[must_use]
     pub fn as_u8(self) -> u8 {
         self as u8
     }
@@ -51,6 +53,7 @@ pub struct RiskScore {
 }
 
 impl RiskScore {
+    #[must_use]
     pub fn safe() -> Self {
         Self {
             total: 0.0,
@@ -68,6 +71,7 @@ impl RiskScore {
         self.risk_level = RiskLevel::from_score(self.total);
     }
 
+    #[must_use]
     pub fn total(&self) -> f64 {
         self.total
     }
@@ -86,6 +90,7 @@ pub enum DestructiveLevel {
 }
 
 impl DestructiveLevel {
+    #[must_use]
     pub fn severity(&self) -> f64 {
         match self {
             Self::Low => 0.2,
@@ -151,6 +156,7 @@ pub struct Rule {
 }
 
 impl Rule {
+    #[must_use]
     pub fn new(
         name: &'static str,
         description: &'static str,
@@ -177,10 +183,12 @@ impl Rule {
 pub struct ContextAwareScorer;
 
 impl ContextAwareScorer {
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
 
+    #[must_use]
     pub fn classify_path(command: &str) -> ContextKind {
         if command.contains("/etc/shadow")
             || command.contains("/etc/passwd")
@@ -232,6 +240,7 @@ impl ContextAwareScorer {
         ContextKind::None
     }
 
+    #[must_use]
     pub fn classify_destructive(command: &str, intent: CommandIntent) -> DestructiveLevel {
         if intent != CommandIntent::Destructive && intent != CommandIntent::Write {
             return DestructiveLevel::Low;
@@ -290,6 +299,7 @@ pub struct TimeWindow {
 }
 
 impl TimeWindow {
+    #[must_use]
     pub fn new(duration: Duration) -> Self {
         Self {
             duration,
@@ -307,20 +317,23 @@ impl TimeWindow {
     }
 
     pub fn evict_expired(&mut self) {
-        let cutoff = Instant::now() - self.duration;
+        let cutoff = Instant::now().checked_sub(self.duration).unwrap();
         while self.entries.front().is_some_and(|e| e.timestamp < cutoff) {
             self.entries.pop_front();
         }
     }
 
+    #[must_use]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    #[must_use]
     pub fn count_by_tool(&self, tool_substring: &str) -> usize {
         self.entries
             .iter()
@@ -328,10 +341,12 @@ impl TimeWindow {
             .count()
     }
 
+    #[must_use]
     pub fn count_by_intent(&self, intent: CommandIntent) -> usize {
         self.entries.iter().filter(|e| e.intent == intent).count()
     }
 
+    #[must_use]
     pub fn unique_tools(&self) -> usize {
         self.entries
             .iter()
@@ -340,6 +355,8 @@ impl TimeWindow {
             .len()
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn tool_repetition_rate(&self, tool_name: &str) -> f64 {
         let total = self.len();
         if total < 3 {
@@ -349,6 +366,8 @@ impl TimeWindow {
         count as f64 / total as f64
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn intent_ratio(&self, intent: CommandIntent) -> f64 {
         let total = self.len();
         if total == 0 {
@@ -357,6 +376,7 @@ impl TimeWindow {
         self.count_by_intent(intent) as f64 / total as f64
     }
 
+    #[must_use]
     pub fn recent_tool_names(&self) -> Vec<String> {
         self.entries.iter().map(|e| e.tool_name.clone()).collect()
     }
@@ -378,6 +398,7 @@ pub struct BehavioralProfile {
 }
 
 impl BehavioralProfile {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             tool_frequencies: HashMap::new(),
@@ -387,9 +408,9 @@ impl BehavioralProfile {
             total_calls: 0,
             unique_files_accessed: HashSet::new(),
             windows: [
-                TimeWindow::new(Duration::from_secs(300)),  // 5 min
-                TimeWindow::new(Duration::from_secs(1800)), // 30 min
-                TimeWindow::new(Duration::from_secs(7200)), // 2 hours
+                TimeWindow::new(Duration::from_mins(5)),  // 5 min
+                TimeWindow::new(Duration::from_mins(30)), // 30 min
+                TimeWindow::new(Duration::from_hours(2)), // 2 hours
             ],
         }
     }
@@ -426,26 +447,33 @@ impl BehavioralProfile {
         self.error_count += 1;
     }
 
+    #[must_use]
     pub fn total_calls(&self) -> usize {
         self.total_calls
     }
 
+    #[must_use]
     pub fn window_5min(&self) -> &TimeWindow {
         &self.windows[0]
     }
 
+    #[must_use]
     pub fn window_30min(&self) -> &TimeWindow {
         &self.windows[1]
     }
 
+    #[must_use]
     pub fn window_2h(&self) -> &TimeWindow {
         &self.windows[2]
     }
 
+    #[must_use]
     pub fn unique_files_count(&self) -> usize {
         self.unique_files_accessed.len()
     }
 
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
     pub fn error_rate(&self) -> f64 {
         if self.total_calls == 0 {
             return 0.0;
@@ -453,6 +481,7 @@ impl BehavioralProfile {
         self.error_count as f64 / self.total_calls as f64
     }
 
+    #[must_use]
     pub fn tool_frequency(&self, tool_name: &str) -> usize {
         self.tool_frequencies
             .get(tool_name)
@@ -460,14 +489,17 @@ impl BehavioralProfile {
             .unwrap_or(0)
     }
 
+    #[must_use]
     pub fn intent_frequency(&self, intent: CommandIntent) -> usize {
         self.intent_counts.get(&intent).copied().unwrap_or(0)
     }
 
+    #[must_use]
     pub fn consecutive_reads(&self) -> usize {
         self.window_5min().count_by_tool("read")
     }
 
+    #[must_use]
     pub fn consecutive_writes(&self) -> usize {
         self.window_5min().count_by_tool("write")
     }
@@ -491,6 +523,7 @@ pub struct FeedbackLoop {
 }
 
 impl FeedbackLoop {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             approved_rules: HashMap::new(),
@@ -508,6 +541,7 @@ impl FeedbackLoop {
         }
     }
 
+    #[must_use]
     pub fn adjusted_weight(&self, rule_name: &str, base_weight: f64) -> f64 {
         let approved = self.approved_rules.get(rule_name).copied().unwrap_or(0.0);
         let rejected = self.rejected_rules.get(rule_name).copied().unwrap_or(0.0);
@@ -522,10 +556,12 @@ impl FeedbackLoop {
         (base_weight + adjustment).clamp(0.0, 1.0)
     }
 
+    #[must_use]
     pub fn total_feedback(&self) -> usize {
         self.total_feedback
     }
 
+    #[must_use]
     pub fn is_rule_stable(&self, rule_name: &str) -> bool {
         let total = self
             .approved_rules
@@ -553,18 +589,21 @@ pub struct RuleEngine {
 }
 
 impl RuleEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             rules: Self::default_rules(),
         }
     }
 
+    #[must_use]
     pub fn with_additional_rules(mut self, additional: Vec<Rule>) -> Self {
         self.rules.extend(additional);
         self
     }
 
     #[allow(clippy::too_many_lines)]
+    #[must_use]
     pub fn default_rules() -> Vec<Rule> {
         vec![
             // === Tool-based Rules ===
@@ -877,7 +916,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["read".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() }, // dummy, evaluated dynamically
+                        RuleCondition::PathPattern { pattern: String::new() }, // dummy, evaluated dynamically
                     ]),
                 ],
                 0.6,
@@ -889,7 +928,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["glob".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.6,
@@ -901,7 +940,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["write".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.4,
@@ -913,7 +952,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["bash".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.3,
@@ -925,7 +964,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["bash".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.3,
@@ -936,8 +975,8 @@ impl RuleEngine {
                 "High call rate in short time window",
                 vec![
                     RuleCondition::And(vec![
-                        RuleCondition::Tool { names: vec!["".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::Tool { names: vec![String::new()] },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.2,
@@ -951,7 +990,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["read".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.8,
@@ -963,7 +1002,7 @@ impl RuleEngine {
                 vec![
                     RuleCondition::And(vec![
                         RuleCondition::Tool { names: vec!["glob".to_string()] },
-                        RuleCondition::PathPattern { pattern: "".to_string() },
+                        RuleCondition::PathPattern { pattern: String::new() },
                     ]),
                 ],
                 0.85,
@@ -1217,6 +1256,7 @@ impl RuleEngine {
         ]
     }
 
+    #[must_use]
     pub fn evaluate(
         &self,
         command: &str,
@@ -1254,6 +1294,7 @@ impl RuleEngine {
         score
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn evaluate_rule(
         &self,
         rule: &Rule,
@@ -1274,7 +1315,7 @@ impl RuleEngine {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::self_only_used_in_recursion, clippy::only_used_in_recursion)]
     fn matches_condition(
         &self,
         cond: &RuleCondition,
@@ -1311,6 +1352,7 @@ impl RuleEngine {
         }
     }
 
+    #[allow(clippy::unused_self)]
     fn compute_profile_deviation(&self, profile: &BehavioralProfile) -> f64 {
         let mut deviation: f64 = 0.0;
         let total = profile.total_calls();
@@ -1346,7 +1388,7 @@ impl RuleEngine {
         // Check write-then-execute chain: recent write_file followed by bash
         if total >= 2 && profile.tool_frequency("write_file") > 0 {
             let recent_tools = profile.window_5min().recent_tool_names();
-            let mut reversed: Vec<&str> = recent_tools.iter().rev().map(|s| s.as_str()).collect();
+            let mut reversed: Vec<&str> = recent_tools.iter().rev().map(std::string::String::as_str).collect();
             if reversed.len() > 5 {
                 reversed.truncate(5);
             }
@@ -1381,6 +1423,7 @@ pub struct HeuristicEngine {
 }
 
 impl HeuristicEngine {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             rule_engine: RuleEngine::new(),

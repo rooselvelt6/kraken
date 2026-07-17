@@ -51,7 +51,6 @@ impl WebAppScanner {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -84,7 +83,6 @@ impl WebAppScanner {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }
@@ -132,7 +130,6 @@ impl WebAppScanner {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -184,7 +181,6 @@ impl WebAppScanner {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -226,7 +222,6 @@ impl WebAppScanner {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -274,7 +269,6 @@ impl WebAppScanner {
                         discovered_at: Utc::now(),
                         disclosed: false,
                         disclosure_hash: None,
-                        ..Default::default()
                     });
                 }
             }
@@ -314,7 +308,6 @@ impl WebAppScanner {
                     discovered_at: Utc::now(),
                     disclosed: false,
                     disclosure_hash: None,
-                    ..Default::default()
                 });
             }
         }

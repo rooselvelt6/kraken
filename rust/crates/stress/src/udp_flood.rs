@@ -20,6 +20,12 @@ pub struct UdpFloodResult {
 
 pub struct UdpFlooder;
 
+impl Default for UdpFlooder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UdpFlooder {
     pub fn new() -> Self {
         UdpFlooder
@@ -51,8 +57,8 @@ impl UdpFlooder {
 
     pub fn generate_payload(size: usize) -> Vec<u8> {
         let mut payload = vec![0u8; size];
-        for i in 0..size {
-            payload[i] = (i % 256) as u8;
+        for (i, byte) in payload.iter_mut().enumerate() {
+            *byte = (i % 256) as u8;
         }
         payload
     }

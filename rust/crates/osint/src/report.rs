@@ -31,11 +31,11 @@ impl ReportGenerator {
 
     pub fn to_text(report: &OsintReport) -> String {
         let mut out = String::new();
-        out.push_str(&format!("===== OSINT REPORT =====\n"));
+        out.push_str("===== OSINT REPORT =====\n");
         out.push_str(&format!("Target: {} ({:?})\n", report.target.value, report.target.kind));
         out.push_str(&format!("Collected: {}\n", report.collected_at));
         out.push_str(&format!("{}\n", report.summary));
-        out.push_str(&format!("==========================\n\n"));
+        out.push_str("==========================\n\n");
 
         let grouped = Self::group_by_kind(report);
         let mut kinds: Vec<_> = grouped.keys().collect();

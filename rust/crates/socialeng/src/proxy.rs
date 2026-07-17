@@ -24,6 +24,12 @@ pub struct ProxyConfig {
 
 pub struct EvilginxProxy;
 
+impl Default for EvilginxProxy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EvilginxProxy {
     pub fn new() -> Self {
         EvilginxProxy
