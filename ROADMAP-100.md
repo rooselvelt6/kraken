@@ -1,7 +1,7 @@
 # Kraken 100 — Roadmap hacia la excelencia total
 
-> **Estado actual: 90/100 · Objetivo: 100/100**
-> *2,650 tests · 708 warnings · 35 crates · 0 unsafe*
+> **Estado actual: 95/100 · Objetivo: 100/100**
+> *2,650 tests · 0 warnings · 35 crates · 0 unsafe*
 
 ---
 
@@ -10,7 +10,7 @@
 | Métrica | Valor | Target 100 |
 |---------|-------|------------|
 | Tests | 2,650 | 5,000+ |
-| Clippy warnings | 708 (24/35 crates) | 0 (35/35 crates) |
+| Clippy warnings | **0 (35/35 crates)** | 0 (35/35 crates) ✅ |
 | Fases implementadas | 25/26 | 26/26 |
 | Análisis kernel | **AST tree-sitter (11 checkers)** | AST + fuzzing |
 | Integración entre crates | Básica | Pipeline E2E testeado |
@@ -18,26 +18,26 @@
 
 ---
 
-## Fase A — Quality Purge (0 warnings)
+## ~~Fase A — Quality Purge (0 warnings)~~ ✅ COMPLETADA
 
 **Objetivo:** 0 warnings de clippy en 35/35 crates. Código limpio, sin excepciones.
 
-**Esfuerzo:** 2 semanas
+**Estado:** Completada — commit `f2d2cde`
 
-| Feature | Impacto | Detalle |
-|---------|---------|---------|
-| Fix `must_use_candidate` (218) | Alto | 31% de todos los warnings. Marcar funciones públicas `#[must_use]` o suprimir con `#[allow]` donde no aplique. |
-| Fix `new_without_default` (93) | Medio | 13%. Implementar `Default` o suprimir explícitamente. |
-| Fix `cast_precision_loss` (31) | Bajo | Usar castings explícitos con `as` o librerías de conversión segura. |
-| Fix `needless_update` (24) | Bajo | Eliminar campos redundantes en struct updates. |
-| Fix `manual_string_new` (16) | Bajo | Simplificar `.to_string()` → `String::from()`. |
-| Fix collapsible_if, uninlined_format_args, redundante closures | Bajo | Refactors mecánicos. |
-| Eliminar dead code | Medio | `WIN_X64_WINEXEC` en exploit.rs, `HONEYTOKEN_CONFIDENCE_THRESHOLD`, `workspace_root` no usado, `ThresholdEvaluation` fields nunca leídos. |
-| Habilitar clippy en CI | Alto | Bloquear merges si hay warnings nuevos. |
+| Feature | Estado |
+|---------|--------|
+| Fix `must_use_candidate` (218) | ✅ Completado |
+| Fix `new_without_default` (93) | ✅ Completado |
+| Fix `cast_precision_loss` (31) | ✅ Completado (allow en ML scoring) |
+| Fix `needless_update` (24) | ✅ Completado (eliminados) |
+| Fix `manual_string_new` (16) | ✅ Completado |
+| Fix collapsible_if, uninlined_format_args, redundant closures | ✅ Completado |
+| Eliminar dead code | ✅ Completado |
+| Habilitar clippy en CI | ✅ `cargo clippy --workspace` = 0 warnings |
 
-**Entregable:** `cargo clippy --workspace` → 0 warnings. CI bloquea warnings.
+**Resultado:** `cargo clippy --workspace` → 0 warnings. 164 archivos modificados.
 
-**Ganancia en rating:** 85 → 90
+**Ganancia en rating:** 90 → 95 (+5)
 
 ---
 
@@ -155,13 +155,12 @@
 
 | Fase | Estado | Esfuerzo | Rating gain | Rating final |
 |------|--------|----------|-------------|-------------|
-| A. Quality Purge | Pendiente | 2 semanas | +5 | 90 |
-| B. Testing Deepening | Pendiente | 3 semanas | +3 | 93 |
-| C. AST Profundo | ✅ **COMPLETADA** | ~~4 semanas~~ | +5 | 95 |
+| ~~A. Quality Purge~~ | ✅ **COMPLETADA** | ~~2 semanas~~ | +5 | 95 |
+| B. Testing Deepening | Pendiente | 3 semanas | +3 | 98 |
+| ~~C. AST Profundo~~ | ✅ **COMPLETADA** | ~~4 semanas~~ | +5 | 95 |
 | D. Fuzzing & Sanitizers | Pendiente | 5 semanas | +3 | 98 |
 | E. Madurez Comercial | Pendiente | 3 semanas | +2 | 100 |
 | **Total** | | **17 semanas (~4 meses)** | **+15** | **100** |
 
-**Ruta crítica:** A → D → E (10 semanas). Fase B puede correr en paralelo con D y E.
-
-**Progreso:** Fase C completada (rating 85 → 90). Siguiente paso recomendado: Fase A (Quality Purge) o Fase D (Fuzzing).
+**Fases completadas:** A ✅ + C ✅ (10 de 15 puntos ganados)
+**Siguiente paso:** Fase B (Testing) o Fase D (Fuzzing) o Fase E (Madurez Comercial)
