@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kraken — Report Viewer</title>
+<style>
+:root {
+  --bg: #0a0e14;
+  --surface: #131820;
+  --surface2: #1a2030;
+  --border: #2a3040;
+  --text: #c8cdd5;
+  --text-dim: #6b7280;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --orange: #f97316;
+  --purple: #a855f7;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
+.header h1 { font-size: 1.25rem; font-weight: 600; }
+.header .version { color: var(--text-dim); font-size: 0.8rem; }
+.container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+.stat-label { color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.stat-value { font-size: 1.5rem; font-weight: 700; }
+.stat-value.green { color: var(--green); }
+.stat-value.yellow { color: var(--yellow); }
+.stat-value.red { color: var(--red); }
+.stat-value.accent { color: var(--accent); }
+.section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 1.5rem; }
+.section-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.9rem; }
+.section-body { padding: 1.25rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+th { color: var(--text-dim); font-weight: 500; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; }
+td { font-family: var(--mono); }
+.severity-critical { color: var(--red); font-weight: 700; }
+.severity-high { color: var(--orange); font-weight: 600; }
+.severity-medium { color: var(--yellow); }
+.severity-low { color: var(--text-dim); }
+.severity-info { color: var(--accent); }
+.cwe { color: var(--purple); font-weight: 500; }
+.drop-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 3rem; text-align: center; color: var(--text-dim); cursor: pointer; transition: border-color 0.2s; }
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); color: var(--text); }
+.drop-zone h2 { font-size: 1rem; margin-bottom: 0.5rem; }
+.drop-zone p { font-size: 0.8rem; }
+.hidden { display: none; }
+.bar { height: 6px; border-radius: 3px; background: var(--surface2); margin-top: 0.5rem; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.finding { padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.5rem; cursor: pointer; transition: background 0.15s; }
+.finding:hover { background: var(--surface2); }
+.finding-title { font-weight: 500; font-size: 0.85rem; margin-bottom: 0.25rem; }
+.finding-meta { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 1rem; }
+pre { background: var(--surface2); border-radius: 6px; padding: 1rem; font-family: var(--mono); font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap; color: var(--text); margin-top: 0.5rem; }
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+.badge-critical { background: rgba(239,68,68,0.15); color: var(--red); }
+.badge-high { background: rgba(249,115,22,0.15); color: var(--orange); }
+.badge-medium { background: rgba(234,179,8,0.15); color: var(--yellow); }
+.badge-low { background: rgba(107,114,128,0.15); color: var(--text-dim); }
+.badge-info { background: rgba(59,130,246,0.15); color: var(--accent); }
+#report-content { display: none; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>&#x1F99E; Kraken Report Viewer</h1>
+  <span class="version">v0.1.0</span>
+</div>
+<div class="container">
+  <div id="drop-zone" class="drop-zone">
+    <h2>Drop a Kraken report here</h2>
+    <p>Supports JSON or HTML reports. Or click to select a file.</p>
+    <input type="file" id="file-input" accept=".json,.html" style="display:none">
+  </div>
+
+  <div id="report-content">
+    <div class="stats" id="stats-grid"></div>
+
+    <div class="section" id="severity-section">
+      <div class="section-header">Severity Distribution</div>
+      <div class="section-body" id="severity-bars"></div>
+    </div>
+
+    <div class="section" id="findings-section">
+      <div class="section-header">Findings</div>
+      <div class="section-body" id="findings-list"></div>
+    </div>
+
+    <div class="section" id="raw-section">
+      <div class="section-header">Raw Report</div>
+      <div class="section-body">
+        <pre id="raw-output"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const reportContent = document.getElementById('report-content');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      renderReport(data);
+    } catch {
+      alert('Invalid JSON report file.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderReport(data) {
+  dropZone.classList.add('hidden');
+  reportContent.style.display = 'block';
+
+  const findings = data.findings || data.vulnerabilities || [];
+  const summary = data.summary || {};
+  const stats = document.getElementById('stats-grid');
+  const severityBars = document.getElementById('severity-bars');
+  const findingsList = document.getElementById('findings-list');
+  const rawOutput = document.getElementById('raw-output');
+
+  const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  findings.forEach(f => {
+    const sev = (f.severity || f.level || 'info').toLowerCase();
+    if (counts[sev] !== undefined) counts[sev]++;
+  });
+
+  const total = findings.length;
+  stats.innerHTML = `
+    <div class="stat"><div class="stat-label">Total Findings</div><div class="stat-value accent">${total}</div></div>
+    <div class="stat"><div class="stat-label">Critical</div><div class="stat-value red">${counts.critical}</div></div>
+    <div class="stat"><div class="stat-label">High</div><div class="stat-value" style="color:var(--orange)">${counts.high}</div></div>
+    <div class="stat"><div class="stat-label">Medium</div><div class="stat-value yellow">${counts.medium}</div></div>
+    <div class="stat"><div class="stat-label">Low</div><div class="stat-value green">${counts.low}</div></div>
+    <div class="stat"><div class="stat-label">Info</div><div class="stat-value accent">${counts.info}</div></div>
+  `;
+
+  severityBars.innerHTML = Object.entries(counts).map(([sev, count]) => {
+    const pct = total ? Math.round(count / total * 100) : 0;
+    const color = { critical: 'var(--red)', high: 'var(--orange)', medium: 'var(--yellow)', low: 'var(--text-dim)', info: 'var(--accent)' }[sev];
+    return `<div style="margin-bottom:0.75rem">
+      <div style="display:flex;justify-content:space-between;font-size:0.8rem;">
+        <span class="severity-${sev}" style="text-transform:capitalize">${sev}</span>
+        <span>${count} (${pct}%)</span>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  }).join('');
+
+  findingsList.innerHTML = findings.length ? findings.map(f => {
+    const sev = (f.severity || f.level || 'info').toLowerCase();
+    const title = f.title || f.name || f.message || 'Untitled';
+    const cwe = f.cwe || f.CWE || '';
+    const file = f.file || f.location || '';
+    return `<div class="finding">
+      <div class="finding-title"><span class="badge badge-${sev}">${sev.toUpperCase()}</span> ${escHtml(title)}</div>
+      <div class="finding-meta">
+        ${cwe ? `<span class="cwe">${escHtml(cwe)}</span>` : ''}
+        ${file ? `<span>${escHtml(file)}</span>` : ''}
+      </div>
+      ${f.description ? `<pre style="font-size:0.75rem;margin-top:0.4rem">${escHtml(f.description)}</pre>` : ''}
+    </div>`;
+  }).join('') : '<p style="color:var(--text-dim)">No findings in this report.</p>';
+
+  rawOutput.textContent = JSON.stringify(data, null, 2);
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>
