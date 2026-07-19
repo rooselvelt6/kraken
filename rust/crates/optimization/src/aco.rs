@@ -410,4 +410,201 @@ mod tests {
         // Should have found some path
         assert!(!result.is_empty());
     }
+
+    #[test]
+    fn test_pheromone_graph_missing_edge() {
+        let graph = PheromoneGraph::new(0.5, 1.0);
+        assert_eq!(graph.get_pheromone("X", "Y"), 0.0);
+    }
+
+    #[test]
+    fn test_pheromone_graph_get_edges_from() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.add_node("B".to_string(), NodeType::File);
+        graph.add_node("C".to_string(), NodeType::File);
+        graph.add_edge("A".to_string(), "B".to_string(), 1.0);
+        graph.add_edge("A".to_string(), "C".to_string(), 2.0);
+
+        let mut edges = graph.get_edges_from("A");
+        edges.sort();
+        assert_eq!(edges, vec!["B".to_string(), "C".to_string()]);
+    }
+
+    #[test]
+    fn test_pheromone_graph_update_pheromones() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.add_node("B".to_string(), NodeType::File);
+        graph.add_edge("A".to_string(), "B".to_string(), 1.0);
+
+        let initial = graph.get_pheromone("A", "B");
+        assert_eq!(initial, 1.0);
+
+        let paths = vec![vec!["A".to_string(), "B".to_string()]];
+        let fitness_values = vec![1.0];
+        graph.update_pheromones(&paths, &fitness_values);
+
+        let after = graph.get_pheromone("A", "B");
+        // decay: 1.0 * (1 - 0.5) = 0.5, then deposit 1.0 * 1.0 = 1.0, total = 1.5
+        assert!(after > initial);
+    }
+
+    #[test]
+    fn test_pheromone_graph_get_transition_probability() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.add_node("B".to_string(), NodeType::File);
+        graph.add_edge("A".to_string(), "B".to_string(), 2.0);
+
+        // pheromone=1.0, distance=2.0 -> prob = 1.0 / 2.0 = 0.5
+        let prob = graph.get_transition_probability("A", "B");
+        assert!((prob - 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_ant_new() {
+        let ant = Ant::new("start".to_string());
+        assert_eq!(ant.current_node, "start");
+        assert_eq!(ant.visited, vec!["start".to_string()]);
+        assert_eq!(ant.path, vec!["start".to_string()]);
+        assert_eq!(ant.fitness, 0.0);
+    }
+
+    #[test]
+    fn test_ant_reset() {
+        let mut ant = Ant::new("A".to_string());
+        ant.path = vec!["A".to_string(), "B".to_string(), "C".to_string()];
+        ant.visited = vec!["A".to_string(), "B".to_string(), "C".to_string()];
+        ant.fitness = 42.0;
+
+        ant.reset("X".to_string());
+        assert_eq!(ant.current_node, "X");
+        assert_eq!(ant.path, vec!["X".to_string()]);
+        assert_eq!(ant.visited, vec!["X".to_string()]);
+        assert_eq!(ant.fitness, 0.0);
+    }
+
+    #[test]
+    fn test_aco_graph_info() {
+        let mut aco = ACOPathFinder::new(5, 10, 1.0, 1.0);
+        aco.initialize_graph(
+            vec!["A".to_string(), "B".to_string(), "C".to_string()],
+            vec![NodeType::File; 3],
+        );
+        aco.add_connection("A".to_string(), "B".to_string(), 1.0);
+        aco.add_connection("B".to_string(), "C".to_string(), 1.0);
+
+        let (nodes, edges) = aco.graph_info();
+        assert_eq!(nodes, 3);
+        assert_eq!(edges, 2);
+    }
+
+    #[test]
+    fn test_node_types() {
+        let types = vec![
+            NodeType::File,
+            NodeType::Function,
+            NodeType::Class,
+            NodeType::Module,
+            NodeType::Dependency,
+        ];
+        assert_eq!(types.len(), 5);
+        assert!(matches!(types[0], NodeType::File));
+        assert!(matches!(types[4], NodeType::Dependency));
+    }
+
+    #[test]
+    fn test_pheromone_graph_update_pheromones_empty() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.update_pheromones(&[], &[]);
+        assert_eq!(graph.get_pheromone("A", "B"), 0.0);
+    }
+
+    #[test]
+    fn test_pheromone_graph_get_transition_probability_missing() {
+        let graph = PheromoneGraph::new(0.5, 1.0);
+        let prob = graph.get_transition_probability("X", "Y");
+        assert_eq!(prob, 0.0);
+    }
+
+    #[test]
+    fn test_ant_no_moves_available() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        let mut ant = Ant::new("A".to_string());
+        let moved = ant.move_to(&graph, 1.0, 1.0);
+        assert!(!moved);
+    }
+
+    #[test]
+    fn test_ant_move_already_visited() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.add_node("B".to_string(), NodeType::File);
+        graph.add_edge("A".to_string(), "B".to_string(), 1.0);
+        let mut ant = Ant::new("A".to_string());
+        ant.move_to(&graph, 1.0, 1.0);
+        let moved = ant.move_to(&graph, 1.0, 1.0);
+        assert!(!moved);
+    }
+
+    #[test]
+    fn test_aco_iterate_empty_graph() {
+        let mut aco = ACOPathFinder::new(5, 10, 1.0, 1.0);
+        let fitness_fn = |path: &[String]| -> f64 { path.len() as f64 };
+        aco.iterate(fitness_fn);
+        assert_eq!(aco.best_path().len(), 0);
+    }
+
+    #[test]
+    fn test_path_struct() {
+        let path = Path {
+            nodes: vec!["A".to_string(), "B".to_string()],
+            total_distance: 5.0,
+            pheromone_level: 0.75,
+        };
+        assert_eq!(path.nodes.len(), 2);
+        assert_eq!(path.total_distance, 5.0);
+        assert_eq!(path.pheromone_level, 0.75);
+    }
+
+    #[test]
+    fn test_aco_best_fitness_initial() {
+        let aco = ACOPathFinder::new(5, 10, 1.0, 1.0);
+        assert_eq!(aco.best_fitness(), f64::NEG_INFINITY);
+    }
+
+    #[test]
+    fn test_aco_best_path_initial() {
+        let aco = ACOPathFinder::new(5, 10, 1.0, 1.0);
+        assert!(aco.best_path().is_empty());
+    }
+
+    #[test]
+    fn test_pheromone_graph_node_types() {
+        let mut graph = PheromoneGraph::new(0.3, 2.0);
+        graph.add_node("f1".to_string(), NodeType::File);
+        graph.add_node("fn1".to_string(), NodeType::Function);
+        graph.add_node("cls1".to_string(), NodeType::Class);
+        graph.add_node("mod1".to_string(), NodeType::Module);
+        graph.add_node("dep1".to_string(), NodeType::Dependency);
+        assert_eq!(graph.node_count(), 5);
+    }
+
+    #[test]
+    fn test_pheromone_graph_multiple_edges_from_node() {
+        let mut graph = PheromoneGraph::new(0.5, 1.0);
+        graph.add_node("A".to_string(), NodeType::File);
+        graph.add_node("B".to_string(), NodeType::File);
+        graph.add_node("C".to_string(), NodeType::File);
+        graph.add_node("D".to_string(), NodeType::File);
+        graph.add_edge("A".to_string(), "B".to_string(), 1.0);
+        graph.add_edge("A".to_string(), "C".to_string(), 2.0);
+        graph.add_edge("A".to_string(), "D".to_string(), 3.0);
+        assert_eq!(graph.edge_count(), 3);
+        let edges = graph.get_edges_from("A");
+        assert_eq!(edges.len(), 3);
+    }
 }

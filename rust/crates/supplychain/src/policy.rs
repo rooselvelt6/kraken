@@ -56,6 +56,17 @@ impl PolicyEngine {
         PolicyEngine
     }
 
+    /// Returns the default supply chain policy with 5 rules.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use supplychain::PolicyEngine;
+    ///
+    /// let policy = PolicyEngine::default_policy();
+    /// assert_eq!(policy.rules.len(), 5);
+    /// assert_eq!(policy.name, "kraken-default");
+    /// ```
     pub fn default_policy() -> PolicyConfig {
         PolicyConfig {
             name: "kraken-default".to_string(),
@@ -106,6 +117,25 @@ impl PolicyEngine {
         }
     }
 
+    /// Evaluates a policy against a set of findings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use supplychain::PolicyEngine;
+    ///
+    /// let policy = PolicyEngine::default_policy();
+    /// let findings = vec![
+    ///     ("SC-001", true),
+    ///     ("SC-002", true),
+    ///     ("SC-003", true),
+    ///     ("SC-004", true),
+    ///     ("SC-005", true),
+    /// ];
+    /// let result = PolicyEngine::evaluate(&policy, &findings);
+    /// assert!(result.compliant);
+    /// assert_eq!(result.passed, 5);
+    /// ```
     pub fn evaluate(policy: &PolicyConfig, findings: &[(&str, bool)]) -> PolicyEvalResult {
         let mut violations = Vec::new();
         let mut passed = 0usize;
@@ -197,5 +227,114 @@ mod tests {
         let result = PolicyEngine::evaluate(&policy, &[]);
         let json = serde_json::to_string_pretty(&result).unwrap();
         assert!(json.contains("SC-001"));
+    }
+
+    #[test]
+    fn test_evaluate_partial_pass() {
+        let policy = PolicyEngine::default_policy();
+        let findings = vec![
+            ("SC-001", true),
+            ("SC-002", true),
+            ("SC-003", false),
+            ("SC-004", false),
+            ("SC-005", true),
+        ];
+        let result = PolicyEngine::evaluate(&policy, &findings);
+        assert_eq!(result.passed, 3);
+        assert_eq!(result.failed, 2);
+    }
+
+    #[test]
+    fn test_evaluate_compliant_if_only_warn_violations() {
+        let policy = PolicyConfig {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            severity: "low".to_string(),
+            rules: vec![
+                PolicyRule {
+                    id: "W1".to_string(),
+                    name: "Warn only".to_string(),
+                    c_type: "test".to_string(),
+                    condition: "test".to_string(),
+                    action: PolicyAction::Warn,
+                    severity: "low".to_string(),
+                },
+            ],
+        };
+        let findings = vec![("W1", false)];
+        let result = PolicyEngine::evaluate(&policy, &findings);
+        assert!(result.compliant);
+        assert_eq!(result.failed, 1);
+    }
+
+    #[test]
+    fn test_policy_default_has_5_rules() {
+        let policy = PolicyEngine::default_policy();
+        assert_eq!(policy.rules.len(), 5);
+        assert_eq!(policy.name, "kraken-default");
+        assert_eq!(policy.version, "1.0");
+    }
+
+    #[test]
+    fn test_policy_violation_struct() {
+        let v = PolicyViolation {
+            rule_id: "R1".to_string(),
+            rule_name: "Test Rule".to_string(),
+            message: "violation".to_string(),
+            action: PolicyAction::Deny,
+        };
+        assert_eq!(v.action, PolicyAction::Deny);
+    }
+
+    #[test]
+    fn test_policy_action_variants() {
+        assert_eq!(PolicyAction::Allow, PolicyAction::Allow);
+        assert_eq!(PolicyAction::Deny, PolicyAction::Deny);
+        assert_eq!(PolicyAction::Warn, PolicyAction::Warn);
+        assert_ne!(PolicyAction::Allow, PolicyAction::Deny);
+    }
+
+    #[test]
+    fn test_eval_result_struct() {
+        let result = PolicyEvalResult {
+            policy: "test".to_string(),
+            total_rules: 5,
+            passed: 3,
+            failed: 2,
+            violations: vec![],
+            compliant: true,
+        };
+        assert!(result.compliant);
+        assert_eq!(result.total_rules, 5);
+    }
+
+    #[test]
+    fn test_policy_rule_struct() {
+        let rule = PolicyRule {
+            id: "R1".to_string(),
+            name: "Test".to_string(),
+            c_type: "vulnerability".to_string(),
+            condition: "severity < high".to_string(),
+            action: PolicyAction::Warn,
+            severity: "medium".to_string(),
+        };
+        assert_eq!(rule.c_type, "vulnerability");
+    }
+
+    #[test]
+    fn test_evaluate_unknown_rule_id() {
+        let policy = PolicyEngine::default_policy();
+        let findings = vec![("UNKNOWN-ID", true)];
+        let result = PolicyEngine::evaluate(&policy, &findings);
+        assert_eq!(result.failed, 5);
+        assert!(!result.compliant);
+    }
+
+    #[test]
+    fn test_policy_engine_default() {
+        let engine = PolicyEngine::default();
+        let policy = PolicyEngine::default_policy();
+        let result = PolicyEngine::evaluate(&policy, &[]);
+        assert_eq!(result.total_rules, 5);
     }
 }

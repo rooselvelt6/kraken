@@ -254,4 +254,105 @@ mod tests {
         let json = serde_json::to_string_pretty(&result).unwrap();
         assert!(json.contains("proven"));
     }
+
+    #[test]
+    fn test_level_ordering() {
+        assert!(SlsaLevel::None < SlsaLevel::L1);
+        assert!(SlsaLevel::L1 < SlsaLevel::L2);
+        assert!(SlsaLevel::L2 < SlsaLevel::L3);
+        assert!(SlsaLevel::L3 < SlsaLevel::L4);
+    }
+
+    #[test]
+    fn test_level_equality() {
+        assert_eq!(SlsaLevel::L1, SlsaLevel::L1);
+        assert_ne!(SlsaLevel::L1, SlsaLevel::L2);
+    }
+
+    #[test]
+    fn test_verify_l2_with_materials_and_config() {
+        let prov = SlsaVerifier::generate_provenance(
+            "builder-id",
+            "https://github.com/example/repo",
+            &[("src.tar.gz", "sha256:abc")],
+        );
+        let result = SlsaVerifier::verify(&prov, SlsaLevel::L2);
+        assert!(result.proven);
+    }
+
+    #[test]
+    fn test_verify_l4_not_met() {
+        let prov = SlsaVerifier::generate_provenance(
+            "builder",
+            "https://repo.example.com/build",
+            &[("src.tar.gz", "sha256:abc")],
+        );
+        let result = SlsaVerifier::verify(&prov, SlsaLevel::L4);
+        assert!(!result.proven);
+    }
+
+    #[test]
+    fn test_slsa_check_struct() {
+        let check = SlsaCheck {
+            name: "test".to_string(),
+            passed: true,
+            description: "desc".to_string(),
+        };
+        assert!(check.passed);
+    }
+
+    #[test]
+    fn test_generate_provenance_materials() {
+        let prov = SlsaVerifier::generate_provenance(
+            "builder",
+            "https://repo.example.com",
+            &[("a.tar.gz", "sha256:aaa"), ("b.tar.gz", "sha256:bbb")],
+        );
+        assert_eq!(prov.materials.len(), 2);
+        assert_eq!(prov.materials[0].uri, "a.tar.gz");
+        assert_eq!(prov.materials[1].digest, "sha256:bbb");
+    }
+
+    #[test]
+    fn test_generate_provenance_has_byproducts() {
+        let prov = SlsaVerifier::generate_provenance("b", "r", &[]);
+        assert_eq!(prov.byproducts.len(), 1);
+        assert_eq!(prov.byproducts[0].name, "sha256");
+    }
+
+    #[test]
+    fn test_verify_empty_builder_no_level() {
+        let prov = SlsaProvenance {
+            builder: SlsaBuilder { id: String::new() },
+            build_type: String::new(),
+            invocation: SlsaInvocation {
+                config_source: SlsaConfigSource { uri: String::new(), digest: None, entry_point: String::new() },
+                parameters: vec![],
+            },
+            materials: vec![],
+            byproducts: vec![],
+        };
+        let result = SlsaVerifier::verify(&prov, SlsaLevel::None);
+        assert!(result.proven);
+    }
+
+    #[test]
+    fn test_slsa_verifier_default() {
+        let v = SlsaVerifier::default();
+        let prov = SlsaVerifier::generate_provenance("b", "r", &[]);
+        let result = SlsaVerifier::verify(&prov, SlsaLevel::L1);
+        assert!(result.proven);
+    }
+
+    #[test]
+    fn test_slsa_provenance_serde() {
+        let prov = SlsaVerifier::generate_provenance(
+            "https://builder.example.com",
+            "https://repo.example.com",
+            &[("src.tar.gz", "sha256:abc123")],
+        );
+        let json = serde_json::to_string_pretty(&prov).unwrap();
+        assert!(json.contains("builder"));
+        assert!(json.contains("materials"));
+    }
 }

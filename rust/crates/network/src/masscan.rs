@@ -37,6 +37,23 @@ impl Default for MasscanConfig {
 }
 
 impl MasscanConfig {
+    /// Adds a CIDR range to scan.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use network::masscan::MasscanConfig;
+    ///
+    /// let mut config = MasscanConfig::default();
+    /// config.add_cidr("192.168.1.0/30").unwrap();
+    /// config.ports.clear();
+    /// config.add_port(80);
+    /// config.add_port(443);
+    ///
+    /// assert_eq!(config.total_ips(), 2);
+    /// assert_eq!(config.total_ports(), 2);
+    /// assert_eq!(config.total_probes(), 4);
+    /// ```
     pub fn add_cidr(&mut self, cidr: &str) -> Result<(), String> {
         let range = parse_cidr(cidr)?;
         self.targets.push(range);
@@ -256,5 +273,170 @@ mod tests {
         config.ports = vec![PortRange { start: 80, end: 81 }];
         config.add_cidr("10.0.0.0/30").unwrap();
         assert_eq!(config.total_probes(), 4);
+    }
+
+    #[test]
+    fn test_masscan_config_default() {
+        let config = MasscanConfig::default();
+        assert!(config.targets.is_empty());
+        assert_eq!(config.ports.len(), 1);
+        assert_eq!(config.ports[0].start, 1);
+        assert_eq!(config.ports[0].end, 1024);
+        assert_eq!(config.concurrency, 10000);
+        assert!(config.rate_limit.is_none());
+    }
+
+    #[test]
+    fn test_add_port() {
+        let mut config = MasscanConfig::default();
+        config.add_port(80);
+        assert_eq!(config.ports.len(), 2); // default + 80
+        assert_eq!(config.ports[1].start, 80);
+        assert_eq!(config.ports[1].end, 80);
+    }
+
+    #[test]
+    fn test_add_port_range() {
+        let mut config = MasscanConfig::default();
+        config.add_port_range(1000, 2000);
+        assert_eq!(config.ports.len(), 2);
+        assert_eq!(config.ports[1].start, 1000);
+        assert_eq!(config.ports[1].end, 2000);
+    }
+
+    #[test]
+    fn test_total_ips_single_host() {
+        let mut config = MasscanConfig::default();
+        config.add_cidr("10.0.0.1/32").unwrap();
+        assert_eq!(config.total_ips(), 1);
+    }
+
+    #[test]
+    fn test_total_ips_slash24() {
+        let mut config = MasscanConfig::default();
+        config.add_cidr("10.0.0.0/30").unwrap();
+        assert_eq!(config.total_ips(), 2); // network+1, broadcast-1
+    }
+
+    #[test]
+    fn test_total_ports_empty() {
+        let config = MasscanConfig {
+            targets: vec![],
+            ports: vec![],
+            concurrency: 100,
+            timeout: Duration::from_secs(1),
+            rate_limit: None,
+        };
+        assert_eq!(config.total_ports(), 0);
+    }
+
+    #[test]
+    fn test_total_probes_zero() {
+        let config = MasscanConfig {
+            targets: vec![],
+            ports: vec![],
+            concurrency: 100,
+            timeout: Duration::from_secs(1),
+            rate_limit: None,
+        };
+        assert_eq!(config.total_probes(), 0);
+    }
+
+    #[test]
+    fn test_ip_count_single() {
+        let count = ip_count(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+        );
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_ip_count_range() {
+        let count = ip_count(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 5)),
+        );
+        assert_eq!(count, 5);
+    }
+
+    #[test]
+    fn test_expand_port_ranges_multiple() {
+        let ranges = vec![
+            PortRange { start: 80, end: 82 },
+            PortRange { start: 443, end: 443 },
+        ];
+        let ports = expand_port_ranges(&ranges);
+        assert_eq!(ports.len(), 4);
+        assert!(ports.contains(&80));
+        assert!(ports.contains(&82));
+        assert!(ports.contains(&443));
+    }
+
+    #[test]
+    fn test_expand_ranges_empty() {
+        let ips = expand_ranges(&[]);
+        assert!(ips.is_empty());
+    }
+
+    #[test]
+    fn test_expand_port_ranges_empty() {
+        let ports = expand_port_ranges(&[]);
+        assert!(ports.is_empty());
+    }
+
+    #[test]
+    fn test_parse_cidr_various_invalid() {
+        assert!(parse_cidr("").is_err());
+        assert!(parse_cidr("10.0.0.1").is_err());
+        assert!(parse_cidr("10.0.0.0/abc").is_err());
+        assert!(parse_cidr("not-an-ip/24").is_err());
+        assert!(parse_cidr("10.0.0.0/33").is_err());
+        assert!(parse_cidr("10.0.0.0/-1").is_err());
+    }
+
+    #[test]
+    fn test_parse_cidr_slash_31() {
+        let range = parse_cidr("10.0.0.0/31").unwrap();
+        assert_eq!(range.start, IpAddr::V4(Ipv4Addr::new(10, 0, 0, 0)));
+        assert_eq!(range.end, IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)));
+    }
+
+    #[test]
+    fn test_parse_cidr_slash_24() {
+        let range = parse_cidr("192.168.1.0/30").unwrap();
+        assert_eq!(range.start, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)));
+        assert_eq!(range.end, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2)));
+    }
+
+    #[test]
+    fn test_add_cidr_to_config() {
+        let mut config = MasscanConfig::default();
+        config.add_cidr("192.168.1.0/30").unwrap();
+        assert_eq!(config.targets.len(), 1);
+        assert_eq!(config.total_ips(), 2);
+    }
+
+    #[test]
+    fn test_masscan_result_struct() {
+        let result = MasscanResult {
+            target: ScanTarget {
+                addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+                hostname: Some("test.local".into()),
+            },
+            results: vec![],
+            scan_duration: Duration::from_secs(1),
+            ips_scanned: 1,
+            total_probes: 10,
+        };
+        assert_eq!(result.ips_scanned, 1);
+        assert_eq!(result.total_probes, 10);
+        assert!(result.results.is_empty());
+    }
+
+    #[test]
+    fn test_scan_range_invalid_cidr() {
+        let result = scan_range("invalid", &[80]);
+        assert!(result.is_err());
     }
 }

@@ -44,6 +44,18 @@ pub enum CacheType {
 }
 
 impl CacheType {
+    /// Returns the string representation of this cache type.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cache::CacheType;
+    ///
+    /// assert_eq!(CacheType::Response.as_str(), "Response");
+    /// assert_eq!(CacheType::Prompt.as_str(), "Prompt");
+    /// assert_eq!(CacheType::Embedding.as_str(), "Embedding");
+    /// assert_eq!(CacheType::ToolResult.as_str(), "ToolResult");
+    /// ```
     pub fn as_str(&self) -> &'static str {
         match self {
             CacheType::Response => "Response",
@@ -86,6 +98,21 @@ pub struct CacheSettings {
     pub eviction_policy: EvictionPolicy,
 }
 
+/// Default cache settings.
+///
+/// # Examples
+///
+/// ```
+/// use cache::CacheSettings;
+/// use cache::EvictionPolicy;
+///
+/// let settings = CacheSettings::default();
+/// assert_eq!(settings.max_memory_mb, 100);
+/// assert_eq!(settings.max_disk_mb, 500);
+/// assert_eq!(settings.default_ttl_secs, 3600);
+/// assert!(settings.enable_compression);
+/// assert!(matches!(settings.eviction_policy, EvictionPolicy::LRU));
+/// ```
 impl Default for CacheSettings {
     fn default() -> Self {
         Self {

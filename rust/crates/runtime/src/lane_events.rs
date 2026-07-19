@@ -337,6 +337,17 @@ impl LaneEventBuilder {
 }
 
 /// Check if an event kind is terminal (completed, failed, superseded, closed).
+///
+/// # Examples
+///
+/// ```
+/// use runtime::{is_terminal_event, LaneEventName};
+///
+/// assert!(is_terminal_event(LaneEventName::Finished));
+/// assert!(is_terminal_event(LaneEventName::Failed));
+/// assert!(!is_terminal_event(LaneEventName::Started));
+/// assert!(!is_terminal_event(LaneEventName::Blocked));
+/// ```
 #[must_use]
 pub fn is_terminal_event(event: LaneEventName) -> bool {
     matches!(
@@ -476,8 +487,17 @@ pub struct LaneEvent {
 }
 
 impl LaneEvent {
-    /// Create a new lane event with minimal metadata (seq=0, provenance=LiveLane)
-    /// Use `LaneEventBuilder` for events requiring full metadata.
+    /// Creates a lane event with minimal metadata (seq=0, provenance=LiveLane).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::{LaneEvent, LaneEventName, LaneEventStatus};
+    ///
+    /// let event = LaneEvent::new(LaneEventName::Started, LaneEventStatus::Running, "2026-01-01T00:00:00Z");
+    /// assert_eq!(event.event, LaneEventName::Started);
+    /// assert_eq!(event.emitted_at, "2026-01-01T00:00:00Z");
+    /// ```
     #[must_use]
     pub fn new(
         event: LaneEventName,

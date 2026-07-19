@@ -267,4 +267,169 @@ mod tests {
             assert!((total_confidence - 1.0).abs() < 0.1);
         }
     }
+
+    #[test]
+    fn test_particle_new() {
+        let p = Particle::new(4);
+        assert_eq!(p.position.len(), 4);
+        assert_eq!(p.velocity.len(), 4);
+        assert_eq!(p.best_position.len(), 4);
+        assert_eq!(p.fitness, f64::INFINITY);
+        assert_eq!(p.best_fitness, f64::INFINITY);
+    }
+
+    #[test]
+    fn test_particle_update_best_improvement() {
+        let mut p = Particle::new(3);
+        p.fitness = 0.5;
+        p.position = vec![0.1, 0.2, 0.3];
+        p.update_best();
+        assert_eq!(p.best_fitness, 0.5);
+        assert_eq!(p.best_position, vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn test_particle_update_best_no_improvement() {
+        let mut p = Particle::new(3);
+        p.best_fitness = 0.5;
+        p.best_position = vec![0.1, 0.2, 0.3];
+        p.fitness = 1.0;
+        p.position = vec![0.9, 0.9, 0.9];
+        p.update_best();
+        assert_eq!(p.best_fitness, 0.5);
+        assert_eq!(p.best_position, vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn test_pso_iterate() {
+        let fitness_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        let mut selector = PSOToolSelector::new(3, 10, 50);
+        assert_eq!(selector.iteration(), 0);
+        selector.iterate(fitness_fn);
+        assert_eq!(selector.iteration(), 1);
+    }
+
+    #[test]
+    fn test_pso_has_converged() {
+        let selector = PSOToolSelector::new(3, 10, 10);
+        // Fresh selector: fitness is INFINITY, not converged by fitness
+        // but also not converged by iteration (0 < 10)
+        assert!(!selector.has_converged(1.0));
+        // threshold larger than INFINITY should make it converged via iteration check won't help
+        // Instead test with max_iterations=0: already at or past max
+        let selector_zero = PSOToolSelector::new(3, 10, 0);
+        assert!(selector_zero.has_converged(1.0));
+    }
+
+    #[test]
+    fn test_pso_iteration_starts_zero() {
+        let selector = PSOToolSelector::new(3, 10, 50);
+        assert_eq!(selector.iteration(), 0);
+    }
+
+    #[test]
+    fn test_pso_new_dimensions() {
+        let selector = PSOToolSelector::new(8, 25, 100);
+        assert_eq!(selector.dimensions, 8);
+        assert_eq!(selector.particles.len(), 25);
+        assert_eq!(selector.max_iterations, 100);
+    }
+
+    #[test]
+    fn test_pso_global_best_initial() {
+        let selector = PSOToolSelector::new(3, 10, 10);
+        assert_eq!(selector.global_best_fitness, f64::INFINITY);
+    }
+
+    #[test]
+    fn test_pso_get_best_selection() {
+        let selector = PSOToolSelector::new(3, 10, 10);
+        let best = selector.get_best_selection();
+        assert_eq!(best.len(), 3);
+    }
+
+    #[test]
+    fn test_pso_best_fitness() {
+        let mut selector = PSOToolSelector::new(3, 10, 10);
+        let fitness_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        selector.iterate(fitness_fn);
+        assert!(selector.best_fitness() < f64::INFINITY);
+    }
+
+    #[test]
+    fn test_pso_iterate_updates_iteration() {
+        let fitness_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        let mut selector = PSOToolSelector::new(3, 10, 10);
+        assert_eq!(selector.iteration(), 0);
+        selector.iterate(fitness_fn);
+        assert_eq!(selector.iteration(), 1);
+    }
+
+    #[test]
+    fn test_pso_has_converged_by_iteration() {
+        let selector = PSOToolSelector::new(3, 10, 0);
+        assert!(selector.has_converged(0.001));
+    }
+
+    #[test]
+    fn test_pso_has_converged_by_fitness() {
+        let mut selector = PSOToolSelector::new(3, 10, 100);
+        selector.global_best_fitness = 0.0001;
+        assert!(selector.has_converged(0.01));
+    }
+
+    #[test]
+    fn test_particle_position_range() {
+        let p = Particle::new(5);
+        for &v in &p.position {
+            assert!(v >= 0.0 && v <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_particle_velocity_range() {
+        let p = Particle::new(5);
+        for &v in &p.velocity {
+            assert!(v >= -1.0 && v <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_particle_update_best_worse() {
+        let mut p = Particle::new(2);
+        p.best_fitness = 0.5;
+        p.best_position = vec![0.5, 0.5];
+        p.fitness = 1.0;
+        p.position = vec![1.0, 1.0];
+        p.update_best();
+        assert_eq!(p.best_fitness, 0.5);
+        assert_eq!(p.best_position, vec![0.5, 0.5]);
+    }
+
+    #[test]
+    fn test_tool_score_struct() {
+        let ts = ToolScore {
+            tool_name: "test".to_string(),
+            score: 0.8,
+            confidence: 0.4,
+        };
+        assert_eq!(ts.tool_name, "test");
+        assert_eq!(ts.score, 0.8);
+        assert_eq!(ts.confidence, 0.4);
+    }
+
+    #[test]
+    fn test_to_tool_scores_empty_names() {
+        let selector = PSOToolSelector::new(0, 10, 10);
+        let scores = selector.to_tool_scores(&[]);
+        assert!(scores.is_empty());
+    }
+
+    #[test]
+    fn test_pso_optimize_returns_correct_length() {
+        let fitness_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        let mut selector = PSOToolSelector::new(5, 10, 20);
+        let result = selector.optimize(fitness_fn);
+        assert_eq!(result.len(), 5);
+    }
 }

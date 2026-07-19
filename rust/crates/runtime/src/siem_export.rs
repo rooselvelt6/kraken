@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use security::audit::AuditLog;
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SiemFormat {
     Ecs,
     SplunkHec,
@@ -152,7 +153,7 @@ impl SiemExporter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExportResult {
     pub path: Option<String>,
     pub size: usize,

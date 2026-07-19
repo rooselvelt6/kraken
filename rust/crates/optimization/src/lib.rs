@@ -53,3 +53,61 @@ impl Default for Algorithm {
         Self::PSO
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_optimization_config_default() {
+        let config = OptimizationConfig::default();
+        assert_eq!(config.population_size, 30);
+        assert_eq!(config.max_iterations, 100);
+        assert_eq!(config.convergence_threshold, 1e-6);
+    }
+
+    #[test]
+    fn test_optimization_config_custom() {
+        let config = OptimizationConfig {
+            population_size: 50,
+            max_iterations: 200,
+            convergence_threshold: 1e-8,
+        };
+        assert_eq!(config.population_size, 50);
+        assert_eq!(config.max_iterations, 200);
+        assert_eq!(config.convergence_threshold, 1e-8);
+    }
+
+    #[test]
+    fn test_algorithm_default() {
+        assert!(matches!(Algorithm::default(), Algorithm::PSO));
+    }
+
+    #[test]
+    fn test_algorithm_variants() {
+        assert!(matches!(Algorithm::PSO, Algorithm::PSO));
+        assert!(matches!(Algorithm::GA, Algorithm::GA));
+        assert!(matches!(Algorithm::ACO, Algorithm::ACO));
+        assert!(matches!(Algorithm::SimulatedAnnealing, Algorithm::SimulatedAnnealing));
+    }
+
+    #[test]
+    fn test_algorithm_equality() {
+        assert_eq!(Algorithm::PSO, Algorithm::PSO);
+        assert_ne!(Algorithm::PSO, Algorithm::GA);
+        assert_ne!(Algorithm::ACO, Algorithm::SimulatedAnnealing);
+    }
+
+    #[test]
+    fn test_optimization_config_clone() {
+        let config = OptimizationConfig {
+            population_size: 10,
+            max_iterations: 50,
+            convergence_threshold: 0.1,
+        };
+        let cloned = config.clone();
+        assert_eq!(config.population_size, cloned.population_size);
+        assert_eq!(config.max_iterations, cloned.max_iterations);
+        assert_eq!(config.convergence_threshold, cloned.convergence_threshold);
+    }
+}

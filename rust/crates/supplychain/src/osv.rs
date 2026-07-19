@@ -226,4 +226,102 @@ mod tests {
         let json = serde_json::to_string_pretty(&resp).unwrap();
         assert!(json.contains("test"));
     }
+
+    #[test]
+    fn test_query_openssl_fixed_version() {
+        let resp = OsvClient::query("openssl", "crates.io", Some("1.0.5"));
+        assert!(resp.vulns.is_empty());
+    }
+
+    #[test]
+    fn test_query_ecosystem_mismatch() {
+        let resp = OsvClient::query("openssl", "npm", Some("1.0.2"));
+        assert!(resp.vulns.is_empty());
+    }
+
+    #[test]
+    fn test_osv_vuln_struct() {
+        let vuln = OsvVuln {
+            id: "TEST-001".to_string(),
+            summary: "test vuln".to_string(),
+            severity: vec![OsvSeverity { c_type: "CVSS_V3".to_string(), score: "5.0".to_string() }],
+            affected: vec![],
+            references: vec![],
+            published: "2024-01-01".to_string(),
+            modified: "2024-06-01".to_string(),
+        };
+        assert_eq!(vuln.id, "TEST-001");
+        assert_eq!(vuln.severity.len(), 1);
+    }
+
+    #[test]
+    fn test_osv_query_struct() {
+        let query = OsvQuery {
+            package: OsvPackage {
+                name: "test".to_string(),
+                ecosystem: "crates.io".to_string(),
+                purl: Some("pkg:cargo/test@1.0".to_string()),
+            },
+            version: Some("1.0.0".to_string()),
+        };
+        assert_eq!(query.package.name, "test");
+        assert!(query.version.is_some());
+    }
+
+    #[test]
+    fn test_osv_severity_struct() {
+        let sev = OsvSeverity {
+            c_type: "CVSS_V3".to_string(),
+            score: "9.8".to_string(),
+        };
+        assert_eq!(sev.score, "9.8");
+    }
+
+    #[test]
+    fn test_osv_affected_struct() {
+        let aff = OsvAffected {
+            package: OsvPackage { name: "test".to_string(), ecosystem: "crates.io".to_string(), purl: None },
+            ranges: vec![OsvRange {
+                c_type: "SEMVER".to_string(),
+                events: vec![OsvEvent { introduced: Some("1.0.0".to_string()), fixed: Some("2.0.0".to_string()) }],
+            }],
+            versions: vec!["1.0.0".to_string(), "1.1.0".to_string()],
+        };
+        assert_eq!(aff.versions.len(), 2);
+    }
+
+    #[test]
+    fn test_osv_client_default() {
+        let client = OsvClient::default();
+        let resp = OsvClient::query("test", "crates.io", None);
+        assert_eq!(resp.vulns.len(), 0);
+    }
+
+    #[test]
+    fn test_query_preserves_version() {
+        let resp = OsvClient::query("openssl", "crates.io", Some("1.0.2"));
+        assert_eq!(resp.query.version, Some("1.0.2".to_string()));
+    }
+
+    #[test]
+    fn test_semver_parse() {
+        let v = semver::Version::parse("1.2.3").unwrap();
+        assert_eq!(v.major, 1);
+        assert_eq!(v.minor, 2);
+        assert_eq!(v.patch, 3);
+    }
+
+    #[test]
+    fn test_semver_parse_no_patch() {
+        let v = semver::Version::parse("1.2").unwrap();
+        assert_eq!(v.major, 1);
+        assert_eq!(v.minor, 2);
+        assert_eq!(v.patch, 0);
+    }
+
+    #[test]
+    fn test_semver_parse_invalid() {
+        assert!(semver::Version::parse("abc").is_err());
+        assert!(semver::Version::parse("").is_err());
+    }
 }

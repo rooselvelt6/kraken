@@ -29,6 +29,17 @@ pub struct PermissionEnforcer {
 }
 
 impl PermissionEnforcer {
+    /// Creates a new permission enforcer with the given policy.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::permission_enforcer::PermissionEnforcer;
+    /// use runtime::{PermissionPolicy, PermissionMode};
+    ///
+    /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::Allow));
+    /// assert!(enforcer.is_allowed("bash", "rm -rf /"));
+    /// ```
     #[must_use]
     pub fn new(policy: PermissionPolicy) -> Self {
         Self { policy }
@@ -36,6 +47,16 @@ impl PermissionEnforcer {
 
     /// Check whether a tool can be executed under the current permission policy.
     /// Auto-denies when prompting is required but no prompter is provided.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::permission_enforcer::{PermissionEnforcer, EnforcementResult};
+    /// use runtime::{PermissionPolicy, PermissionMode};
+    ///
+    /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::ReadOnly));
+    /// assert!(matches!(enforcer.check("write_file", "data.txt"), EnforcementResult::Denied { .. }));
+    /// ```
     pub fn check(&self, tool_name: &str, input: &str) -> EnforcementResult {
         // When the active mode is Prompt, defer to the caller's interactive
         // prompt flow rather than hard-denying (the enforcer has no prompter).
@@ -142,6 +163,17 @@ impl PermissionEnforcer {
     }
 
     /// Check if a bash command should be allowed based on current mode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::permission_enforcer::{PermissionEnforcer, EnforcementResult};
+    /// use runtime::{PermissionPolicy, PermissionMode};
+    ///
+    /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::ReadOnly));
+    /// assert_eq!(enforcer.check_bash("cat src/main.rs"), EnforcementResult::Allowed);
+    /// assert!(matches!(enforcer.check_bash("rm file.txt"), EnforcementResult::Denied { .. }));
+    /// ```
     pub fn check_bash(&self, command: &str) -> EnforcementResult {
         let mode = self.policy.active_mode();
 

@@ -15,6 +15,17 @@ pub enum SanitizerStage {
 }
 
 impl SanitizerStage {
+    /// Returns the `snake_case` name of this sanitizer stage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::sanitizer::SanitizerStage;
+    ///
+    /// assert_eq!(SanitizerStage::Normalization.name(), "normalization");
+    /// assert_eq!(SanitizerStage::ScopeCheck.name(), "scope_check");
+    /// assert_eq!(SanitizerStage::Allowlist.name(), "allowlist");
+    /// ```
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
@@ -67,6 +78,17 @@ pub struct SanitizerResult {
 }
 
 impl SanitizerResult {
+    /// Returns `true` if no issues were detected during sanitization.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::sanitizer::Sanitizer;
+    ///
+    /// let s = Sanitizer::with_defaults();
+    /// assert!(s.sanitize_for_read("src/lib.rs", None).is_allowed());
+    /// assert!(!s.sanitize_for_read("/dev/null", None).is_allowed());
+    /// ```
     #[must_use]
     pub fn is_allowed(&self) -> bool {
         self.issues.is_empty()
@@ -107,11 +129,35 @@ pub struct Sanitizer {
 }
 
 impl Sanitizer {
+    /// Creates a sanitizer with default configuration.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::sanitizer::{Sanitizer, SanitizerIssue};
+    ///
+    /// let s = Sanitizer::with_defaults();
+    /// let result = s.sanitize_for_read("/dev/sda", None);
+    /// assert!(!result.is_allowed());
+    /// assert!(result.issues.iter().any(|i| matches!(i, SanitizerIssue::DeviceFile(_))));
+    /// ```
     #[must_use]
     pub fn new(config: SanitizerConfig) -> Self {
         Self { config }
     }
 
+    /// Creates a sanitizer with default configuration.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::sanitizer::{Sanitizer, SanitizerIssue};
+    ///
+    /// let s = Sanitizer::with_defaults();
+    /// let result = s.sanitize_for_read("hello\0.txt", None);
+    /// assert!(!result.is_allowed());
+    /// assert!(result.issues.iter().any(|i| matches!(i, SanitizerIssue::NullByte(_))));
+    /// ```
     #[must_use]
     pub fn with_defaults() -> Self {
         Self::new(SanitizerConfig::default())

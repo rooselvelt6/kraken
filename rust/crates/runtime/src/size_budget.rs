@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -188,7 +189,7 @@ impl Default for SizeBudgeter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStats {
     pub total_calls: u64,
     pub total_bytes: u64,

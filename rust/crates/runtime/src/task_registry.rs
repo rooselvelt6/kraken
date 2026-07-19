@@ -71,11 +71,34 @@ fn now_secs() -> u64 {
 }
 
 impl TaskRegistry {
+    /// Creates a new empty task registry.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::task_registry::TaskRegistry;
+    ///
+    /// let registry = TaskRegistry::new();
+    /// assert_eq!(registry.list(None).len(), 0);
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Creates a task and retrieves it by ID.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::task_registry::{TaskRegistry, TaskStatus};
+    ///
+    /// let registry = TaskRegistry::new();
+    /// let task = registry.create("Fix the bug", Some("critical fix"));
+    /// assert_eq!(task.status, TaskStatus::Created);
+    /// assert_eq!(task.prompt, "Fix the bug");
+    /// assert!(registry.get(&task.task_id).is_some());
+    /// ```
     pub fn create(&self, prompt: &str, description: Option<&str>) -> Task {
         self.create_task(prompt.to_owned(), description.map(str::to_owned), None)
     }
@@ -124,6 +147,21 @@ impl TaskRegistry {
         inner.tasks.get(task_id).cloned()
     }
 
+    /// Lists tasks, optionally filtered by status.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::task_registry::{TaskRegistry, TaskStatus};
+    ///
+    /// let registry = TaskRegistry::new();
+    /// registry.create("A", None);
+    /// let b = registry.create("B", None);
+    /// registry.set_status(&b.task_id, TaskStatus::Running).unwrap();
+    ///
+    /// assert_eq!(registry.list(None).len(), 2);
+    /// assert_eq!(registry.list(Some(TaskStatus::Running)).len(), 1);
+    /// ```
     pub fn list(&self, status_filter: Option<TaskStatus>) -> Vec<Task> {
         let inner = self.inner.lock().expect("registry lock poisoned");
         inner
@@ -134,6 +172,19 @@ impl TaskRegistry {
             .collect()
     }
 
+    /// Stops a running task; rejects tasks already in a terminal state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::task_registry::{TaskRegistry, TaskStatus};
+    ///
+    /// let registry = TaskRegistry::new();
+    /// let task = registry.create("Do work", None);
+    /// registry.set_status(&task.task_id, TaskStatus::Running).unwrap();
+    /// assert_eq!(registry.stop(&task.task_id).unwrap().status, TaskStatus::Stopped);
+    /// assert!(registry.stop(&task.task_id).is_err());
+    /// ```
     pub fn stop(&self, task_id: &str) -> Result<Task, String> {
         let mut inner = self.inner.lock().expect("registry lock poisoned");
         let task = inner

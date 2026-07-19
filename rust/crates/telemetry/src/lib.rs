@@ -23,6 +23,18 @@ pub struct ClientIdentity {
 }
 
 impl ClientIdentity {
+    /// Creates a new client identity with the given app name and version.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use telemetry::ClientIdentity;
+    ///
+    /// let id = ClientIdentity::new("my-app", "2.0.0");
+    /// assert_eq!(id.app_name, "my-app");
+    /// assert_eq!(id.app_version, "2.0.0");
+    /// assert_eq!(id.user_agent(), "my-app/2.0.0");
+    /// ```
     #[must_use]
     pub fn new(app_name: impl Into<String>, app_version: impl Into<String>) -> Self {
         Self {
@@ -38,6 +50,16 @@ impl ClientIdentity {
         self
     }
 
+    /// Returns the user-agent header value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use telemetry::ClientIdentity;
+    ///
+    /// let id = ClientIdentity::new("kraken", "1.0.0");
+    /// assert_eq!(id.user_agent(), "kraken/1.0.0");
+    /// ```
     #[must_use]
     pub fn user_agent(&self) -> String {
         format!("{}/{}", self.app_name, self.app_version)
@@ -140,6 +162,22 @@ pub struct AnalyticsEvent {
 }
 
 impl AnalyticsEvent {
+    /// Creates a new analytics event with namespace and action.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use telemetry::AnalyticsEvent;
+    /// use serde_json::Value;
+    ///
+    /// let event = AnalyticsEvent::new("cli", "prompt_sent")
+    ///     .with_property("model", Value::String("claude-opus".to_string()))
+    ///     .with_property("tokens", Value::Number(100.into()));
+    ///
+    /// assert_eq!(event.namespace, "cli");
+    /// assert_eq!(event.action, "prompt_sent");
+    /// assert_eq!(event.properties.len(), 2);
+    /// ```
     #[must_use]
     pub fn new(namespace: impl Into<String>, action: impl Into<String>) -> Self {
         Self {
@@ -212,6 +250,26 @@ pub struct MemoryTelemetrySink {
 }
 
 impl MemoryTelemetrySink {
+    /// Returns all recorded events.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use telemetry::{
+    ///     MemoryTelemetrySink, TelemetrySink, TelemetryEvent,
+    ///     AnalyticsEvent,
+    /// };
+    ///
+    /// let sink = Arc::new(MemoryTelemetrySink::default());
+    /// sink.record(TelemetryEvent::Analytics(
+    ///     AnalyticsEvent::new("cli", "turn_done"),
+    /// ));
+    ///
+    /// let events = sink.events();
+    /// assert_eq!(events.len(), 1);
+    /// assert!(matches!(&events[0], TelemetryEvent::Analytics(_)));
+    /// ```
     #[must_use]
     pub fn events(&self) -> Vec<TelemetryEvent> {
         self.events
@@ -522,5 +580,416 @@ mod tests {
         assert!(contents.contains("\"action\":\"turn_completed\""));
 
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_client_identity_new() {
+        let id = ClientIdentity::new("my-app", "2.0.0");
+        assert_eq!(id.app_name, "my-app");
+        assert_eq!(id.app_version, "2.0.0");
+        assert_eq!(id.runtime, DEFAULT_RUNTIME);
+    }
+
+    #[test]
+    fn test_client_identity_with_runtime() {
+        let id = ClientIdentity::new("my-app", "1.0").with_runtime("node");
+        assert_eq!(id.runtime, "node");
+    }
+
+    #[test]
+    fn test_client_identity_user_agent() {
+        let id = ClientIdentity::new("foo", "42");
+        assert_eq!(id.user_agent(), "foo/42");
+    }
+
+    #[test]
+    fn test_client_identity_default() {
+        let id = ClientIdentity::default();
+        assert_eq!(id.app_name, DEFAULT_APP_NAME);
+        assert_eq!(id.runtime, DEFAULT_RUNTIME);
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_new() {
+        let id = ClientIdentity::new("test", "1.0");
+        let profile = AnthropicRequestProfile::new(id);
+        assert_eq!(profile.anthropic_version, DEFAULT_ANTHROPIC_VERSION);
+        assert_eq!(profile.betas.len(), 2);
+        assert!(profile.extra_body.is_empty());
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_with_beta() {
+        let id = ClientIdentity::new("test", "1.0");
+        let profile = AnthropicRequestProfile::new(id).with_beta("custom-beta");
+        assert_eq!(profile.betas.len(), 3);
+        assert!(profile.betas.contains(&"custom-beta".to_string()));
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_with_beta_dedup() {
+        let id = ClientIdentity::new("test", "1.0");
+        let profile = AnthropicRequestProfile::new(id)
+            .with_beta(DEFAULT_AGENTIC_BETA.to_string());
+        assert_eq!(profile.betas.len(), 2);
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_with_extra_body() {
+        let id = ClientIdentity::new("test", "1.0");
+        let profile = AnthropicRequestProfile::new(id)
+            .with_extra_body("key", Value::Bool(true));
+        assert_eq!(profile.extra_body["key"], Value::Bool(true));
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_header_pairs_empty() {
+        let id = ClientIdentity::new("test", "1.0");
+        let mut profile = AnthropicRequestProfile::new(id);
+        profile.betas.clear();
+        let pairs = profile.header_pairs();
+        assert_eq!(pairs.len(), 2);
+        assert!(!pairs.iter().any(|(k, _)| k == "anthropic-beta"));
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_default() {
+        let profile = AnthropicRequestProfile::default();
+        assert_eq!(profile.anthropic_version, DEFAULT_ANTHROPIC_VERSION);
+        assert_eq!(profile.client_identity.app_name, DEFAULT_APP_NAME);
+        assert!(profile.betas.contains(&DEFAULT_AGENTIC_BETA.to_string()));
+        assert!(profile.betas.contains(&DEFAULT_PROMPT_CACHING_SCOPE_BETA.to_string()));
+    }
+
+    #[test]
+    fn test_analytics_event_new() {
+        let event = AnalyticsEvent::new("ns", "act");
+        assert_eq!(event.namespace, "ns");
+        assert_eq!(event.action, "act");
+        assert!(event.properties.is_empty());
+    }
+
+    #[test]
+    fn test_analytics_event_with_property() {
+        let event = AnalyticsEvent::new("ns", "act")
+            .with_property("k", Value::Number(42.into()));
+        assert_eq!(event.properties["k"], Value::Number(42.into()));
+    }
+
+    #[test]
+    fn test_memory_sink_record_and_events() {
+        let sink = MemoryTelemetrySink::default();
+        sink.record(TelemetryEvent::Analytics(
+            AnalyticsEvent::new("a", "b"),
+        ));
+        sink.record(TelemetryEvent::Analytics(
+            AnalyticsEvent::new("c", "d"),
+        ));
+        let events = sink.events();
+        assert_eq!(events.len(), 2);
+    }
+
+    #[test]
+    fn test_session_tracer_new() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("sess-1", sink);
+        assert_eq!(tracer.session_id(), "sess-1");
+    }
+
+    #[test]
+    fn test_session_tracer_record_generic() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        let mut attrs = Map::new();
+        attrs.insert("foo".to_string(), Value::Bool(true));
+        tracer.record("custom_event", attrs);
+        let events = sink.events();
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            TelemetryEvent::SessionTrace(r) => {
+                assert_eq!(r.name, "custom_event");
+                assert_eq!(r.session_id, "s");
+                assert_eq!(r.attributes["foo"], Value::Bool(true));
+            }
+            _ => panic!("expected SessionTrace"),
+        }
+    }
+
+    #[test]
+    fn test_session_tracer_record_succeeded() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        tracer.record_http_request_succeeded(
+            1,
+            "GET",
+            "/v1/test",
+            200,
+            Some("req-123".to_string()),
+            Map::new(),
+        );
+        let events = sink.events();
+        assert_eq!(events.len(), 2);
+        match &events[0] {
+            TelemetryEvent::HttpRequestSucceeded {
+                session_id,
+                status,
+                request_id,
+                ..
+            } => {
+                assert_eq!(session_id, "s");
+                assert_eq!(*status, 200);
+                assert_eq!(request_id.as_deref(), Some("req-123"));
+            }
+            _ => panic!("expected HttpRequestSucceeded"),
+        }
+        match &events[1] {
+            TelemetryEvent::SessionTrace(r) => {
+                assert_eq!(r.name, "http_request_succeeded");
+                assert_eq!(r.attributes["status"], Value::Number(200.into()));
+                assert_eq!(
+                    r.attributes["request_id"],
+                    Value::String("req-123".to_string())
+                );
+            }
+            _ => panic!("expected SessionTrace"),
+        }
+    }
+
+    #[test]
+    fn test_session_tracer_record_failed() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        tracer.record_http_request_failed(
+            2,
+            "POST",
+            "/v1/messages",
+            "timeout",
+            true,
+            Map::new(),
+        );
+        let events = sink.events();
+        assert_eq!(events.len(), 2);
+        match &events[0] {
+            TelemetryEvent::HttpRequestFailed {
+                retryable, error, ..
+            } => {
+                assert!(*retryable);
+                assert_eq!(error, "timeout");
+            }
+            _ => panic!("expected HttpRequestFailed"),
+        }
+        match &events[1] {
+            TelemetryEvent::SessionTrace(r) => {
+                assert_eq!(r.name, "http_request_failed");
+                assert_eq!(r.attributes["retryable"], Value::Bool(true));
+                assert_eq!(r.attributes["error"], Value::String("timeout".to_string()));
+            }
+            _ => panic!("expected SessionTrace"),
+        }
+    }
+
+    #[test]
+    fn test_session_tracer_sequence_increment() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        tracer.record("a", Map::new());
+        tracer.record("b", Map::new());
+        tracer.record("c", Map::new());
+        let events = sink.events();
+        let sequences: Vec<u64> = events
+            .iter()
+            .filter_map(|e| match e {
+                TelemetryEvent::SessionTrace(r) => Some(r.sequence),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(sequences, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn test_telemetry_event_serde_roundtrip() {
+        let events = vec![
+            TelemetryEvent::HttpRequestStarted {
+                session_id: "s".to_string(),
+                attempt: 1,
+                method: "GET".to_string(),
+                path: "/".to_string(),
+                attributes: Map::new(),
+            },
+            TelemetryEvent::HttpRequestSucceeded {
+                session_id: "s".to_string(),
+                attempt: 1,
+                method: "GET".to_string(),
+                path: "/".to_string(),
+                status: 200,
+                request_id: None,
+                attributes: Map::new(),
+            },
+            TelemetryEvent::HttpRequestFailed {
+                session_id: "s".to_string(),
+                attempt: 1,
+                method: "GET".to_string(),
+                path: "/".to_string(),
+                error: "err".to_string(),
+                retryable: false,
+                attributes: Map::new(),
+            },
+            TelemetryEvent::Analytics(AnalyticsEvent::new("n", "a")),
+            TelemetryEvent::SessionTrace(SessionTraceRecord {
+                session_id: "s".to_string(),
+                sequence: 0,
+                name: "t".to_string(),
+                timestamp_ms: 1000,
+                attributes: Map::new(),
+            }),
+        ];
+        for event in &events {
+            let json = serde_json::to_string(event).unwrap();
+            let back: TelemetryEvent = serde_json::from_str(&json).unwrap();
+            let json2 = serde_json::to_string(&back).unwrap();
+            assert_eq!(json, json2);
+        }
+    }
+
+    #[test]
+    fn test_render_json_body_non_object() {
+        let id = ClientIdentity::new("test", "1.0");
+        let profile = AnthropicRequestProfile::new(id);
+        let result = profile.render_json_body(&vec![1, 2, 3]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_jsonl_sink_path() {
+        let dir = std::env::temp_dir().join(format!(
+            "telemetry-path-{}",
+            current_timestamp_ms()
+        ));
+        let file = dir.join("test.log");
+        let sink = JsonlTelemetrySink::new(&file).unwrap();
+        assert_eq!(sink.path(), file.as_path());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_client_identity_user_agent_format() {
+        let id = ClientIdentity::new("app", "1.0.0");
+        assert_eq!(id.user_agent(), "app/1.0.0");
+    }
+
+    #[test]
+    fn test_client_identity_with_runtime_builder() {
+        let id = ClientIdentity::new("app", "1.0")
+            .with_runtime("go");
+        assert_eq!(id.runtime, "go");
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_default_beta_count() {
+        let profile = AnthropicRequestProfile::default();
+        assert_eq!(profile.betas.len(), 2);
+    }
+
+    #[test]
+    fn test_anthropic_request_profile_default_extra_body_empty() {
+        let profile = AnthropicRequestProfile::default();
+        assert!(profile.extra_body.is_empty());
+    }
+
+    #[test]
+    fn test_analytics_event_new_empty_properties() {
+        let event = AnalyticsEvent::new("ns", "act");
+        assert!(event.properties.is_empty());
+    }
+
+    #[test]
+    fn test_analytics_event_multiple_properties() {
+        let event = AnalyticsEvent::new("ns", "act")
+            .with_property("k1", Value::Bool(true))
+            .with_property("k2", Value::Number(42.into()));
+        assert_eq!(event.properties.len(), 2);
+        assert_eq!(event.properties["k1"], Value::Bool(true));
+        assert_eq!(event.properties["k2"], Value::Number(42.into()));
+    }
+
+    #[test]
+    fn test_session_tracer_record_http_request_succeeded_no_request_id() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        tracer.record_http_request_succeeded(
+            1, "GET", "/test", 200, None, Map::new(),
+        );
+        let events = sink.events();
+        match &events[0] {
+            TelemetryEvent::HttpRequestSucceeded { request_id, .. } => {
+                assert!(request_id.is_none());
+            }
+            _ => panic!("expected HttpRequestSucceeded"),
+        }
+    }
+
+    #[test]
+    fn test_telemetry_event_serde_analytics() {
+        let event = TelemetryEvent::Analytics(AnalyticsEvent::new("ns", "act"));
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"type\":\"analytics\""));
+        let back: TelemetryEvent = serde_json::from_str(&json).unwrap();
+        assert!(matches!(back, TelemetryEvent::Analytics(_)));
+    }
+
+    #[test]
+    fn test_telemetry_event_serde_session_trace() {
+        let event = TelemetryEvent::SessionTrace(SessionTraceRecord {
+            session_id: "s".to_string(),
+            sequence: 5,
+            name: "test".to_string(),
+            timestamp_ms: 12345,
+            attributes: Map::new(),
+        });
+        let json = serde_json::to_string(&event).unwrap();
+        let back: TelemetryEvent = serde_json::from_str(&json).unwrap();
+        match back {
+            TelemetryEvent::SessionTrace(r) => {
+                assert_eq!(r.sequence, 5);
+                assert_eq!(r.name, "test");
+            }
+            _ => panic!("expected SessionTrace"),
+        }
+    }
+
+    #[test]
+    fn test_session_tracer_record_analytics_copies_properties() {
+        let sink = Arc::new(MemoryTelemetrySink::default());
+        let tracer = SessionTracer::new("s", sink.clone());
+        tracer.record_analytics(
+            AnalyticsEvent::new("ns", "act")
+                .with_property("key", Value::String("val".to_string())),
+        );
+        let events = sink.events();
+        match &events[1] {
+            TelemetryEvent::SessionTrace(r) => {
+                assert_eq!(r.attributes["namespace"], Value::String("ns".to_string()));
+                assert_eq!(r.attributes["action"], Value::String("act".to_string()));
+                assert_eq!(r.attributes["key"], Value::String("val".to_string()));
+            }
+            _ => panic!("expected SessionTrace"),
+        }
+    }
+
+    #[test]
+    fn test_merge_trace_fields() {
+        let mut attrs = Map::new();
+        attrs.insert("custom".to_string(), Value::Bool(true));
+        let result = merge_trace_fields("POST".to_string(), "/api".to_string(), 3, attrs);
+        assert_eq!(result["method"], Value::String("POST".to_string()));
+        assert_eq!(result["path"], Value::String("/api".to_string()));
+        assert_eq!(result["attempt"], Value::from(3));
+        assert_eq!(result["custom"], Value::Bool(true));
+    }
+
+    #[test]
+    fn test_current_timestamp_ms_reasonable() {
+        let ts = current_timestamp_ms();
+        assert!(ts > 1_000_000_000_000);
     }
 }

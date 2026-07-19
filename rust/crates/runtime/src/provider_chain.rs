@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use crate::circuit_breaker::global_circuit_forest;
 use crate::config::ProviderFallbackConfig;
 use crate::health_probe::{global_health_registry, HealthStatus};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderState {
     Available,
     Degraded,
@@ -16,7 +17,7 @@ impl ProviderState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderChainStatus {
     pub provider: String,
     pub state: ProviderState,

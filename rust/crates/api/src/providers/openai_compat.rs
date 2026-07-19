@@ -818,6 +818,18 @@ struct ErrorBody {
 /// `top_p`, `frequency_penalty`, and `presence_penalty`. These are typically
 /// reasoning/chain-of-thought models with fixed sampling.
 /// Public for benchmarking and testing purposes.
+///
+/// # Examples
+///
+/// ```
+/// use api::is_reasoning_model;
+///
+/// assert!(is_reasoning_model("o1"));
+/// assert!(is_reasoning_model("o3-mini"));
+/// assert!(is_reasoning_model("grok-3-mini"));
+/// assert!(!is_reasoning_model("gpt-4o"));
+/// assert!(!is_reasoning_model("grok-3"));
+/// ```
 #[must_use]
 pub fn is_reasoning_model(model: &str) -> bool {
     let lowered = model.to_ascii_lowercase();

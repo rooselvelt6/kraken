@@ -1174,6 +1174,314 @@ mod tests {
         assert!(TECH_COOKIE_SIGNATURES.iter().any(|(n, _)| *n == "PHP"));
         assert!(TECH_BODY_SIGNATURES.iter().any(|(n, _, _)| *n == "WordPress"));
     }
+
+    #[test]
+    fn test_extract_title_case_insensitive() {
+        assert_eq!(
+            extract_title("<HTML><TITLE>My Page</TITLE></HTML>"),
+            Some("My Page".to_string())
+        );
+        assert_eq!(
+            extract_title("<html><title>lowercase</title></html>"),
+            Some("lowercase".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_title_with_attributes() {
+        assert_eq!(
+            extract_title(r#"<title lang="en">Test</title>"#),
+            Some("Test".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_title_whitespace_trimmed() {
+        assert_eq!(
+            extract_title("<title>  spaces  </title>"),
+            Some("spaces".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_title_no_closing_tag() {
+        assert_eq!(extract_title("<title>open"), None);
+    }
+
+    #[test]
+    fn test_normalize_url_deep_path() {
+        assert_eq!(
+            normalize_url("http://example.com", "/a/b/c"),
+            "http://example.com/a/b/c"
+        );
+    }
+
+    #[test]
+    fn test_normalize_url_double_slash_base() {
+        assert_eq!(
+            normalize_url("http://example.com/", "/test"),
+            "http://example.com/test"
+        );
+    }
+
+    #[test]
+    fn test_normalize_url_no_path_prefix() {
+        assert_eq!(
+            normalize_url("http://example.com", "admin"),
+            "http://example.com/admin"
+        );
+    }
+
+    #[test]
+    fn test_parse_product_version_no_sep() {
+        let (product, version) = parse_product_version("Apache", "/");
+        assert_eq!(product, Some("Apache".to_string()));
+        assert!(version.is_none());
+    }
+
+    #[test]
+    fn test_parse_product_version_multiple_sep() {
+        let (product, version) = parse_product_version("nginx/1.24.0", "/");
+        assert_eq!(product, Some("nginx".to_string()));
+        assert_eq!(version, Some("1.24.0".to_string()));
+    }
+
+    #[test]
+    fn test_extract_version_from_body_not_found() {
+        let body = "Hello world, no versions here";
+        assert!(extract_version_from_body(body, "NonExistent").is_none());
+    }
+
+    #[test]
+    fn test_extract_version_from_body_with_version() {
+        let body = "jQuery 3.7.1 loaded";
+        let ver = extract_version_from_body(body, "jQuery");
+        assert_eq!(ver, Some("3.7.1".to_string()));
+    }
+
+    #[test]
+    fn test_web_scan_config_default() {
+        let config = WebScanConfig::default();
+        assert!(config.base_url.is_empty());
+        assert!(config.wordlist.is_empty());
+        assert!(!config.extensions.is_empty());
+        assert_eq!(config.concurrency, 32);
+        assert!(!config.follow_redirects);
+        assert!(config.cookies.is_empty());
+    }
+
+    #[test]
+    fn test_fuzz_result_struct() {
+        let fr = FuzzResult {
+            url: "http://example.com/admin".into(),
+            status: 200,
+            size: 1024,
+            content_type: Some("text/html".into()),
+            title: Some("Admin Panel".into()),
+            is_directory: true,
+            redirected_to: None,
+        };
+        assert_eq!(fr.status, 200);
+        assert!(fr.is_directory);
+    }
+
+    #[test]
+    fn test_vhost_result_struct() {
+        let vr = VHostResult {
+            host: "admin.example.com".into(),
+            status: 200,
+            size: 512,
+            content_type: Some("text/html".into()),
+            different_from_base: true,
+            serves_same_content: false,
+        };
+        assert!(vr.different_from_base);
+        assert!(!vr.serves_same_content);
+    }
+
+    #[test]
+    fn test_param_result_struct() {
+        let pr = ParamResult {
+            parameter: "id".into(),
+            url: "http://example.com/page?id=1".into(),
+            status: 200,
+            response_time_ms: 50,
+            reflected: true,
+            size_diff: 100,
+        };
+        assert!(pr.reflected);
+        assert_eq!(pr.response_time_ms, 50);
+    }
+
+    #[test]
+    fn test_waf_info_struct() {
+        let wi = WafInfo {
+            detected: true,
+            name: Some("Cloudflare".into()),
+            evidence: vec!["Server header: cloudflare".into()],
+        };
+        assert!(wi.detected);
+        assert_eq!(wi.name, Some("Cloudflare".into()));
+    }
+
+    #[test]
+    fn test_tech_entry_struct() {
+        let te = TechEntry {
+            name: "nginx".into(),
+            version: Some("1.24".into()),
+            category: "Web server".into(),
+            confidence: 0.9,
+            evidence: "Server header: nginx/1.24".into(),
+        };
+        assert_eq!(te.confidence, 0.9);
+        assert!(te.version.is_some());
+    }
+
+    #[test]
+    fn test_cms_info_struct() {
+        let ci = CmsInfo {
+            name: Some("WordPress".into()),
+            version: Some("6.4".into()),
+            plugins: vec![("akismet".into(), Some("5.1".into()))],
+            themes: vec![("flavor".into(), None)],
+            confidence: 0.9,
+        };
+        assert_eq!(ci.name, Some("WordPress".into()));
+        assert_eq!(ci.plugins.len(), 1);
+        assert_eq!(ci.themes.len(), 1);
+    }
+
+    #[test]
+    fn test_js_endpoint_struct() {
+        let je = JsEndpoint {
+            url: "http://example.com/app.js".into(),
+            endpoint: "/api/v1/users".into(),
+            context: Some("API endpoint".into()),
+        };
+        assert!(je.context.is_some());
+    }
+
+    #[test]
+    fn test_robots_info_struct() {
+        let ri = RobotsInfo {
+            exists: true,
+            sitemaps: vec!["http://example.com/sitemap.xml".into()],
+            allowed: vec!["/public".into()],
+            disallowed: vec!["/admin".into(), "/private".into()],
+            crawl_delay: Some(10),
+        };
+        assert!(ri.exists);
+        assert_eq!(ri.sitemaps.len(), 1);
+        assert_eq!(ri.disallowed.len(), 2);
+        assert_eq!(ri.crawl_delay, Some(10));
+    }
+
+    #[test]
+    fn test_robots_info_not_exists() {
+        let ri = RobotsInfo {
+            exists: false,
+            sitemaps: vec![],
+            allowed: vec![],
+            disallowed: vec![],
+            crawl_delay: None,
+        };
+        assert!(!ri.exists);
+        assert!(ri.crawl_delay.is_none());
+    }
+
+    #[test]
+    fn test_extract_from_js_empty_body() {
+        let endpoints = extract_from_js("test.js", "");
+        assert!(endpoints.is_empty());
+    }
+
+    #[test]
+    fn test_extract_from_js_api_endpoint() {
+        let js = r#"fetch("/api/v1/data")"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.endpoint.contains("api")));
+    }
+
+    #[test]
+    fn test_extract_from_js_admin_endpoint() {
+        let js = r#"const url = "/admin/dashboard/settings";"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.endpoint.contains("admin")));
+    }
+
+    #[test]
+    fn test_extract_from_js_auth_endpoint() {
+        let js = r#"const loginUrl = "/auth/login";"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.endpoint.contains("login")));
+    }
+
+    #[test]
+    fn test_extract_from_js_secret_api_key() {
+        let js = r#"const apiKey = "sk_test_abcdefghijklmnop";"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.context.as_deref() == Some("API key")));
+    }
+
+    #[test]
+    fn test_extract_from_js_secret_token() {
+        let js = r#"const token = "abcdefghijklmnop12345678";"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.context.as_deref() == Some("Token")));
+    }
+
+    #[test]
+    fn test_extract_from_js_password() {
+        let js = r#"password = "secret123456";"#;
+        let endpoints = extract_from_js("test.js", js);
+        assert!(endpoints.iter().any(|e| e.context.as_deref() == Some("Password")));
+    }
+
+    #[test]
+    fn test_waf_header_signature_count() {
+        assert!(WAF_HEADER_SIGNATURES.len() > 5);
+    }
+
+    #[test]
+    fn test_waf_body_signature_count() {
+        assert!(WAF_BODY_SIGNATURES.len() > 5);
+    }
+
+    #[test]
+    fn test_tech_header_signature_count() {
+        assert!(TECH_HEADER_SIGNATURES.len() > 5);
+    }
+
+    #[test]
+    fn test_tech_cookie_signature_count() {
+        assert!(TECH_COOKIE_SIGNATURES.len() > 5);
+    }
+
+    #[test]
+    fn test_tech_body_signature_count() {
+        assert!(TECH_BODY_SIGNATURES.len() > 10);
+    }
+
+    #[test]
+    fn test_parse_sitemap_empty() {
+        let urls = parse_sitemap_with_body("");
+        assert!(urls.is_empty());
+    }
+
+    #[test]
+    fn test_parse_sitemap_single_url() {
+        let xml = r#"<urlset><url><loc>https://example.com/home</loc></url></urlset>"#;
+        let urls = parse_sitemap_with_body(xml);
+        assert_eq!(urls.len(), 1);
+        assert_eq!(urls[0], "https://example.com/home");
+    }
+
+    #[test]
+    fn test_parse_sitemap_no_loc_tags() {
+        let xml = r#"<urlset><url><loc></loc></url></urlset>"#;
+        let urls = parse_sitemap_with_body(xml);
+        assert!(urls.is_empty());
+    }
 }
 
 #[cfg(test)]

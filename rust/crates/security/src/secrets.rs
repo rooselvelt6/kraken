@@ -56,6 +56,20 @@ impl SecretsRedactor {
         self.patterns.iter().any(|p| p.regex.is_match(input))
     }
 
+    /// Redacts sensitive key values, showing only the first 4 characters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use security::SecretsRedactor;
+    ///
+    /// let redacted = SecretsRedactor::redact_sensitive_value("api_key", "sk-test-12345");
+    /// assert!(redacted.starts_with("sk-t"));
+    /// assert!(redacted.ends_with("..."));
+    ///
+    /// let normal = SecretsRedactor::redact_sensitive_value("username", "alice");
+    /// assert_eq!(normal, "alice");
+    /// ```
     pub fn redact_sensitive_value(key: &str, value: &str) -> String {
         let sensitive_keys = [
             "api_key", "apikey", "api-key",
@@ -107,10 +121,31 @@ pub fn global_redactor() -> &'static SecretsRedactor {
     GLOBAL_REDACTOR.get_or_init(SecretsRedactor::default)
 }
 
+/// Redacts secrets in a string using the global redactor.
+///
+/// # Examples
+///
+/// ```
+/// use security::redact_secrets;
+///
+/// let safe = redact_secrets("my api_key=sk-test-12345abcdef is secret");
+/// assert!(safe.contains("[REDACTED]"));
+/// assert!(!safe.contains("sk-test-12345"));
+/// ```
 pub fn redact_secrets(input: &str) -> String {
     global_redactor().redact(input)
 }
 
+/// Checks if a string contains secret patterns.
+///
+/// # Examples
+///
+/// ```
+/// use security::secrets::contains_secrets;
+///
+/// assert!(contains_secrets("api_key=sk-test-12345abcdef"));
+/// assert!(!contains_secrets("hello world"));
+/// ```
 pub fn contains_secrets(input: &str) -> bool {
     global_redactor().contains_secret(input)
 }

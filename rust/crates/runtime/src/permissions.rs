@@ -15,6 +15,17 @@ pub enum PermissionMode {
 }
 
 impl PermissionMode {
+    /// Returns the `snake_case` display string for a permission mode.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::PermissionMode;
+    ///
+    /// assert_eq!(PermissionMode::ReadOnly.as_str(), "read-only");
+    /// assert_eq!(PermissionMode::DangerFullAccess.as_str(), "danger-full-access");
+    /// assert_eq!(PermissionMode::Allow.as_str(), "allow");
+    /// ```
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {

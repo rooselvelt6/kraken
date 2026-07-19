@@ -251,4 +251,112 @@ mod tests {
         let json = serde_json::to_string_pretty(&result).unwrap();
         assert!(json.contains("version_a"));
     }
+
+    #[test]
+    fn test_diff_major_version_change() {
+        let a = SbomDiffer::generate_sbom(&[("pkg", "1.0.0", "MIT")]);
+        let mut b = SbomDiffer::generate_sbom(&[("pkg", "2.0.0", "MIT")]);
+        let result = SbomDiffer::diff(&a, &b);
+        assert_eq!(result.changed_versions.len(), 1);
+        assert!(result.changed_versions[0].major_change);
+    }
+
+    #[test]
+    fn test_diff_minor_version_change() {
+        let a = SbomDiffer::generate_sbom(&[("pkg", "1.0.0", "MIT")]);
+        let mut b = SbomDiffer::generate_sbom(&[("pkg", "1.1.0", "MIT")]);
+        let result = SbomDiffer::diff(&a, &b);
+        assert_eq!(result.changed_versions.len(), 1);
+        assert!(!result.changed_versions[0].major_change);
+    }
+
+    #[test]
+    fn test_diff_no_changes_summary() {
+        let a = sample_sbom();
+        let b = sample_sbom();
+        let result = SbomDiffer::diff(&a, &b);
+        assert!(result.summary.contains("No changes"));
+    }
+
+    #[test]
+    fn test_diff_changes_summary() {
+        let a = sample_sbom();
+        let mut b = sample_sbom();
+        b.packages.push(SbomPackage {
+            name: "new".to_string(),
+            version: "1.0".to_string(),
+            supplier: None,
+            licenses: vec![],
+            checksum: None,
+            purl: None,
+        });
+        let result = SbomDiffer::diff(&a, &b);
+        assert!(result.summary.contains("1 added"));
+    }
+
+    #[test]
+    fn test_generate_sbom_packages() {
+        let sbom = SbomDiffer::generate_sbom(&[
+            ("a", "1.0", "MIT"),
+            ("b", "2.0", "Apache-2.0"),
+            ("c", "3.0", "BSD-3-Clause"),
+        ]);
+        assert_eq!(sbom.packages.len(), 3);
+        assert_eq!(sbom.relationships.len(), 2);
+        assert_eq!(sbom.packages[0].purl, Some("pkg:cargo/a@1.0".to_string()));
+    }
+
+    #[test]
+    fn test_sbom_package_struct() {
+        let pkg = SbomPackage {
+            name: "test".to_string(),
+            version: "1.0".to_string(),
+            supplier: Some("TestCo".to_string()),
+            licenses: vec!["MIT".to_string()],
+            checksum: Some("sha256:abc".to_string()),
+            purl: None,
+        };
+        assert_eq!(pkg.supplier, Some("TestCo".to_string()));
+        assert!(pkg.checksum.is_some());
+    }
+
+    #[test]
+    fn test_sbom_relationship_struct() {
+        let rel = SbomRelationship {
+            source: "app".to_string(),
+            target: "lib".to_string(),
+            rel_type: "DEPENDS_ON".to_string(),
+        };
+        assert_eq!(rel.rel_type, "DEPENDS_ON");
+    }
+
+    #[test]
+    fn test_version_change_struct() {
+        let vc = VersionChange {
+            name: "pkg".to_string(),
+            old_version: "1.0.0".to_string(),
+            new_version: "2.0.0".to_string(),
+            major_change: true,
+        };
+        assert!(vc.major_change);
+    }
+
+    #[test]
+    fn test_diff_multiple_added_and_removed() {
+        let a = SbomDiffer::generate_sbom(&[("x", "1.0", "MIT"), ("y", "2.0", "MIT")]);
+        let mut b = SbomDiffer::generate_sbom(&[("x", "1.0", "MIT"), ("z", "3.0", "MIT")]);
+        let result = SbomDiffer::diff(&a, &b);
+        assert_eq!(result.added_packages.len(), 1);
+        assert_eq!(result.removed_packages.len(), 1);
+        assert_eq!(result.added_packages[0].name, "z");
+        assert_eq!(result.removed_packages[0].name, "y");
+    }
+
+    #[test]
+    fn test_sbom_differ_default() {
+        let differ = SbomDiffer::default();
+        let sbom = SbomDiffer::generate_sbom(&[]);
+        let result = SbomDiffer::diff(&sbom, &sbom);
+        assert_eq!(result.added_packages.len(), 0);
+    }
 }

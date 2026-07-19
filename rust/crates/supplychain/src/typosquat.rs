@@ -29,6 +29,17 @@ impl TyposquatDetector {
         TyposquatDetector
     }
 
+    /// Checks a package name for typosquatting patterns.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use supplychain::TyposquatDetector;
+    ///
+    /// let result = TyposquatDetector::check("serde");
+    /// assert_eq!(result.package, "serde");
+    /// assert!(result.risk_level == "LOW" || result.risk_level == "MEDIUM");
+    /// ```
     pub fn check(name: &str) -> TyposquatResult {
         let mut matches = Vec::new();
 
@@ -271,5 +282,80 @@ mod tests {
         let result = TyposquatDetector::check("test");
         let json = serde_json::to_string_pretty(&result).unwrap();
         assert!(json.contains("risk_level"));
+    }
+
+    #[test]
+    fn test_levenshtein_empty_strings() {
+        assert_eq!(levenshtein_distance("", ""), 0);
+    }
+
+    #[test]
+    fn test_levenshtein_one_empty() {
+        assert_eq!(levenshtein_distance("abc", ""), 3);
+        assert_eq!(levenshtein_distance("", "abc"), 3);
+    }
+
+    #[test]
+    fn test_levenshtein_single_char_diff() {
+        assert_eq!(levenshtein_distance("abc", "axc"), 1);
+    }
+
+    #[test]
+    fn test_risk_level_low_for_unique() {
+        let result = TyposquatDetector::check("zzz-unique-abc-123");
+        assert_eq!(result.risk_level, "LOW");
+    }
+
+    #[test]
+    fn test_typosquat_result_struct() {
+        let result = TyposquatDetector::check("test");
+        assert_eq!(result.package, "test");
+        assert!(result.total_suspicious >= 0);
+    }
+
+    #[test]
+    fn test_typosquat_match_struct() {
+        let m = TyposquatMatch {
+            suspicious_name: "serde".to_string(),
+            similarity: 0.9,
+            technique: "typosquatting".to_string(),
+            known_malicious: false,
+        };
+        assert_eq!(m.similarity, 0.9);
+        assert!(!m.known_malicious);
+    }
+
+    #[test]
+    fn test_typosquat_homograph_detection() {
+        let result = TyposquatDetector::check("sеrde");
+        let homographs = result.matches.iter().filter(|m| m.technique == "homograph").count();
+        assert!(homographs > 0);
+    }
+
+    #[test]
+    fn test_typosquat_combosquatting_long_name() {
+        let result = TyposquatDetector::check("a-very-long-package-name-here");
+        let combos = result.matches.iter().filter(|m| m.technique.contains("combosquatting")).count();
+        assert_eq!(combos, 0);
+    }
+
+    #[test]
+    fn test_typosquat_prefix_suffix() {
+        let result = TyposquatDetector::check("opensslabc");
+        let prefix_suffix = result.matches.iter().filter(|m| m.technique.contains("dependency confusion") || m.technique.contains("typosquatting")).count();
+        assert!(prefix_suffix > 0);
+    }
+
+    #[test]
+    fn test_typosquat_detector_default() {
+        let detector = TyposquatDetector::default();
+        let result = TyposquatDetector::check("test");
+        assert!(result.total_suspicious >= 0);
+    }
+
+    #[test]
+    fn test_typosquat_risk_medium() {
+        let result = TyposquatDetector::check("serde-dev-test");
+        assert!(result.risk_level == "MEDIUM" || result.risk_level == "HIGH");
     }
 }

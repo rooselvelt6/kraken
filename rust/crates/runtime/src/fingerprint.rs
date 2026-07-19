@@ -49,6 +49,19 @@ impl ToolCallFingerprinter {
     }
 
     /// Returns true if the same tool+arg pattern appears more than `threshold` times in the window.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::fingerprint::{ToolCallFingerprinter, hash_arguments};
+    ///
+    /// let mut fp = ToolCallFingerprinter::new(10);
+    /// let args = hash_arguments("cat /etc/passwd");
+    /// for _ in 0..5 {
+    ///     fp.record_call("read_file", &args);
+    /// }
+    /// assert!(fp.is_repetitive("read_file", &args));
+    /// ```
     #[must_use]
     pub fn is_repetitive(&self, tool_name: &str, arg_hash: &[u8]) -> bool {
         let digest = compute_digest(tool_name, arg_hash);
@@ -56,6 +69,18 @@ impl ToolCallFingerprinter {
     }
 
     /// Detect reconnaissance patterns: read many different files in succession.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use runtime::fingerprint::{ToolCallFingerprinter, hash_arguments};
+    ///
+    /// let mut fp = ToolCallFingerprinter::new(20);
+    /// for i in 0..8 {
+    ///     fp.record_call("read_file", &hash_arguments(&format!("file{i}.txt")));
+    /// }
+    /// assert!(fp.detect_recon());
+    /// ```
     #[must_use]
     pub fn detect_recon(&self) -> bool {
         if self.window.len() < 5 {
@@ -144,6 +169,20 @@ fn compute_digest(tool_name: &str, arg_hash: &[u8]) -> ToolCallDigest {
     }
 }
 
+/// Hashes a string argument into a SHA-256 byte vector.
+///
+/// # Examples
+///
+/// ```
+/// use runtime::fingerprint::hash_arguments;
+///
+/// let h1 = hash_arguments("ls -la");
+/// let h2 = hash_arguments("ls -la");
+/// let h3 = hash_arguments("rm -rf /");
+/// assert_eq!(h1, h2);
+/// assert_ne!(h1, h3);
+/// assert_eq!(h1.len(), 32);
+/// ```
 #[must_use]
 pub fn hash_arguments(args: &str) -> Vec<u8> {
     let mut hasher = Sha256::new();

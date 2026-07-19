@@ -48,10 +48,29 @@ impl Default for LicenseChecker {
 }
 
 impl LicenseChecker {
+    /// Creates a new license checker.
     pub fn new() -> Self {
         LicenseChecker
     }
 
+    /// Audits a list of dependencies for license compliance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use supplychain::LicenseChecker;
+    ///
+    /// let deps = vec![
+    ///     ("serde", "1.0", "MIT"),
+    ///     ("reqwest", "0.11", "Apache-2.0"),
+    ///     ("gpl-pkg", "2.0", "GPL-3.0-only"),
+    /// ];
+    /// let audit = LicenseChecker::audit(&deps);
+    /// assert_eq!(audit.total_dependencies, 3);
+    /// assert_eq!(audit.allowed.len(), 2);
+    /// assert_eq!(audit.restricted.len(), 1);
+    /// assert!(audit.compliance_pct < 100.0);
+    /// ```
     pub fn audit(deps: &[(&str, &str, &str)]) -> LicenseAudit {
         let mut allowed = Vec::new();
         let mut restricted = Vec::new();
@@ -176,5 +195,107 @@ mod tests {
         let audit = LicenseChecker::audit(&deps);
         let json = serde_json::to_string_pretty(&audit).unwrap();
         assert!(json.contains("MIT"));
+    }
+
+    #[test]
+    fn test_categorize_mpl() {
+        let deps = vec![("pkg", "1.0", "MPL-2.0")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.allowed.len(), 1);
+        assert_eq!(audit.allowed[0].category, LicenseCategory::WeakProtective);
+    }
+
+    #[test]
+    fn test_categorize_lgpl() {
+        let deps = vec![("pkg", "1.0", "LGPL-3.0-only")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.allowed.len(), 1);
+        assert_eq!(audit.allowed[0].category, LicenseCategory::WeakProtective);
+    }
+
+    #[test]
+    fn test_categorize_agpl() {
+        let deps = vec![("pkg", "1.0", "AGPL-3.0-only")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.allowed.len(), 1);
+        assert_eq!(audit.allowed[0].category, LicenseCategory::StrongProtective);
+    }
+
+    #[test]
+    fn test_categorize_proprietary() {
+        let deps = vec![("pkg", "1.0", "Proprietary")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.restricted.len(), 1);
+    }
+
+    #[test]
+    fn test_categorize_commercial() {
+        let deps = vec![("pkg", "1.0", "Commercial")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.restricted.len(), 1);
+    }
+
+    #[test]
+    fn test_categorize_empty_license() {
+        let deps = vec![("pkg", "1.0", "")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.unknown.len(), 1);
+    }
+
+    #[test]
+    fn test_categorize_uppercase_unknown() {
+        let deps = vec![("pkg", "1.0", "UNKNOWN")];
+        let audit = LicenseChecker::audit(&deps);
+        assert_eq!(audit.unknown.len(), 1);
+    }
+
+    #[test]
+    fn test_audit_compliance_calculation() {
+        let deps = vec![
+            ("a", "1.0", "MIT"),
+            ("b", "1.0", "MIT"),
+            ("c", "1.0", "GPL-3.0-only"),
+        ];
+        let audit = LicenseChecker::audit(&deps);
+        assert!((audit.compliance_pct - 66.6).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_audit_recommendations_restricted() {
+        let deps = vec![("pkg", "1.0", "GPL-3.0-only")];
+        let audit = LicenseChecker::audit(&deps);
+        assert!(audit.recommendations.iter().any(|r| r.contains("restricted")));
+    }
+
+    #[test]
+    fn test_audit_recommendations_unknown() {
+        let deps = vec![("pkg", "1.0", "SomeWeirdLicense")];
+        let audit = LicenseChecker::audit(&deps);
+        assert!(audit.recommendations.iter().any(|r| r.contains("unknown")));
+    }
+
+    #[test]
+    fn test_audit_recommendations_compliance() {
+        let deps = vec![("pkg", "1.0", "MIT")];
+        let audit = LicenseChecker::audit(&deps);
+        assert!(audit.recommendations.iter().any(|r| r.contains("100.0%")));
+    }
+
+    #[test]
+    fn test_license_entry_struct() {
+        let entry = LicenseEntry {
+            package: "test".to_string(),
+            version: "1.0".to_string(),
+            license: "MIT".to_string(),
+            category: LicenseCategory::Permissive,
+        };
+        assert_eq!(entry.category, LicenseCategory::Permissive);
+    }
+
+    #[test]
+    fn test_license_checker_default() {
+        let checker = LicenseChecker::default();
+        let audit = LicenseChecker::audit(&[]);
+        assert_eq!(audit.total_dependencies, 0);
     }
 }

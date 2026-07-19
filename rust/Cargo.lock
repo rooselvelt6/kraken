@@ -126,6 +126,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "proptest",
  "reqwest 0.12.28",
  "runtime",
  "serde",
@@ -3537,6 +3538,7 @@ dependencies = [
  "hkdf",
  "libc",
  "password-hash",
+ "proptest",
  "rand 0.8.6",
  "regex",
  "serde",
@@ -3928,6 +3930,7 @@ dependencies = [
  "chrono",
  "hex",
  "log",
+ "proptest",
  "rand 0.8.6",
  "regex",
  "serde",

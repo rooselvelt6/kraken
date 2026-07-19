@@ -34,6 +34,16 @@ pub struct MessageRequest {
 }
 
 impl MessageRequest {
+    /// Enables streaming on this request.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use api::MessageRequest;
+    ///
+    /// let req = MessageRequest::default().with_streaming();
+    /// assert!(req.stream);
+    /// ```
     #[must_use]
     pub fn with_streaming(mut self) -> Self {
         self.stream = true;
@@ -48,6 +58,17 @@ pub struct InputMessage {
 }
 
 impl InputMessage {
+    /// Creates a user message containing a single text block.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use api::InputMessage;
+    ///
+    /// let msg = InputMessage::user_text("Hello, world!");
+    /// assert_eq!(msg.role, "user");
+    /// assert_eq!(msg.content.len(), 1);
+    /// ```
     #[must_use]
     pub fn user_text(text: impl Into<String>) -> Self {
         Self {
@@ -188,6 +209,21 @@ pub struct Usage {
 }
 
 impl Usage {
+    /// Returns the sum of input, output, cache creation, and cache read tokens.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use api::Usage;
+    ///
+    /// let usage = Usage {
+    ///     input_tokens: 100,
+    ///     output_tokens: 50,
+    ///     cache_creation_input_tokens: 10,
+    ///     cache_read_input_tokens: 20,
+    /// };
+    /// assert_eq!(usage.total_tokens(), 180);
+    /// ```
     #[must_use]
     pub const fn total_tokens(&self) -> u32 {
         self.input_tokens

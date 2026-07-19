@@ -145,4 +145,90 @@ mod tests {
 
         assert_eq!(result.len(), 3);
     }
+
+    #[test]
+    fn test_sa_new() {
+        let sa = SimulatedAnnealer::new(4, 500.0, 0.95, 0.1, 50);
+        assert_eq!(sa.current_solution.len(), 4);
+        assert_eq!(sa.temperature, 500.0);
+        assert_eq!(sa.cooling_rate, 0.95);
+        assert_eq!(sa.min_temperature, 0.1);
+        assert_eq!(sa.iterations_per_temp, 50);
+        assert_eq!(sa.best_energy, f64::INFINITY);
+        assert_eq!(sa.current_energy, f64::INFINITY);
+    }
+
+    #[test]
+    fn test_sa_set_initial_solution() {
+        let mut sa = SimulatedAnnealer::with_default_params(3);
+        sa.set_initial_solution(vec![0.1, 0.2, 0.3]);
+        assert_eq!(sa.current_solution, vec![0.1, 0.2, 0.3]);
+        assert_eq!(sa.best_solution, vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn test_sa_get_best_energy() {
+        let energy_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        let mut sa = SimulatedAnnealer::new(2, 10.0, 0.5, 1.0, 5);
+        sa.optimize(energy_fn);
+        assert!(sa.get_best_energy() < f64::INFINITY);
+        assert!(sa.get_best_energy() >= 0.0);
+    }
+
+    #[test]
+    fn test_sa_get_temperature() {
+        let mut sa = SimulatedAnnealer::new(2, 100.0, 0.9, 1.0, 5);
+        let initial_temp = sa.get_temperature();
+        assert_eq!(initial_temp, 100.0);
+        sa.run_iteration(|_| 1.0);
+        assert!(sa.get_temperature() < initial_temp);
+    }
+
+    #[test]
+    fn test_sa_has_converged() {
+        let mut sa = SimulatedAnnealer::new(2, 0.1, 0.5, 1.0, 1);
+        assert!(sa.has_converged());
+    }
+
+    #[test]
+    fn test_sa_has_not_converged() {
+        let sa = SimulatedAnnealer::new(2, 1000.0, 0.99, 0.001, 100);
+        assert!(!sa.has_converged());
+    }
+
+    #[test]
+    fn test_sa_get_best() {
+        let mut sa = SimulatedAnnealer::with_default_params(3);
+        sa.set_initial_solution(vec![0.1, 0.2, 0.3]);
+        let best = sa.get_best();
+        assert_eq!(best, vec![0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn test_sa_with_default_params() {
+        let sa = SimulatedAnnealer::with_default_params(5);
+        assert_eq!(sa.temperature, 1000.0);
+        assert_eq!(sa.cooling_rate, 0.995);
+        assert_eq!(sa.min_temperature, 0.001);
+        assert_eq!(sa.iterations_per_temp, 100);
+    }
+
+    #[test]
+    fn test_sa_cooling_rate() {
+        let mut sa = SimulatedAnnealer::new(2, 100.0, 0.5, 0.01, 1);
+        let initial = sa.get_temperature();
+        sa.run_iteration(|_| 1.0);
+        assert!((sa.get_temperature() - initial * 0.5).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_sa_run_iteration_tracks_best() {
+        let mut sa = SimulatedAnnealer::new(2, 10.0, 0.5, 0.01, 10);
+        sa.set_initial_solution(vec![0.9, 0.9]);
+        let energy_fn = |pos: &[f64]| -> f64 { pos.iter().map(|x| x * x).sum() };
+        for _ in 0..20 {
+            sa.run_iteration(energy_fn);
+        }
+        assert!(sa.get_best_energy() <= 2.0);
+    }
 }

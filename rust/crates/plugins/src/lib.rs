@@ -75,6 +75,20 @@ pub struct PluginHooks {
 }
 
 impl PluginHooks {
+    /// Returns `true` if all hook lists are empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use plugins::PluginHooks;
+    ///
+    /// let hooks = PluginHooks::default();
+    /// assert!(hooks.is_empty());
+    ///
+    /// let mut hooks = PluginHooks::default();
+    /// hooks.pre_tool_use.push("echo before".to_string());
+    /// assert!(!hooks.is_empty());
+    /// ```
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.pre_tool_use.is_empty()
@@ -82,6 +96,23 @@ impl PluginHooks {
             && self.post_tool_use_failure.is_empty()
     }
 
+    /// Merges two hook sets, concatenating all hook lists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use plugins::PluginHooks;
+    ///
+    /// let mut a = PluginHooks::default();
+    /// a.pre_tool_use.push("hook-a".to_string());
+    ///
+    /// let mut b = PluginHooks::default();
+    /// b.post_tool_use.push("hook-b".to_string());
+    ///
+    /// let merged = a.merged_with(&b);
+    /// assert_eq!(merged.pre_tool_use, vec!["hook-a"]);
+    /// assert_eq!(merged.post_tool_use, vec!["hook-b"]);
+    /// ```
     #[must_use]
     pub fn merged_with(&self, other: &Self) -> Self {
         let mut merged = self.clone();
@@ -107,6 +138,20 @@ pub struct PluginLifecycle {
 }
 
 impl PluginLifecycle {
+    /// Returns `true` if no init or shutdown hooks are defined.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use plugins::PluginLifecycle;
+    ///
+    /// let lifecycle = PluginLifecycle::default();
+    /// assert!(lifecycle.is_empty());
+    ///
+    /// let mut lifecycle = PluginLifecycle::default();
+    /// lifecycle.init.push("setup.sh".to_string());
+    /// assert!(!lifecycle.is_empty());
+    /// ```
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.init.is_empty() && self.shutdown.is_empty()
@@ -140,6 +185,17 @@ pub enum PluginPermission {
 }
 
 impl PluginPermission {
+    /// Returns the string representation of this permission level.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use plugins::PluginPermission;
+    ///
+    /// assert_eq!(PluginPermission::Read.as_str(), "read");
+    /// assert_eq!(PluginPermission::Write.as_str(), "write");
+    /// assert_eq!(PluginPermission::Execute.as_str(), "execute");
+    /// ```
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -186,6 +242,17 @@ pub enum PluginToolPermission {
 }
 
 impl PluginToolPermission {
+    /// Returns the string representation of this tool permission level.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use plugins::PluginToolPermission;
+    ///
+    /// assert_eq!(PluginToolPermission::ReadOnly.as_str(), "read-only");
+    /// assert_eq!(PluginToolPermission::WorkspaceWrite.as_str(), "workspace-write");
+    /// assert_eq!(PluginToolPermission::DangerFullAccess.as_str(), "danger-full-access");
+    /// ```
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -3653,5 +3720,688 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_dir_all(base_dir);
+    }
+
+    #[test]
+    fn plugin_kind_display() {
+        assert_eq!(PluginKind::Builtin.to_string(), "builtin");
+        assert_eq!(PluginKind::Bundled.to_string(), "bundled");
+        assert_eq!(PluginKind::External.to_string(), "external");
+    }
+
+    #[test]
+    fn plugin_kind_marketplace() {
+        assert_eq!(PluginKind::Builtin.marketplace(), "builtin");
+        assert_eq!(PluginKind::Bundled.marketplace(), "bundled");
+        assert_eq!(PluginKind::External.marketplace(), "external");
+    }
+
+    #[test]
+    fn plugin_kind_eq() {
+        assert_eq!(PluginKind::Builtin, PluginKind::Builtin);
+        assert_ne!(PluginKind::Builtin, PluginKind::External);
+        assert_ne!(PluginKind::Bundled, PluginKind::External);
+    }
+
+    #[test]
+    fn plugin_permission_as_str() {
+        assert_eq!(PluginPermission::Read.as_str(), "read");
+        assert_eq!(PluginPermission::Write.as_str(), "write");
+        assert_eq!(PluginPermission::Execute.as_str(), "execute");
+    }
+
+    #[test]
+    fn plugin_permission_parse() {
+        assert_eq!(PluginPermission::parse("read"), Some(PluginPermission::Read));
+        assert_eq!(PluginPermission::parse("write"), Some(PluginPermission::Write));
+        assert_eq!(PluginPermission::parse("execute"), Some(PluginPermission::Execute));
+        assert_eq!(PluginPermission::parse("admin"), None);
+        assert_eq!(PluginPermission::parse(""), None);
+    }
+
+    #[test]
+    fn plugin_permission_as_ref() {
+        let p = PluginPermission::Read;
+        let r: &str = p.as_ref();
+        assert_eq!(r, "read");
+    }
+
+    #[test]
+    fn plugin_permission_ord() {
+        assert!(PluginPermission::Read < PluginPermission::Write);
+        assert!(PluginPermission::Write < PluginPermission::Execute);
+    }
+
+    #[test]
+    fn plugin_tool_permission_as_str() {
+        assert_eq!(PluginToolPermission::ReadOnly.as_str(), "read-only");
+        assert_eq!(PluginToolPermission::WorkspaceWrite.as_str(), "workspace-write");
+        assert_eq!(PluginToolPermission::DangerFullAccess.as_str(), "danger-full-access");
+    }
+
+    #[test]
+    fn plugin_tool_permission_parse() {
+        assert_eq!(PluginToolPermission::parse("read-only"), Some(PluginToolPermission::ReadOnly));
+        assert_eq!(PluginToolPermission::parse("workspace-write"), Some(PluginToolPermission::WorkspaceWrite));
+        assert_eq!(PluginToolPermission::parse("danger-full-access"), Some(PluginToolPermission::DangerFullAccess));
+        assert_eq!(PluginToolPermission::parse("invalid"), None);
+        assert_eq!(PluginToolPermission::parse(""), None);
+    }
+
+    #[test]
+    fn plugin_tool_permission_ord() {
+        assert!(PluginToolPermission::ReadOnly < PluginToolPermission::WorkspaceWrite);
+        assert!(PluginToolPermission::WorkspaceWrite < PluginToolPermission::DangerFullAccess);
+    }
+
+    #[test]
+    fn plugin_hooks_empty() {
+        let hooks = PluginHooks::default();
+        assert!(hooks.is_empty());
+    }
+
+    #[test]
+    fn plugin_hooks_not_empty() {
+        let hooks = PluginHooks {
+            pre_tool_use: vec!["pre.sh".into()],
+            post_tool_use: vec![],
+            post_tool_use_failure: vec![],
+        };
+        assert!(!hooks.is_empty());
+    }
+
+    #[test]
+    fn plugin_hooks_merged_with() {
+        let a = PluginHooks {
+            pre_tool_use: vec!["a.sh".into()],
+            post_tool_use: vec![],
+            post_tool_use_failure: vec![],
+        };
+        let b = PluginHooks {
+            pre_tool_use: vec!["b.sh".into()],
+            post_tool_use: vec!["post.sh".into()],
+            post_tool_use_failure: vec!["fail.sh".into()],
+        };
+        let merged = a.merged_with(&b);
+        assert_eq!(merged.pre_tool_use.len(), 2);
+        assert_eq!(merged.post_tool_use.len(), 1);
+        assert_eq!(merged.post_tool_use_failure.len(), 1);
+    }
+
+    #[test]
+    fn plugin_lifecycle_empty() {
+        let lifecycle = PluginLifecycle::default();
+        assert!(lifecycle.is_empty());
+    }
+
+    #[test]
+    fn plugin_lifecycle_not_empty() {
+        let lifecycle = PluginLifecycle {
+            init: vec!["init.sh".into()],
+            shutdown: vec![],
+        };
+        assert!(!lifecycle.is_empty());
+    }
+
+    #[test]
+    fn plugin_manifest_struct() {
+        let manifest = PluginManifest {
+            name: "test".into(),
+            version: "1.0.0".into(),
+            description: "Test plugin".into(),
+            permissions: vec![PluginPermission::Read],
+            default_enabled: true,
+            hooks: PluginHooks::default(),
+            lifecycle: PluginLifecycle::default(),
+            tools: vec![],
+            commands: vec![],
+        };
+        assert_eq!(manifest.name, "test");
+        assert_eq!(manifest.version, "1.0.0");
+        assert!(manifest.default_enabled);
+    }
+
+    #[test]
+    fn plugin_metadata_struct() {
+        let meta = PluginMetadata {
+            id: "test@builtin".into(),
+            name: "test".into(),
+            version: "1.0.0".into(),
+            description: "desc".into(),
+            kind: PluginKind::Builtin,
+            source: "builtin".into(),
+            default_enabled: true,
+            root: None,
+        };
+        assert_eq!(meta.id, "test@builtin");
+        assert_eq!(meta.kind, PluginKind::Builtin);
+        assert!(meta.root.is_none());
+    }
+
+    #[test]
+    fn plugin_manager_config_new() {
+        let config = PluginManagerConfig::new("/tmp/test");
+        assert_eq!(config.config_home, PathBuf::from("/tmp/test"));
+        assert!(config.enabled_plugins.is_empty());
+        assert!(config.external_dirs.is_empty());
+        assert!(config.install_root.is_none());
+        assert!(config.registry_path.is_none());
+        assert!(config.bundled_root.is_none());
+    }
+
+    #[test]
+    fn plugin_manager_install_root_default() {
+        let config = PluginManagerConfig::new("/tmp/test");
+        let manager = PluginManager::new(config);
+        let install_root = manager.install_root();
+        assert!(install_root.ends_with("installed"));
+    }
+
+    #[test]
+    fn plugin_manager_registry_path_default() {
+        let config = PluginManagerConfig::new("/tmp/test");
+        let manager = PluginManager::new(config);
+        let registry_path = manager.registry_path();
+        assert!(registry_path.to_string_lossy().contains("installed.json"));
+    }
+
+    #[test]
+    fn plugin_manager_settings_path() {
+        let config = PluginManagerConfig::new("/tmp/test");
+        let manager = PluginManager::new(config);
+        let settings = manager.settings_path();
+        assert!(settings.to_string_lossy().contains("settings.json"));
+    }
+
+    #[test]
+    fn sanitize_plugin_id_normal() {
+        assert_eq!(sanitize_plugin_id("test@external"), "test-external");
+    }
+
+    #[test]
+    fn sanitize_plugin_id_special_chars() {
+        assert_eq!(sanitize_plugin_id("a/b@c:d"), "a-b-c-d");
+    }
+
+    #[test]
+    fn sanitize_plugin_id_no_special() {
+        assert_eq!(sanitize_plugin_id("simple"), "simple");
+    }
+
+    #[test]
+    fn plugin_id_format() {
+        assert_eq!(plugin_id("test", "external"), "test@external");
+        assert_eq!(plugin_id("my-plugin", "builtin"), "my-plugin@builtin");
+    }
+
+    #[test]
+    fn is_literal_command_true() {
+        assert!(is_literal_command("echo hello"));
+        assert!(is_literal_command("ls -la"));
+        assert!(is_literal_command("python -c 'print(1)'"));
+    }
+
+    #[test]
+    fn is_literal_command_false() {
+        assert!(!is_literal_command("./script.sh"));
+        assert!(!is_literal_command("../other.sh"));
+    }
+
+    #[test]
+    fn registered_plugin_new() {
+        let def = PluginDefinition::Builtin(BuiltinPlugin {
+            metadata: PluginMetadata {
+                id: "test@builtin".into(),
+                name: "test".into(),
+                version: "1.0.0".into(),
+                description: "desc".into(),
+                kind: PluginKind::Builtin,
+                source: "builtin".into(),
+                default_enabled: true,
+                root: None,
+            },
+            hooks: PluginHooks::default(),
+            lifecycle: PluginLifecycle::default(),
+            tools: vec![],
+        });
+        let rp = RegisteredPlugin::new(def, true);
+        assert!(rp.is_enabled());
+        assert_eq!(rp.metadata().name, "test");
+    }
+
+    #[test]
+    fn registered_plugin_disabled() {
+        let def = PluginDefinition::Builtin(BuiltinPlugin {
+            metadata: PluginMetadata {
+                id: "test@builtin".into(),
+                name: "test".into(),
+                version: "1.0.0".into(),
+                description: "desc".into(),
+                kind: PluginKind::Builtin,
+                source: "builtin".into(),
+                default_enabled: false,
+                root: None,
+            },
+            hooks: PluginHooks::default(),
+            lifecycle: PluginLifecycle::default(),
+            tools: vec![],
+        });
+        let rp = RegisteredPlugin::new(def, false);
+        assert!(!rp.is_enabled());
+    }
+
+    #[test]
+    fn registered_plugin_summary() {
+        let def = PluginDefinition::Builtin(BuiltinPlugin {
+            metadata: PluginMetadata {
+                id: "test@builtin".into(),
+                name: "test".into(),
+                version: "1.0.0".into(),
+                description: "desc".into(),
+                kind: PluginKind::Builtin,
+                source: "builtin".into(),
+                default_enabled: false,
+                root: None,
+            },
+            hooks: PluginHooks::default(),
+            lifecycle: PluginLifecycle::default(),
+            tools: vec![],
+        });
+        let rp = RegisteredPlugin::new(def, true);
+        let summary = rp.summary();
+        assert_eq!(summary.metadata.id, "test@builtin");
+        assert!(summary.enabled);
+    }
+
+    #[test]
+    fn plugin_registry_new_sorts_by_id() {
+        let p1 = make_builtin_plugin("z-plugin");
+        let p2 = make_builtin_plugin("a-plugin");
+        let registry = PluginRegistry::new(vec![
+            RegisteredPlugin::new(p1, true),
+            RegisteredPlugin::new(p2, true),
+        ]);
+        assert_eq!(registry.plugins()[0].metadata().id, "a-plugin@builtin");
+        assert_eq!(registry.plugins()[1].metadata().id, "z-plugin@builtin");
+    }
+
+    #[test]
+    fn plugin_registry_get_and_contains() {
+        let p = make_builtin_plugin("my-plugin");
+        let registry = PluginRegistry::new(vec![RegisteredPlugin::new(p, true)]);
+        assert!(registry.get("my-plugin@builtin").is_some());
+        assert!(registry.contains("my-plugin@builtin"));
+        assert!(!registry.contains("other@builtin"));
+        assert!(registry.get("missing@builtin").is_none());
+    }
+
+    #[test]
+    fn plugin_registry_summaries() {
+        let p = make_builtin_plugin("summaries-test");
+        let registry = PluginRegistry::new(vec![RegisteredPlugin::new(p, true)]);
+        let summaries = registry.summaries();
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].metadata.name, "summaries-test");
+    }
+
+    #[test]
+    fn plugin_registry_empty() {
+        let registry = PluginRegistry::new(vec![]);
+        assert!(registry.plugins().is_empty());
+        assert!(registry.summaries().is_empty());
+        assert!(!registry.contains("anything"));
+    }
+
+    #[test]
+    fn plugin_registry_aggregated_hooks_empty() {
+        let registry = PluginRegistry::new(vec![]);
+        let hooks = registry.aggregated_hooks().unwrap();
+        assert!(hooks.is_empty());
+    }
+
+    #[test]
+    fn plugin_registry_aggregated_tools_empty() {
+        let registry = PluginRegistry::new(vec![]);
+        let tools = registry.aggregated_tools().unwrap();
+        assert!(tools.is_empty());
+    }
+
+    #[test]
+    fn plugin_registry_initialize_shutdown_empty() {
+        let registry = PluginRegistry::new(vec![]);
+        assert!(registry.initialize().is_ok());
+        assert!(registry.shutdown().is_ok());
+    }
+
+    #[test]
+    fn plugin_load_failure_struct() {
+        let lf = PluginLoadFailure::new(
+            PathBuf::from("/test/plugin"),
+            PluginKind::External,
+            "test source".into(),
+            PluginError::NotFound("test error".into()),
+        );
+        assert_eq!(lf.plugin_root, PathBuf::from("/test/plugin"));
+        assert_eq!(lf.kind, PluginKind::External);
+        assert!(lf.error().to_string().contains("test error"));
+    }
+
+    #[test]
+    fn plugin_load_failure_display() {
+        let lf = PluginLoadFailure::new(
+            PathBuf::from("/test/plugin"),
+            PluginKind::External,
+            "test source".into(),
+            PluginError::NotFound("not found".into()),
+        );
+        let display = lf.to_string();
+        assert!(display.contains("external"));
+        assert!(display.contains("test source"));
+        assert!(display.contains("not found"));
+    }
+
+    #[test]
+    fn plugin_registry_report_new() {
+        let registry = PluginRegistry::new(vec![]);
+        let report = PluginRegistryReport::new(registry, vec![]);
+        assert!(!report.has_failures());
+        assert!(report.registry().plugins().is_empty());
+    }
+
+    #[test]
+    fn plugin_registry_report_with_failures() {
+        let lf = PluginLoadFailure::new(
+            PathBuf::from("/broken"),
+            PluginKind::External,
+            "source".into(),
+            PluginError::NotFound("err".into()),
+        );
+        let report = PluginRegistryReport::new(PluginRegistry::new(vec![]), vec![lf]);
+        assert!(report.has_failures());
+        assert_eq!(report.failures().len(), 1);
+    }
+
+    #[test]
+    fn plugin_registry_report_into_registry_ok() {
+        let report = PluginRegistryReport::new(PluginRegistry::new(vec![]), vec![]);
+        let registry = report.into_registry();
+        assert!(registry.is_ok());
+    }
+
+    #[test]
+    fn plugin_registry_report_into_registry_err() {
+        let lf = PluginLoadFailure::new(
+            PathBuf::from("/broken"),
+            PluginKind::External,
+            "src".into(),
+            PluginError::NotFound("err".into()),
+        );
+        let report = PluginRegistryReport::new(PluginRegistry::new(vec![]), vec![lf]);
+        let result = report.into_registry();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn plugin_error_display_variants() {
+        let io_err = PluginError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "not found"));
+        assert!(!io_err.to_string().is_empty());
+
+        let json_err = PluginError::Json(serde_json::from_str::<serde_json::Value>("invalid").unwrap_err());
+        assert!(!json_err.to_string().is_empty());
+
+        let manifest_err = PluginError::InvalidManifest("bad manifest".into());
+        assert!(manifest_err.to_string().contains("bad manifest"));
+
+        let not_found = PluginError::NotFound("missing".into());
+        assert!(not_found.to_string().contains("missing"));
+
+        let cmd_fail = PluginError::CommandFailed("cmd failed".into());
+        assert!(cmd_fail.to_string().contains("cmd failed"));
+    }
+
+    #[test]
+    fn plugin_error_manifest_validation_display() {
+        let errors = vec![
+            PluginManifestValidationError::EmptyField { field: "name" },
+            PluginManifestValidationError::InvalidPermission { permission: "admin".into() },
+        ];
+        let err = PluginError::ManifestValidation(errors);
+        let display = err.to_string();
+        assert!(display.contains("name"));
+        assert!(display.contains("admin"));
+    }
+
+    #[test]
+    fn plugin_error_is_std_error() {
+        let err = PluginError::NotFound("test".into());
+        let _: &dyn std::error::Error = &err;
+    }
+
+    #[test]
+    fn plugin_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::Other, "test");
+        let plugin_err: PluginError = io_err.into();
+        assert!(matches!(plugin_err, PluginError::Io(_)));
+    }
+
+    #[test]
+    fn plugin_error_from_json() {
+        let json_err = serde_json::from_str::<serde_json::Value>("!!!").unwrap_err();
+        let plugin_err: PluginError = json_err.into();
+        assert!(matches!(plugin_err, PluginError::Json(_)));
+    }
+
+    #[test]
+    fn plugin_manifest_validation_error_display_variants() {
+        let errors = vec![
+            PluginManifestValidationError::EmptyField { field: "name" },
+            PluginManifestValidationError::EmptyEntryField { kind: "tool", field: "name", name: Some("my-tool".into()) },
+            PluginManifestValidationError::InvalidPermission { permission: "admin".into() },
+            PluginManifestValidationError::DuplicatePermission { permission: "read".into() },
+            PluginManifestValidationError::DuplicateEntry { kind: "command", name: "sync".into() },
+            PluginManifestValidationError::MissingPath { kind: "hook", path: PathBuf::from("/missing") },
+            PluginManifestValidationError::PathIsDirectory { kind: "tool", path: PathBuf::from("/dir") },
+            PluginManifestValidationError::InvalidToolInputSchema { tool_name: "t".into() },
+            PluginManifestValidationError::InvalidToolRequiredPermission { tool_name: "t".into(), permission: "bad".into() },
+            PluginManifestValidationError::UnsupportedManifestContract { detail: "unsupported".into() },
+        ];
+        for err in &errors {
+            let display = err.to_string();
+            assert!(!display.is_empty(), "display should not be empty for {:?}", err);
+        }
+    }
+
+    #[test]
+    fn plugin_install_source_serde() {
+        let local = PluginInstallSource::LocalPath { path: PathBuf::from("/test") };
+        let json = serde_json::to_string(&local).unwrap();
+        let deserialized: PluginInstallSource = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, PluginInstallSource::LocalPath { .. }));
+
+        let git = PluginInstallSource::GitUrl { url: "https://github.com/test/repo.git".into() };
+        let json = serde_json::to_string(&git).unwrap();
+        let deserialized: PluginInstallSource = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, PluginInstallSource::GitUrl { .. }));
+    }
+
+    #[test]
+    fn plugin_install_source_display() {
+        let local = PluginInstallSource::LocalPath { path: PathBuf::from("/test") };
+        let display = describe_install_source(&local);
+        assert!(display.contains("test"));
+
+        let git = PluginInstallSource::GitUrl { url: "https://github.com/test/repo.git".into() };
+        let display = describe_install_source(&git);
+        assert!(display.contains("github.com"));
+    }
+
+    #[test]
+    fn builtin_plugins_returns_non_empty() {
+        let plugins = builtin_plugins();
+        assert_eq!(plugins.len(), 1);
+        assert_eq!(plugins[0].metadata().name, "example-builtin");
+        assert_eq!(plugins[0].metadata().kind, PluginKind::Builtin);
+    }
+
+    #[test]
+    fn builtin_plugin_validate_succeeds() {
+        let plugins = builtin_plugins();
+        assert!(plugins[0].validate().is_ok());
+    }
+
+    #[test]
+    fn builtin_plugin_initialize_succeeds() {
+        let plugins = builtin_plugins();
+        assert!(plugins[0].initialize().is_ok());
+    }
+
+    #[test]
+    fn builtin_plugin_shutdown_succeeds() {
+        let plugins = builtin_plugins();
+        assert!(plugins[0].shutdown().is_ok());
+    }
+
+    #[test]
+    fn installed_plugin_registry_default_empty() {
+        let registry = InstalledPluginRegistry::default();
+        assert!(registry.plugins.is_empty());
+    }
+
+    #[test]
+    fn installed_plugin_registry_serde_roundtrip() {
+        let mut registry = InstalledPluginRegistry::default();
+        registry.plugins.insert(
+            "test@external".into(),
+            InstalledPluginRecord {
+                kind: PluginKind::External,
+                id: "test@external".into(),
+                name: "test".into(),
+                version: "1.0.0".into(),
+                description: "test".into(),
+                install_path: PathBuf::from("/test"),
+                source: PluginInstallSource::LocalPath { path: PathBuf::from("/src") },
+                installed_at_unix_ms: 1000,
+                updated_at_unix_ms: 2000,
+            },
+        );
+        let json = serde_json::to_string(&registry).unwrap();
+        let deserialized: InstalledPluginRegistry = serde_json::from_str(&json).unwrap();
+        assert!(deserialized.plugins.contains_key("test@external"));
+    }
+
+    #[test]
+    fn default_plugin_kind_is_external() {
+        let kind = default_plugin_kind();
+        assert_eq!(kind, PluginKind::External);
+    }
+
+    #[test]
+    fn default_tool_permission_label_value() {
+        let label = super::default_tool_permission_label();
+        assert_eq!(label, "danger-full-access");
+    }
+
+    #[test]
+    fn plugin_tool_constructor() {
+        let def = PluginToolDefinition {
+            name: "test_tool".into(),
+            description: Some("A test tool".into()),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        let tool = PluginTool::new(
+            "plugin@external",
+            "plugin",
+            def,
+            "echo",
+            vec![],
+            PluginToolPermission::ReadOnly,
+            None,
+        );
+        assert_eq!(tool.plugin_id(), "plugin@external");
+        assert_eq!(tool.definition().name, "test_tool");
+        assert_eq!(tool.required_permission(), "read-only");
+    }
+
+    #[test]
+    fn plugin_tool_constructor_with_root() {
+        let def = PluginToolDefinition {
+            name: "test_tool".into(),
+            description: None,
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        let tool = PluginTool::new(
+            "p@e",
+            "p",
+            def,
+            "cmd",
+            vec!["--arg".into()],
+            PluginToolPermission::WorkspaceWrite,
+            Some(PathBuf::from("/root")),
+        );
+        assert!(tool.definition().description.is_none());
+    }
+
+    #[test]
+    fn plugin_tool_execute_invalid_command() {
+        let def = PluginToolDefinition {
+            name: "test_tool".into(),
+            description: Some("test".into()),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        let tool = PluginTool::new(
+            "p@e",
+            "p",
+            def,
+            "/nonexistent/command/that/doesnt/exist",
+            vec![],
+            PluginToolPermission::ReadOnly,
+            None,
+        );
+        let result = tool.execute(&serde_json::json!({}));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn plugin_lifecycle_struct_serde() {
+        let lifecycle = PluginLifecycle {
+            init: vec!["init.sh".into()],
+            shutdown: vec!["shutdown.sh".into()],
+        };
+        let json = serde_json::to_string(&lifecycle).unwrap();
+        let deserialized: PluginLifecycle = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.init, vec!["init.sh"]);
+        assert_eq!(deserialized.shutdown, vec!["shutdown.sh"]);
+    }
+
+    #[test]
+    fn plugin_hooks_struct_serde() {
+        let hooks = PluginHooks {
+            pre_tool_use: vec!["pre.sh".into()],
+            post_tool_use: vec!["post.sh".into()],
+            post_tool_use_failure: vec!["fail.sh".into()],
+        };
+        let json = serde_json::to_string(&hooks).unwrap();
+        let deserialized: PluginHooks = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.pre_tool_use, vec!["pre.sh"]);
+        assert_eq!(deserialized.post_tool_use, vec!["post.sh"]);
+        assert_eq!(deserialized.post_tool_use_failure, vec!["fail.sh"]);
+    }
+
+    fn make_builtin_plugin(name: &str) -> PluginDefinition {
+        PluginDefinition::Builtin(BuiltinPlugin {
+            metadata: PluginMetadata {
+                id: format!("{}@builtin", name),
+                name: name.into(),
+                version: "1.0.0".into(),
+                description: "test".into(),
+                kind: PluginKind::Builtin,
+                source: "builtin".into(),
+                default_enabled: true,
+                root: None,
+            },
+            hooks: PluginHooks::default(),
+            lifecycle: PluginLifecycle::default(),
+            tools: vec![],
+        })
     }
 }

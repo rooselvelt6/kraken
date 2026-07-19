@@ -217,6 +217,19 @@ const MODEL_REGISTRY: &[(&str, ProviderMetadata)] = &[
     ),
 ];
 
+/// Resolves shorthand model aliases to their canonical provider model IDs.
+///
+/// # Examples
+///
+/// ```
+/// use api::resolve_model_alias;
+///
+/// assert_eq!(resolve_model_alias("opus"), "claude-opus-4-6");
+/// assert_eq!(resolve_model_alias("sonnet"), "claude-sonnet-4-6");
+/// assert_eq!(resolve_model_alias("grok"), "grok-3");
+/// assert_eq!(resolve_model_alias("deepseek"), "deepseek-chat");
+/// assert_eq!(resolve_model_alias("some-unknown-model"), "some-unknown-model");
+/// ```
 #[must_use]
 pub fn resolve_model_alias(model: &str) -> String {
     let trimmed = model.trim();
@@ -364,6 +377,18 @@ pub fn detect_provider_kind(model: &str) -> ProviderKind {
     ProviderKind::Anthropic
 }
 
+/// Returns the maximum output token limit for a known model.
+///
+/// # Examples
+///
+/// ```
+/// use api::max_tokens_for_model;
+///
+/// assert_eq!(max_tokens_for_model("opus"), 32_000);
+/// assert_eq!(max_tokens_for_model("sonnet"), 64_000);
+/// assert_eq!(max_tokens_for_model("grok-3"), 64_000);
+/// assert_eq!(max_tokens_for_model("unknown-model"), 64_000);
+/// ```
 #[must_use]
 pub fn max_tokens_for_model(model: &str) -> u32 {
     model_token_limit(model).map_or_else(
@@ -382,6 +407,15 @@ pub fn max_tokens_for_model(model: &str) -> u32 {
 /// Returns the effective max output tokens for a model, preferring a plugin
 /// override when present. Falls back to [`max_tokens_for_model`] when the
 /// override is `None`.
+///
+/// # Examples
+///
+/// ```
+/// use api::max_tokens_for_model_with_override;
+///
+/// assert_eq!(max_tokens_for_model_with_override("opus", None), 32_000);
+/// assert_eq!(max_tokens_for_model_with_override("opus", Some(9999)), 9999);
+/// ```
 #[must_use]
 pub fn max_tokens_for_model_with_override(model: &str, plugin_override: Option<u32>) -> u32 {
     plugin_override.unwrap_or_else(|| max_tokens_for_model(model))

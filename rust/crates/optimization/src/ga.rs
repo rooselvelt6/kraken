@@ -303,4 +303,203 @@ mod tests {
         // Best fitness should be reasonable (genes close to 1.0)
         assert!(ga.best_fitness() > 0.5);
     }
+
+    #[test]
+    fn test_chromosome_from_genes() {
+        let genes = vec![0.1, 0.2, 0.3];
+        let chrom = Chromosome::from_genes(genes.clone());
+        assert_eq!(chrom.genes, genes);
+        assert_eq!(chrom.fitness, 0.0);
+    }
+
+    #[test]
+    fn test_chromosome_gene_in_bounds() {
+        let chrom = Chromosome::from_genes(vec![1.0, 2.0, 3.0]);
+        assert_eq!(chrom.gene(1), Some(2.0));
+    }
+
+    #[test]
+    fn test_chromosome_gene_out_of_bounds() {
+        let chrom = Chromosome::from_genes(vec![1.0, 2.0]);
+        assert_eq!(chrom.gene(5), None);
+    }
+
+    #[test]
+    fn test_chromosome_set_gene() {
+        let mut chrom = Chromosome::from_genes(vec![0.0, 0.0, 0.0]);
+        chrom.set_gene(1, 42.0);
+        assert_eq!(chrom.gene(1), Some(42.0));
+    }
+
+    #[test]
+    fn test_chromosome_mutate_high_rate() {
+        let mut chrom = Chromosome::from_genes(vec![0.0, 0.0, 0.0, 0.0, 0.0]);
+        // Mutation rate = 1.0 guarantees every gene changes
+        chrom.mutate(1.0);
+        // At least some genes should differ (almost certainly all)
+        let changed = chrom.genes.iter().any(|&g| g != 0.0);
+        assert!(changed);
+    }
+
+    #[test]
+    fn test_ga_evaluate() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 {
+            chrom.genes.iter().sum::<f64>()
+        };
+
+        let mut ga = GeneticOptimizer::new(10, 3, 0.0, 0.0, 10);
+        ga.evaluate(&fitness_fn);
+
+        // After evaluate, population is sorted descending by fitness
+        for i in 1..ga.population.len() {
+            assert!(ga.population[i - 1].fitness >= ga.population[i].fitness);
+        }
+    }
+
+    #[test]
+    fn test_ga_iteration_starts_zero() {
+        let ga = GeneticOptimizer::new(10, 3, 0.01, 0.8, 50);
+        assert_eq!(ga.iteration(), 0);
+    }
+
+    #[test]
+    fn test_ga_stats() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 {
+            chrom.genes.iter().sum::<f64>()
+        };
+
+        let mut ga = GeneticOptimizer::new(20, 4, 0.0, 0.8, 10);
+        ga.evaluate(&fitness_fn);
+
+        let s = ga.stats();
+        assert_eq!(s.population_size, 20);
+        assert_eq!(s.iteration, 0);
+        assert!(s.best_fitness >= 0.0);
+        assert!(s.average_fitness >= 0.0);
+    }
+
+    #[test]
+    fn test_ga_crossover_length() {
+        let c1 = Chromosome::from_genes(vec![1.0; 8]);
+        let c2 = Chromosome::from_genes(vec![2.0; 8]);
+        let (child1, child2) = c1.crossover(&c2);
+        assert_eq!(child1.genes.len(), 8);
+        assert_eq!(child2.genes.len(), 8);
+    }
+
+    #[test]
+    fn test_chromosome_new_length() {
+        let chrom = Chromosome::new(7);
+        assert_eq!(chrom.genes.len(), 7);
+        assert_eq!(chrom.fitness, 0.0);
+    }
+
+    #[test]
+    fn test_chromosome_set_gene_out_of_bounds() {
+        let mut chrom = Chromosome::from_genes(vec![0.0, 0.0]);
+        chrom.set_gene(5, 42.0);
+        assert_eq!(chrom.gene(0), Some(0.0));
+    }
+
+    #[test]
+    fn test_chromosome_crossover_preserves_length() {
+        let c1 = Chromosome::from_genes(vec![0.1; 10]);
+        let c2 = Chromosome::from_genes(vec![0.9; 10]);
+        let (child1, child2) = c1.crossover(&c2);
+        assert_eq!(child1.genes.len(), 10);
+        assert_eq!(child2.genes.len(), 10);
+    }
+
+    #[test]
+    fn test_chromosome_crossover_combines_genes() {
+        let c1 = Chromosome::from_genes(vec![0.0; 4]);
+        let c2 = Chromosome::from_genes(vec![1.0; 4]);
+        let (child1, child2) = c1.crossover(&c2);
+        for g in &child1.genes {
+            assert!(*g == 0.0 || *g == 1.0);
+        }
+        for g in &child2.genes {
+            assert!(*g == 0.0 || *g == 1.0);
+        }
+    }
+
+    #[test]
+    fn test_ga_evaluate_sorts_descending() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 { chrom.genes.iter().sum() };
+        let mut ga = GeneticOptimizer::new(10, 3, 0.0, 0.0, 10);
+        ga.evaluate(&fitness_fn);
+        for i in 1..ga.population.len() {
+            assert!(ga.population[i - 1].fitness >= ga.population[i].fitness);
+        }
+    }
+
+    #[test]
+    fn test_ga_iterate_increments() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 {
+            chrom.genes.iter().sum::<f64>() / chrom.genes.len() as f64
+        };
+        let mut ga = GeneticOptimizer::new(10, 3, 0.1, 0.8, 100);
+        assert_eq!(ga.iteration(), 0);
+        ga.iterate(&fitness_fn);
+        assert_eq!(ga.iteration(), 1);
+        ga.iterate(&fitness_fn);
+        assert_eq!(ga.iteration(), 2);
+    }
+
+    #[test]
+    fn test_ga_stats_after_evaluate() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 { chrom.genes.iter().sum() };
+        let mut ga = GeneticOptimizer::new(20, 5, 0.0, 0.8, 10);
+        ga.evaluate(&fitness_fn);
+        let s = ga.stats();
+        assert_eq!(s.iteration, 0);
+        assert_eq!(s.population_size, 20);
+        assert!(s.average_fitness >= 0.0);
+    }
+
+    #[test]
+    fn test_ga_optimize_returns_genes() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 {
+            chrom.genes.iter().sum::<f64>() / chrom.genes.len() as f64
+        };
+        let mut ga = GeneticOptimizer::new(20, 5, 0.1, 0.8, 30);
+        let genes = ga.optimize(&fitness_fn);
+        assert_eq!(genes.len(), 5);
+    }
+
+    #[test]
+    fn test_ga_best_fitness() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 { chrom.genes.iter().sum() };
+        let mut ga = GeneticOptimizer::new(10, 3, 0.0, 0.0, 10);
+        let initial = ga.best_fitness();
+        ga.evaluate(&fitness_fn);
+        assert!(ga.best_fitness() >= initial);
+    }
+
+    #[test]
+    fn test_ga_best_solution() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 { chrom.genes.iter().sum() };
+        let mut ga = GeneticOptimizer::new(10, 3, 0.0, 0.0, 10);
+        ga.evaluate(&fitness_fn);
+        let best = ga.best_solution();
+        assert_eq!(best.genes.len(), 3);
+        assert!(best.fitness >= 0.0);
+    }
+
+    #[test]
+    fn test_ga_stats_iteration() {
+        let fitness_fn = |chrom: &Chromosome| -> f64 { chrom.genes.iter().sum() };
+        let mut ga = GeneticOptimizer::new(10, 3, 0.0, 0.8, 100);
+        ga.iterate(&fitness_fn);
+        let s = ga.stats();
+        assert_eq!(s.iteration, 1);
+    }
+
+    #[test]
+    fn test_chromosome_mutate_zero_rate() {
+        let original = vec![0.5, 0.5, 0.5];
+        let mut chrom = Chromosome::from_genes(original.clone());
+        chrom.mutate(0.0);
+        assert_eq!(chrom.genes, original);
+    }
 }

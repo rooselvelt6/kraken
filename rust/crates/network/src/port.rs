@@ -233,6 +233,19 @@ fn extract_version(text: &str, product: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
+/// Returns the well-known service name for a port number.
+///
+/// # Examples
+///
+/// ```
+/// use network::port::known_service_name;
+///
+/// assert_eq!(known_service_name(22), "SSH");
+/// assert_eq!(known_service_name(80), "HTTP");
+/// assert_eq!(known_service_name(443), "HTTPS");
+/// assert_eq!(known_service_name(3306), "MySQL");
+/// assert_eq!(known_service_name(9876), "Unknown");
+/// ```
 pub fn known_service_name(port: u16) -> &'static str {
     match port {
         20 | 21 => "FTP",
@@ -556,4 +569,208 @@ fn common_udp_ports() -> Vec<u16> {
         31337, 32400, 32764, 32822, 34443, 39222, 41121, 41523,
         44818, 47808, 50000, 51820, 54321, 61613, 61616, 64738,
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_known_service_name_common_ports() {
+        assert_eq!(known_service_name(21), "FTP");
+        assert_eq!(known_service_name(22), "SSH");
+        assert_eq!(known_service_name(80), "HTTP");
+        assert_eq!(known_service_name(443), "HTTPS");
+        assert_eq!(known_service_name(3306), "MySQL");
+        assert_eq!(known_service_name(5432), "PostgreSQL");
+        assert_eq!(known_service_name(6379), "Redis");
+        assert_eq!(known_service_name(27017), "Steam");
+    }
+
+    #[test]
+    fn test_known_service_name_unknown() {
+        assert_eq!(known_service_name(54321), "PostgreSQL Alt");
+        assert_eq!(known_service_name(12345), "NetBus");
+    }
+
+    #[test]
+    fn test_known_service_name_ranges() {
+        assert_eq!(known_service_name(137), "NetBIOS");
+        assert_eq!(known_service_name(138), "NetBIOS");
+        assert_eq!(known_service_name(139), "NetBIOS");
+        assert_eq!(known_service_name(6665), "IRC");
+        assert_eq!(known_service_name(6885), "BitTorrent");
+        assert_eq!(known_service_name(49153), "Windows RPC");
+    }
+
+    #[test]
+    fn test_identify_service_ssh() {
+        let (name, product, _version) = identify_service(22, "SSH-2.0-OpenSSH_8.9p1");
+        assert_eq!(name, "SSH");
+        assert_eq!(product, Some("OpenSSH".to_string()));
+    }
+
+    #[test]
+    fn test_identify_service_nginx() {
+        let (name, product, _version) = identify_service(80, "HTTP/1.1 200 OK\r\nServer: nginx/1.24.0");
+        assert_eq!(name, "HTTP");
+        assert_eq!(product, Some("nginx".to_string()));
+    }
+
+    #[test]
+    fn test_identify_service_apache() {
+        let (name, product, _version) = identify_service(80, "HTTP/1.1 200 OK\r\nServer: Apache/2.4.41");
+        assert_eq!(name, "HTTP");
+        assert_eq!(product, Some("Apache".to_string()));
+    }
+
+    #[test]
+    fn test_identify_service_ftp() {
+        let (name, _, _) = identify_service(21, "220 Welcome to FTP server");
+        assert_eq!(name, "FTP");
+    }
+
+    #[test]
+    fn test_identify_service_smtp() {
+        let (name, _, _) = identify_service(25, "mail.example.com ESMTP Postfix");
+        assert_eq!(name, "SMTP");
+    }
+
+    #[test]
+    fn test_identify_service_pop3() {
+        let (name, _, _) = identify_service(110, "+OK POP3 server ready");
+        assert_eq!(name, "POP3");
+    }
+
+    #[test]
+    fn test_identify_service_imap() {
+        let (name, _, _) = select_service_for_banner(143, "* OK [CAPABILITY IMAP4rev1]");
+        assert_eq!(name, "IMAP");
+    }
+
+    #[test]
+    fn test_identify_service_mysql() {
+        let (name, _, _) = identify_service(3306, "5.7.42-0ubuntu0.18.04.1");
+        assert_eq!(name, "MySQL");
+    }
+
+    #[test]
+    fn test_identify_service_redis() {
+        let (name, _, _) = identify_service(6379, "+PONG");
+        assert_eq!(name, "Redis");
+    }
+
+    #[test]
+    fn test_identify_service_unknown_port() {
+        let (name, product, version) = identify_service(54321, "random garbage");
+        assert_eq!(name, "PostgreSQL Alt");
+        assert!(product.is_none());
+        assert!(version.is_none());
+    }
+
+    #[test]
+    fn test_identify_service_case_insensitive() {
+        let (name, _, _) = identify_service(22, "ssh-2.0-OPENSSH_9.0");
+        assert_eq!(name, "SSH");
+    }
+
+    fn select_service_for_banner(port: u16, banner: &str) -> (String, Option<String>, Option<String>) {
+        identify_service(port, banner)
+    }
+
+    #[test]
+    fn test_extract_version_basic() {
+        let ver = extract_version("openssh 8.9p1", "openssh");
+        assert_eq!(ver, Some("8.9".to_string()));
+    }
+
+    #[test]
+    fn test_extract_version_not_found() {
+        let ver = extract_version("hello world", "nonexistent");
+        assert!(ver.is_none());
+    }
+
+    #[test]
+    fn test_extract_version_with_dot() {
+        let ver = extract_version("nginx/1.24.0", "nginx");
+        assert_eq!(ver, Some("1.24.0".to_string()));
+    }
+
+    #[test]
+    fn test_common_ports_not_empty() {
+        let ports = common_ports();
+        assert!(!ports.is_empty());
+        assert!(ports.contains(&22));
+        assert!(ports.contains(&80));
+        assert!(ports.contains(&443));
+    }
+
+    #[test]
+    fn test_common_udp_ports_not_empty() {
+        let ports = common_udp_ports();
+        assert!(!ports.is_empty());
+        assert!(ports.contains(&53)); // DNS
+        assert!(ports.contains(&161)); // SNMP
+    }
+
+    #[test]
+    fn test_common_ports_sorted_or_unique() {
+        let ports = common_ports();
+        // All unique
+        let mut sorted = ports.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(ports.len(), sorted.len());
+    }
+
+    #[test]
+    fn test_port_result_struct() {
+        let pr = PortResult {
+            port: 80,
+            protocol: "tcp".to_string(),
+            state: PortState::Open,
+            service: Some(ServiceInfo {
+                name: "HTTP".into(),
+                product: Some("nginx".into()),
+                version: Some("1.24".into()),
+                banner: None,
+            }),
+        };
+        assert_eq!(pr.port, 80);
+        assert!(matches!(pr.state, PortState::Open));
+    }
+
+    #[test]
+    fn test_port_state_variants() {
+        assert!(matches!(PortState::Open, PortState::Open));
+        assert!(matches!(PortState::Closed, PortState::Closed));
+        assert!(matches!(PortState::Filtered, PortState::Filtered));
+        assert!(matches!(PortState::Unfiltered, PortState::Unfiltered));
+    }
+
+    #[test]
+    fn test_identify_service_postgresql() {
+        let (name, _, _) = identify_service(5432, "FATAL: password authentication failed");
+        assert_eq!(name, "PostgreSQL");
+    }
+
+    #[test]
+    fn test_identify_service_mongodb() {
+        let (name, _, _) = identify_service(27017, "mongodb server version 6.0.4");
+        assert_eq!(name, "MongoDB");
+    }
+
+    #[test]
+    fn test_identify_service_https_from_banner() {
+        let (name, _, _) = identify_service(443, "SSL connection using TLS 1.3");
+        assert_eq!(name, "HTTPS");
+    }
+
+    #[test]
+    fn test_identify_service_fallback_to_known() {
+        let (name, product, version) = identify_service(8080, "");
+        assert_eq!(name, "HTTP Proxy");
+        assert!(product.is_none());
+        assert!(version.is_none());
+    }
 }
