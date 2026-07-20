@@ -44,6 +44,18 @@ pub struct AttackPath {
 pub struct LateralMovement;
 
 impl LateralMovement {
+    /// Builds an attack graph from findings, identifying entry and target nodes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::lateral::LateralMovement;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod, ExploitType};
+    /// let f = Finding::new(Severity::Critical, "rce vuln", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let graph = LateralMovement::build_attack_graph(&[f]);
+    /// assert_eq!(graph.nodes.len(), 1);
+    /// assert_eq!(graph.entry_nodes.len(), 1);
+    /// ```
     pub fn build_attack_graph(findings: &[Finding]) -> AttackGraph {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -131,6 +143,23 @@ impl LateralMovement {
         }
     }
 
+    /// Finds attack paths from entry nodes to target nodes in the graph.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::lateral::LateralMovement;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod, ExploitType};
+    /// let rce = Finding::new(Severity::Critical, "rce", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching)
+    ///     .with_exploit("code".to_string(), ExploitType::RemoteCodeExecution);
+    /// let privesc = Finding::new(Severity::Critical, "privesc", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching)
+    ///     .with_exploit("code".to_string(), ExploitType::PrivilegeEscalation);
+    /// let mut rce2 = rce.clone();
+    /// rce2.chained_findings.push(privesc.id.clone());
+    /// let mut privesc2 = privesc.clone();
+    /// let graph = LateralMovement::build_attack_graph(&[rce2, privesc2]);
+    /// let paths = LateralMovement::find_attack_paths(&graph);
+    /// ```
     pub fn find_attack_paths(graph: &AttackGraph) -> Vec<AttackPath> {
         let mut paths = Vec::new();
 
@@ -171,6 +200,18 @@ impl LateralMovement {
         paths
     }
 
+    /// Returns finding IDs that are disconnected from the attack graph.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::lateral::LateralMovement;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// let f = Finding::new(Severity::Low, "isolated", None, None, None, None, None, 0.3, DiscoveryMethod::StaticPatternMatching);
+    /// let graph = LateralMovement::build_attack_graph(&[f]);
+    /// let orphans = LateralMovement::deorphan_findings(&graph);
+    /// assert_eq!(orphans.len(), 1);
+    /// ```
     pub fn deorphan_findings(graph: &AttackGraph) -> Vec<String> {
         let connected: std::collections::HashSet<usize> = graph
             .edges

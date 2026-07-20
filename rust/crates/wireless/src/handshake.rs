@@ -490,4 +490,152 @@ mod tests {
         let pmk3 = WpaCracker::compute_pmk("different", "MyWiFi");
         assert_ne!(pmk1, pmk3);
     }
+
+    #[test]
+    fn test_pmk_computation_empty_passphrase() {
+        let pmk = WpaCracker::compute_pmk("", "TestSSID");
+        assert_eq!(pmk.len(), 32);
+        assert_ne!(pmk, [0u8; 32]);
+    }
+
+    #[test]
+    fn test_pmk_computation_empty_ssid() {
+        let pmk = WpaCracker::compute_pmk("password", "");
+        assert_eq!(pmk.len(), 32);
+    }
+
+    #[test]
+    fn test_pmk_different_ssid_different_output() {
+        let pmk1 = WpaCracker::compute_pmk("pass", "SSID_A");
+        let pmk2 = WpaCracker::compute_pmk("pass", "SSID_B");
+        assert_ne!(pmk1, pmk2);
+    }
+
+    #[test]
+    fn test_pmk_different_passphrase_different_output() {
+        let pmk1 = WpaCracker::compute_pmk("pass1", "SSID");
+        let pmk2 = WpaCracker::compute_pmk("pass2", "SSID");
+        assert_ne!(pmk1, pmk2);
+    }
+
+    #[test]
+    fn test_pmkid_generation_deterministic() {
+        let pmkid1 = detect_wps_pmkid("00:11:22:33:44:55", "TestNet");
+        let pmkid2 = detect_wps_pmkid("00:11:22:33:44:55", "TestNet");
+        assert_eq!(pmkid1, pmkid2);
+    }
+
+    #[test]
+    fn test_pmkid_generation_different_bssid() {
+        let pmkid1 = detect_wps_pmkid("00:11:22:33:44:55", "TestNet");
+        let pmkid2 = detect_wps_pmkid("aa:bb:cc:dd:ee:ff", "TestNet");
+        assert_ne!(pmkid1, pmkid2);
+    }
+
+    #[test]
+    fn test_pmkid_generation_invalid_bssid() {
+        let result = detect_wps_pmkid("not-a-mac", "TestNet");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_pmkid_format() {
+        let pmkid = detect_wps_pmkid("00:11:22:33:44:55", "TestNet").unwrap();
+        assert!(pmkid.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_crack_result_struct() {
+        let result = CrackResult {
+            bssid: "aa:bb:cc:dd:ee:ff".to_string(),
+            essid: "MyNet".to_string(),
+            password: Some("pass123".to_string()),
+            method: CrackMethod::Dictionary,
+            duration_secs: 10.0,
+            attempts: 5000,
+        };
+        assert_eq!(result.bssid, "aa:bb:cc:dd:ee:ff");
+        assert!(matches!(result.method, CrackMethod::Dictionary));
+    }
+
+    #[test]
+    fn test_crack_method_variants() {
+        let dict = CrackMethod::Dictionary;
+        let pmkid = CrackMethod::PMKID;
+        assert!(matches!(dict, CrackMethod::Dictionary));
+        assert!(matches!(pmkid, CrackMethod::PMKID));
+    }
+
+    #[test]
+    fn test_handshake_info_incomplete() {
+        let hs = HandshakeInfo {
+            bssid: "00:11:22:33:44:55".to_string(),
+            essid: "Test".to_string(),
+            client_mac: String::new(),
+            capture_time: "2026-01-01 00:00:00".to_string(),
+            key_version: 0,
+            is_complete: false,
+            pmkid: None,
+            anonce: None,
+            snonce: None,
+            mic: None,
+            eapol_frame_count: 2,
+        };
+        assert!(!hs.is_complete);
+        assert_eq!(hs.eapol_frame_count, 2);
+        assert!(hs.pmkid.is_none());
+    }
+
+    #[test]
+    fn test_pcap_capture_struct() {
+        let cap = PcapCapture {
+            interface: "wlan0".to_string(),
+            bssid: "00:11:22:33:44:55".to_string(),
+            channel: 6,
+            output_file: "/tmp/capture.pcap".to_string(),
+            handshakes: vec![],
+            duration_secs: 30,
+        };
+        assert_eq!(cap.channel, 6);
+        assert!(cap.handshakes.is_empty());
+    }
+
+    #[test]
+    fn test_format_crack_result_with_duration() {
+        let result = CrackResult {
+            bssid: "aa:bb:cc:dd:ee:ff".to_string(),
+            essid: "Test".to_string(),
+            password: None,
+            method: CrackMethod::PMKID,
+            duration_secs: 45.5,
+            attempts: 10000,
+        };
+        let formatted = format_crack_result(&result);
+        assert!(formatted.contains("45.50"));
+        assert!(formatted.contains("10000"));
+    }
+
+    #[test]
+    fn test_wpa_cracker_new() {
+        let cracker = WpaCracker::new("/path/to/wordlist.txt");
+        assert_eq!(cracker.wordlist_path, "/path/to/wordlist.txt");
+    }
+
+    #[test]
+    fn test_pmkid_attack_new() {
+        let attack = PmkidAttack::new("wlan0", "aa:bb:cc:dd:ee:ff", "11:22:33:44:55:66", "/tmp/out.pcap");
+        assert_eq!(attack.interface, "wlan0");
+        assert_eq!(attack.bssid, "aa:bb:cc:dd:ee:ff");
+        assert_eq!(attack.client_mac, "11:22:33:44:55:66");
+        assert_eq!(attack.output_file, "/tmp/out.pcap");
+    }
+
+    #[test]
+    fn test_handshake_capture_new() {
+        let cap = HandshakeCapture::new("wlan0", "00:11:22:33:44:55", 6, "/tmp/output");
+        assert_eq!(cap.interface, "wlan0");
+        assert_eq!(cap.bssid, "00:11:22:33:44:55");
+        assert_eq!(cap.channel, 6);
+        assert_eq!(cap.output_dir, "/tmp/output");
+    }
 }

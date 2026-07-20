@@ -226,4 +226,118 @@ mod tests {
         let json = serde_json::to_string_pretty(&f).unwrap();
         assert!(json.contains("HIGH"));
     }
+
+    #[test]
+    fn test_audit_host_network() {
+        let containers = vec![DockerContainer {
+            id: "hn1".to_string(),
+            image: "nginx:1.25".to_string(),
+            name: "web".to_string(),
+            status: "running".to_string(),
+            ports: vec![],
+            privileged: false,
+            host_network: true,
+            mounts: vec![],
+            env: vec![],
+        }];
+        let result = DockerAuditor::audit_containers(&containers);
+        assert!(result.findings.iter().any(|f| f.category == "Host Network"));
+    }
+
+    #[test]
+    fn test_audit_privileged_port() {
+        let containers = vec![DockerContainer {
+            id: "pp1".to_string(),
+            image: "nginx:1.25".to_string(),
+            name: "web".to_string(),
+            status: "running".to_string(),
+            ports: vec!["80->80/tcp".to_string()],
+            privileged: false,
+            host_network: false,
+            mounts: vec![],
+            env: vec![],
+        }];
+        let result = DockerAuditor::audit_containers(&containers);
+        assert!(result.findings.iter().any(|f| f.category == "Privileged Port"));
+    }
+
+    #[test]
+    fn test_audit_no_tag_image() {
+        let containers = vec![DockerContainer {
+            id: "nt1".to_string(),
+            image: "nginx".to_string(),
+            name: "web".to_string(),
+            status: "running".to_string(),
+            ports: vec![],
+            privileged: false,
+            host_network: false,
+            mounts: vec![],
+            env: vec![],
+        }];
+        let result = DockerAuditor::audit_containers(&containers);
+        assert!(result.findings.iter().any(|f| f.category == "Image Tag"));
+    }
+
+    #[test]
+    fn test_audit_empty_containers() {
+        let result = DockerAuditor::audit_containers(&[]);
+        assert_eq!(result.total_containers, 0);
+        assert!(result.findings.is_empty());
+    }
+
+    #[test]
+    fn test_check_dockerfile_clean() {
+        let df = "FROM ubuntu:22.04\nUSER appuser\nEXPOSE 8080\nHEALTHCHECK CMD curl -f http://localhost/\n";
+        let issues = DockerAuditor::check_dockerfile(df);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn test_check_dockerfile_user_root() {
+        let df = "FROM ubuntu:22.04\nUSER root\nEXPOSE 80\nHEALTHCHECK CMD true\n";
+        let issues = DockerAuditor::check_dockerfile(df);
+        assert!(issues.iter().any(|i| i.contains("root")));
+    }
+
+    #[test]
+    fn test_parse_docker_ps_empty() {
+        let containers = DockerAuditor::parse_docker_ps("");
+        assert!(containers.is_empty());
+    }
+
+    #[test]
+    fn test_parse_docker_ps_multiple() {
+        let output = "abc nginx:latest 1234 Up 1h 80->80/tcp web\ndef redis:7 5678 Up 2h 6379->6379 cache";
+        let containers = DockerAuditor::parse_docker_ps(output);
+        assert_eq!(containers.len(), 2);
+    }
+
+    #[test]
+    fn test_docker_container_struct() {
+        let c = DockerContainer {
+            id: "test".to_string(),
+            image: "nginx:1.25".to_string(),
+            name: "web".to_string(),
+            status: "running".to_string(),
+            ports: vec!["80->80/tcp".to_string()],
+            privileged: false,
+            host_network: false,
+            mounts: vec!["/data".to_string()],
+            env: vec!["FOO=bar".to_string()],
+        };
+        assert_eq!(c.mounts.len(), 1);
+        assert_eq!(c.env.len(), 1);
+    }
+
+    #[test]
+    fn test_docker_audit_result_struct() {
+        let result = DockerAuditResult {
+            containers: vec![],
+            findings: vec![],
+            total_containers: 0,
+            privileged_containers: 0,
+            exposed_host_ports: vec![],
+        };
+        assert!(result.exposed_host_ports.is_empty());
+    }
 }

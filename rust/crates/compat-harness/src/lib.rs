@@ -364,4 +364,229 @@ mod tests {
         assert!(names.contains(&"AgentTool"));
         assert!(names.contains(&"BashTool"));
     }
+
+    // --- UpstreamPaths tests ---
+
+    #[test]
+    fn test_upstream_paths_from_repo_root() {
+        let paths = UpstreamPaths::from_repo_root("/some/repo");
+        assert_eq!(paths.repo_root(), Path::new("/some/repo"));
+    }
+
+    #[test]
+    fn test_upstream_paths_commands_path() {
+        let paths = UpstreamPaths::from_repo_root("/repo");
+        assert_eq!(paths.commands_path(), PathBuf::from("/repo/src/commands.ts"));
+    }
+
+    #[test]
+    fn test_upstream_paths_tools_path() {
+        let paths = UpstreamPaths::from_repo_root("/repo");
+        assert_eq!(paths.tools_path(), PathBuf::from("/repo/src/tools.ts"));
+    }
+
+    #[test]
+    fn test_upstream_paths_cli_path() {
+        let paths = UpstreamPaths::from_repo_root("/repo");
+        assert_eq!(
+            paths.cli_path(),
+            PathBuf::from("/repo/src/entrypoints/cli.tsx")
+        );
+    }
+
+    // --- extract_commands tests ---
+
+    #[test]
+    fn test_extract_commands_empty() {
+        let reg = extract_commands("");
+        assert!(reg.entries().is_empty());
+    }
+
+    #[test]
+    fn test_extract_commands_imports() {
+        let src = "import { BashTool } from './commands/bash';\n";
+        let reg = extract_commands(src);
+        let entries = reg.entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "BashTool");
+        assert_eq!(entries[0].source, CommandSource::Builtin);
+    }
+
+    #[test]
+    fn test_extract_commands_internal_block() {
+        let src = "\
+export const INTERNAL_ONLY_COMMANDS = [
+  DevTool,
+  DebugHelper,
+];
+";
+        let reg = extract_commands(src);
+        let names: Vec<_> = reg.entries().iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"DevTool"));
+        assert!(names.contains(&"DebugHelper"));
+        for entry in reg.entries() {
+            assert_eq!(entry.source, CommandSource::InternalOnly);
+        }
+    }
+
+    #[test]
+    fn test_extract_commands_feature_gated() {
+        let src = "const AdvancedTool = feature('./commands/advanced');\n";
+        let reg = extract_commands(src);
+        let entries = reg.entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "AdvancedTool");
+        assert_eq!(entries[0].source, CommandSource::FeatureGated);
+    }
+
+    #[test]
+    fn test_extract_commands_mixed() {
+        let src = "\
+import { BashTool } from './commands/bash';
+const ReviewTool = feature('./commands/review');
+export const INTERNAL_ONLY_COMMANDS = [
+  DevTool,
+];
+";
+        let reg = extract_commands(src);
+        let names: Vec<_> = reg.entries().iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"BashTool"));
+        assert!(names.contains(&"ReviewTool"));
+        assert!(names.contains(&"DevTool"));
+        assert_eq!(reg.entries().len(), 3);
+    }
+
+    #[test]
+    fn test_extract_commands_dedup() {
+        let src = "\
+import { BashTool } from './commands/bash';
+import { BashTool } from './commands/bash';
+";
+        let reg = extract_commands(src);
+        assert_eq!(reg.entries().len(), 1);
+        assert_eq!(reg.entries()[0].name, "BashTool");
+    }
+
+    // --- extract_tools tests ---
+
+    #[test]
+    fn test_extract_tools_empty() {
+        let reg = extract_tools("");
+        assert!(reg.entries().is_empty());
+    }
+
+    #[test]
+    fn test_extract_tools_base_tool() {
+        let src = "import { BashTool } from './tools/bash';\n";
+        let reg = extract_tools(src);
+        let entries = reg.entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "BashTool");
+        assert_eq!(entries[0].source, ToolSource::Base);
+    }
+
+    #[test]
+    fn test_extract_tools_conditional() {
+        let src = "const ShodanTool = feature('ShodanTool');\n";
+        let reg = extract_tools(src);
+        let entries = reg.entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "ShodanTool");
+        assert_eq!(entries[0].source, ToolSource::Conditional);
+    }
+
+    #[test]
+    fn test_extract_tools_non_tool_ignored() {
+        let src = "import { BashTool, Helper } from './tools/bash';\n";
+        let reg = extract_tools(src);
+        let entries = reg.entries();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].name, "BashTool");
+    }
+
+    #[test]
+    fn test_extract_tools_dedup() {
+        let src = "\
+import { BashTool } from './tools/bash';
+import { BashTool } from './tools/bash';
+";
+        let reg = extract_tools(src);
+        assert_eq!(reg.entries().len(), 1);
+        assert_eq!(reg.entries()[0].name, "BashTool");
+    }
+
+    // --- extract_bootstrap_plan tests ---
+
+    #[test]
+    fn test_extract_bootstrap_plan_minimal() {
+        let plan = extract_bootstrap_plan("const x = 1;\n");
+        assert_eq!(plan.phases().len(), 2);
+        assert_eq!(plan.phases()[0], BootstrapPhase::CliEntry);
+        assert_eq!(plan.phases()[1], BootstrapPhase::MainRuntime);
+    }
+
+    #[test]
+    fn test_extract_bootstrap_plan_version_flag() {
+        let plan = extract_bootstrap_plan("if (args.includes('--version')) { FastPathVersion }\n");
+        assert!(plan.phases().contains(&BootstrapPhase::FastPathVersion));
+    }
+
+    #[test]
+    fn test_extract_bootstrap_plan_all_flags() {
+        let src = "\
+--version
+startupProfiler
+--dump-system-prompt
+--claude-in-chrome-mcp
+--daemon-worker
+remote-control
+args[0] === 'daemon'
+args[0] === 'ps' || args.includes('--bg')
+args[0] === 'new' || args[0] === 'list' || args[0] === 'reply'
+environment-runner
+";
+        let plan = extract_bootstrap_plan(src);
+        let expected = BootstrapPlan::claude_code_default();
+        assert_eq!(plan.phases(), expected.phases());
+    }
+
+    #[test]
+    fn test_extract_bootstrap_plan_daemon_worker() {
+        let plan = extract_bootstrap_plan("handle('--daemon-worker');\n");
+        assert!(plan
+            .phases()
+            .contains(&BootstrapPhase::DaemonWorkerFastPath));
+    }
+
+    #[test]
+    fn test_extract_bootstrap_plan_remote_control() {
+        let plan = extract_bootstrap_plan("setup('remote-control');\n");
+        assert!(plan.phases().contains(&BootstrapPhase::BridgeFastPath));
+    }
+
+    // --- ExtractedManifest tests ---
+
+    #[test]
+    fn test_extracted_manifest_fields() {
+        let manifest = ExtractedManifest {
+            commands: CommandRegistry::new(vec![]),
+            tools: ToolRegistry::new(vec![]),
+            bootstrap: BootstrapPlan::from_phases(vec![]),
+        };
+        assert!(manifest.commands.entries().is_empty());
+        assert!(manifest.tools.entries().is_empty());
+        assert!(manifest.bootstrap.phases().is_empty());
+    }
+
+    #[test]
+    fn test_extract_manifest_empty() {
+        let manifest = ExtractedManifest {
+            commands: extract_commands(""),
+            tools: extract_tools(""),
+            bootstrap: extract_bootstrap_plan(""),
+        };
+        assert!(manifest.commands.entries().is_empty());
+        assert!(manifest.tools.entries().is_empty());
+        assert_eq!(manifest.bootstrap.phases().len(), 2);
+    }
 }

@@ -327,4 +327,173 @@ mod tests {
         assert!(!result.detected);
         assert_eq!(result.entropy_score, 0.0);
     }
+
+    #[test]
+    fn test_check_aspack() {
+        assert!(PackerDetector::check_aspack(b"binary with ASPack protection"));
+        assert!(!PackerDetector::check_aspack(b"clean binary"));
+    }
+
+    #[test]
+    fn test_check_mpress() {
+        assert!(PackerDetector::check_mpress(b"binary with MPRESS1 section"));
+        assert!(!PackerDetector::check_mpress(b"clean binary"));
+    }
+
+    #[test]
+    fn test_check_armadillo() {
+        assert!(PackerDetector::check_armadillo(b"binary with Armadillo protection"));
+        assert!(!PackerDetector::check_armadillo(b"clean binary"));
+    }
+
+    #[test]
+    fn test_check_enigma() {
+        assert!(PackerDetector::check_enigma(b"Enigma Protector software"));
+        assert!(PackerDetector::check_enigma(b"Enigma without protector"));
+        assert!(!PackerDetector::check_enigma(b"clean binary"));
+    }
+
+    #[test]
+    fn test_check_confuser() {
+        assert!(PackerDetector::check_confuser(b"ConfuserEx obfuscator"));
+        assert!(PackerDetector::check_confuser(b"Confuser tool"));
+        assert!(!PackerDetector::check_confuser(b"clean binary"));
+    }
+
+    #[test]
+    fn test_check_upx_variants() {
+        assert_eq!(PackerDetector::check_upx(b"UPX0 section"), Some("UPX".to_string()));
+        assert_eq!(PackerDetector::check_upx(b"UPX1 section"), Some("UPX".to_string()));
+        assert_eq!(PackerDetector::check_upx(b"UPX2 section"), Some("UPX".to_string()));
+        assert_eq!(PackerDetector::check_upx(b"clean binary"), None);
+    }
+
+    #[test]
+    fn test_check_vmprotect_variants() {
+        assert!(PackerDetector::check_vmprotect(b".vmp0 section"));
+        assert!(PackerDetector::check_vmprotect(b".vmp1 section"));
+        assert!(PackerDetector::check_vmprotect(b"VMPROTECT"));
+    }
+
+    #[test]
+    fn test_check_themida_variants() {
+        assert!(PackerDetector::check_themida(b"Themida protection"));
+        assert!(PackerDetector::check_themida(b"WinLicense"));
+        assert!(PackerDetector::check_themida(b".themida"));
+    }
+
+    #[test]
+    fn test_detect_aspack() {
+        let result = PackerDetector::detect(b"binary with ASPack packed data");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "ASPack"));
+    }
+
+    #[test]
+    fn test_detect_mpress() {
+        let result = PackerDetector::detect(b"binary with MPRESS2 section here");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "MPRESS"));
+    }
+
+    #[test]
+    fn test_detect_armadillo() {
+        let result = PackerDetector::detect(b"binary with Armadillo protection");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "Armadillo"));
+    }
+
+    #[test]
+    fn test_detect_vmprotect() {
+        let result = PackerDetector::detect(b"VMProtect protected binary");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "VMProtect"));
+    }
+
+    #[test]
+    fn test_detect_themida() {
+        let result = PackerDetector::detect(b"Themida protected binary");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "Themida"));
+    }
+
+    #[test]
+    fn test_detect_confuserex() {
+        let result = PackerDetector::detect(b"ConfuserEx obfuscated .net");
+        assert!(result.detected);
+        assert!(result.packers.iter().any(|p| p.name == "ConfuserEx"));
+    }
+
+    #[test]
+    fn test_packer_detection_format_no_packer() {
+        let detection = PackerDetection {
+            detected: false,
+            packers: vec![],
+            entropy_score: 4.0,
+            section_anomalies: vec![],
+        };
+        let formatted = format_packer_detection(&detection);
+        assert!(formatted.contains("NO"));
+        assert!(!formatted.contains("Detected Packers"));
+    }
+
+    #[test]
+    fn test_packer_detection_format_with_anomalies() {
+        let detection = PackerDetection {
+            detected: false,
+            packers: vec![],
+            entropy_score: 7.9,
+            section_anomalies: vec!["High overall entropy (7.9000)".to_string()],
+        };
+        let formatted = format_packer_detection(&detection);
+        assert!(formatted.contains("Anomalies"));
+        assert!(formatted.contains("High overall entropy"));
+    }
+
+    #[test]
+    fn test_packer_detection_format_multiple_packers() {
+        let detection = PackerDetection {
+            detected: true,
+            packers: vec![
+                PackerSignature {
+                    name: "UPX".to_string(),
+                    description: "UPX packer".to_string(),
+                    severity: "low".to_string(),
+                },
+                PackerSignature {
+                    name: "VMProtect".to_string(),
+                    description: "VMProtect".to_string(),
+                    severity: "high".to_string(),
+                },
+            ],
+            entropy_score: 7.0,
+            section_anomalies: vec![],
+        };
+        let formatted = format_packer_detection(&detection);
+        assert!(formatted.contains("2"));
+        assert!(formatted.contains("UPX"));
+        assert!(formatted.contains("VMProtect"));
+    }
+
+    #[test]
+    fn test_packer_signature_severity_levels() {
+        let low = PackerSignature {
+            name: "A".to_string(),
+            description: "A".to_string(),
+            severity: "low".to_string(),
+        };
+        let medium = PackerSignature {
+            name: "B".to_string(),
+            description: "B".to_string(),
+            severity: "medium".to_string(),
+        };
+        let high = PackerSignature {
+            name: "C".to_string(),
+            description: "C".to_string(),
+            severity: "high".to_string(),
+        };
+        assert_eq!(low.severity, "low");
+        assert_eq!(medium.severity, "medium");
+        assert_eq!(high.severity, "high");
+    }
 }

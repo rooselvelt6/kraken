@@ -267,4 +267,107 @@ mod tests {
         assert!(checksum < 10);
         assert_eq!(checksum, (10 - (60 % 10)) % 10);
     }
+
+    #[test]
+    fn test_generate_pins_invalid_bssid() {
+        let pins = generate_pins_from_bssid("not-a-mac");
+        assert_eq!(pins, vec!["12345670".to_string()]);
+    }
+
+    #[test]
+    fn test_generate_pins_valid_length() {
+        let pins = generate_pins_from_bssid("ff:ff:ff:ff:ff:ff");
+        assert_eq!(pins.len(), 1);
+        assert_eq!(pins[0].len(), 8);
+        assert!(pins[0].chars().all(|c| c.is_ascii_digit()));
+    }
+
+    #[test]
+    fn test_generate_pins_different_bssids() {
+        let pins1 = generate_pins_from_bssid("00:11:22:33:44:55");
+        let pins2 = generate_pins_from_bssid("aa:bb:cc:dd:ee:ff");
+        assert_ne!(pins1, pins2);
+    }
+
+    #[test]
+    fn test_wps_checksum_zero() {
+        let checksum = compute_wps_checksum(0);
+        assert_eq!(checksum, 0);
+    }
+
+    #[test]
+    fn test_wps_result_format_no_pin() {
+        let result = WpsPinResult {
+            bssid: "00:11:22:33:44:55".to_string(),
+            essid: "Test".to_string(),
+            pin: None,
+            psk: None,
+            attempts: 0,
+            duration_secs: 5.0,
+            wps_version: 2,
+        };
+        let formatted = format_wps_result(&result);
+        assert!(formatted.contains("NOT FOUND"));
+    }
+
+    #[test]
+    fn test_wps_result_format_no_psk() {
+        let result = WpsPinResult {
+            bssid: "00:11:22:33:44:55".to_string(),
+            essid: "Test".to_string(),
+            pin: Some("12345670".to_string()),
+            psk: None,
+            attempts: 100,
+            duration_secs: 10.0,
+            wps_version: 2,
+        };
+        let formatted = format_wps_result(&result);
+        assert!(!formatted.contains("WPA PSK:"));
+    }
+
+    #[test]
+    fn test_wps_status_struct() {
+        let status = WpsStatus {
+            bssid: "00:11:22:33:44:55".to_string(),
+            essid: "TestNet".to_string(),
+            wps_state: "configured".to_string(),
+            ap_locked: false,
+            version: 2,
+        };
+        assert_eq!(status.bssid, "00:11:22:33:44:55");
+        assert!(!status.ap_locked);
+        assert_eq!(status.version, 2);
+    }
+
+    #[test]
+    fn test_wps_attack_new() {
+        let attack = WpsAttack::new("wlan0", "00:11:22:33:44:55");
+        assert_eq!(attack.interface, "wlan0");
+        assert_eq!(attack.bssid, "00:11:22:33:44:55");
+        assert!(attack.pin.is_none());
+    }
+
+    #[test]
+    fn test_wps_attack_with_pin() {
+        let attack = WpsAttack::new("wlan0", "00:11:22:33:44:55")
+            .with_pin("12345670");
+        assert_eq!(attack.pin, Some("12345670".to_string()));
+    }
+
+    #[test]
+    fn test_wps_result_format_full() {
+        let result = WpsPinResult {
+            bssid: "aa:bb:cc:dd:ee:ff".to_string(),
+            essid: "FullTest".to_string(),
+            pin: Some("87654321".to_string()),
+            psk: Some("wifipassword".to_string()),
+            attempts: 500,
+            duration_secs: 120.0,
+            wps_version: 1,
+        };
+        let formatted = format_wps_result(&result);
+        assert!(formatted.contains("87654321"));
+        assert!(formatted.contains("wifipassword"));
+        assert!(formatted.contains("500"));
+    }
 }

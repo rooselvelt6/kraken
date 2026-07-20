@@ -32,6 +32,19 @@ pub enum HypothesisCategory {
 pub struct HypothesisGenerator;
 
 impl HypothesisGenerator {
+    /// Generates hypotheses from existing findings about potential undiscovered vulnerabilities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::hypothesis::HypothesisGenerator;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// let f = Finding::new(Severity::High, "unsafe kfree usage",
+    ///     None, None, Some("kfree(ptr)".to_string()), None, Some("CWE-416".to_string()),
+    ///     0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let hyps = HypothesisGenerator::generate_from_findings(&[f]);
+    /// assert!(!hyps.is_empty());
+    /// ```
     pub fn generate_from_findings(findings: &[Finding]) -> Vec<GeneratedHypothesis> {
         let mut hypotheses = Vec::new();
 
@@ -57,6 +70,16 @@ impl HypothesisGenerator {
         hypotheses
     }
 
+    /// Converts hypotheses back into Kraken Findings for reporting.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::hypothesis::HypothesisGenerator;
+    /// let hyps = vec![];
+    /// let findings = HypothesisGenerator::findings_from_hypotheses(&hyps);
+    /// assert!(findings.is_empty());
+    /// ```
     pub fn findings_from_hypotheses(hypotheses: &[GeneratedHypothesis]) -> Vec<Finding> {
         hypotheses
             .iter()

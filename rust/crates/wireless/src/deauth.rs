@@ -215,4 +215,99 @@ mod tests {
             .with_client("11:22:33:44:55:66");
         assert_eq!(attack.client_mac, Some("11:22:33:44:55:66".to_string()));
     }
+
+    #[test]
+    fn test_with_reason() {
+        let attack = DeauthAttack::new("wlan0", "aa:bb:cc:dd:ee:ff")
+            .with_reason(DeauthReason::AuthExpired);
+        assert!(matches!(attack.reason, DeauthReason::AuthExpired));
+    }
+
+    #[test]
+    fn test_with_packet_count() {
+        let attack = DeauthAttack::new("wlan0", "aa:bb:cc:dd:ee:ff")
+            .with_packet_count(500);
+        assert_eq!(attack.packet_count, 500);
+    }
+
+    #[test]
+    fn test_deauth_builder_chain() {
+        let attack = DeauthAttack::new("wlan0", "aa:bb:cc:dd:ee:ff")
+            .with_client("11:22:33:44:55:66")
+            .with_reason(DeauthReason::Leaving)
+            .with_packet_count(200);
+        assert_eq!(attack.client_mac, Some("11:22:33:44:55:66".to_string()));
+        assert!(matches!(attack.reason, DeauthReason::Leaving));
+        assert_eq!(attack.packet_count, 200);
+    }
+
+    #[test]
+    fn test_deauth_reason_all_values() {
+        assert_eq!(DeauthReason::Unspecified as u16, 1);
+        assert_eq!(DeauthReason::AuthExpired as u16, 2);
+        assert_eq!(DeauthReason::Leaving as u16, 3);
+        assert_eq!(DeauthReason::ApBusy as u16, 5);
+        assert_eq!(DeauthReason::Disconnected as u16, 8);
+        assert_eq!(DeauthReason::ClassNotSupported as u16, 10);
+    }
+
+    #[test]
+    fn test_deauth_stats_no_clients() {
+        let stats = DeauthStats {
+            packets_sent: 100,
+            clients_targeted: vec![],
+            duration_secs: 5.0,
+            bssid: "00:11:22:33:44:55".to_string(),
+            reason_code: 1,
+        };
+        let formatted = format_deauth_stats(&stats);
+        assert!(!formatted.contains("Clients:"));
+    }
+
+    #[test]
+    fn test_deauth_stats_multiple_clients() {
+        let stats = DeauthStats {
+            packets_sent: 50,
+            clients_targeted: vec!["11:22:33:44:55:66".to_string(), "aa:bb:cc:dd:ee:ff".to_string()],
+            duration_secs: 2.0,
+            bssid: "00:11:22:33:44:55".to_string(),
+            reason_code: 8,
+        };
+        let formatted = format_deauth_stats(&stats);
+        assert!(formatted.contains("11:22:33:44:55:66"));
+        assert!(formatted.contains("aa:bb:cc:dd:ee:ff"));
+    }
+
+    #[test]
+    fn test_deauth_packet_reason_codes() {
+        let bssid = [0x00, 0x11, 0x22, 0x33, 0x44, 0x55];
+        let client = [0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb];
+
+        let pkt1 = DeauthAttack::build_raw_deauth_packet(&bssid, &client, 1);
+        assert_eq!(&pkt1[24..26], &[0x01, 0x00]);
+
+        let pkt2 = DeauthAttack::build_raw_deauth_packet(&bssid, &client, 8);
+        assert_eq!(&pkt2[24..26], &[0x08, 0x00]);
+
+        let pkt3 = DeauthAttack::build_raw_deauth_packet(&bssid, &client, 10);
+        assert_eq!(&pkt3[24..26], &[0x0a, 0x00]);
+    }
+
+    #[test]
+    fn test_deauth_packet_frame_control() {
+        let bssid = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let client = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
+        let packet = DeauthAttack::build_raw_deauth_packet(&bssid, &client, 1);
+        assert_eq!(packet[0], 0xc0);
+        assert_eq!(packet[1], 0x00);
+    }
+
+    #[test]
+    fn test_deauth_new_defaults() {
+        let attack = DeauthAttack::new("wlan1", "aa:bb:cc:dd:ee:ff");
+        assert_eq!(attack.interface, "wlan1");
+        assert_eq!(attack.bssid, "aa:bb:cc:dd:ee:ff");
+        assert!(attack.client_mac.is_none());
+        assert!(matches!(attack.reason, DeauthReason::Disconnected));
+    }
 }

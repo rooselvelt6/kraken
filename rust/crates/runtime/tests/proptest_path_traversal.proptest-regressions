@@ -7,3 +7,4 @@
 cc 3616e8694b80e42ec0733d50ef650f1c38abefdcb852831e66d6469d3e0e26b2 # shrinks to before = "", after = ""
 cc a5a3b72076ee8c2c1af4d3796b20f8ead47a97e5e916c63020c9df3cf161bdc3 # shrinks to prefix = "0/_", suffix = ""
 cc 19a8f6ca9e68aee76f7c16f64690abe55e189aca540611a543526389f8869248 # shrinks to prefix = "A/0/a", suffix = ""
+cc ec36e9b16188e4473cb26586cf686c69bf0018a8f1bb9afec47853ae8fd89527 # shrinks to segments = [".."]

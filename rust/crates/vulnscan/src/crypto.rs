@@ -6,6 +6,27 @@ use std::path::Path;
 pub struct CryptoAnalyzer;
 
 impl CryptoAnalyzer {
+    /// Analyzes code for cryptographic vulnerabilities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::crypto::CryptoAnalyzer;
+    /// use vulnscan::Language;
+    /// use std::path::Path;
+    /// let findings = CryptoAnalyzer::analyze(
+    ///     "SSL_CTX_set_options(ctx, TLSv1);",
+    ///     Path::new("tls.c"),
+    ///     Language::C,
+    /// );
+    /// // Also needs SSLv3/tls_v1_0/tls_v1_1 in the same line
+    /// let findings2 = CryptoAnalyzer::analyze(
+    ///     "SSL_CTX_set_options(ctx, TLSv1 && SSLv3);",
+    ///     Path::new("tls.c"),
+    ///     Language::C,
+    /// );
+    /// assert!(!findings2.is_empty());
+    /// ```
     pub fn analyze(content: &str, file_path: &Path, _language: Language) -> Vec<Finding> {
         let mut findings = Vec::new();
         findings.extend(Self::check_tls_implementation(content, file_path));

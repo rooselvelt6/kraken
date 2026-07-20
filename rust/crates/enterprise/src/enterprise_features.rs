@@ -321,6 +321,7 @@ impl Default for EnterpriseConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn test_enterprise_audit_entry() {
@@ -372,5 +373,455 @@ mod tests {
 
         let (requests, _tokens) = limiter.get_remaining("user1");
         assert_eq!(requests, 9);
+    }
+
+    #[test]
+    fn test_audit_entry_new_defaults() {
+        let entry = EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Logout,
+            "/api/logout",
+            AuditResult::Success,
+        );
+        assert!(!entry.id.is_empty());
+        assert_eq!(entry.user_id, "u1");
+        assert_eq!(entry.session_id, "s1");
+        assert_eq!(entry.action, AuditAction::Logout);
+        assert_eq!(entry.resource, "/api/logout");
+        assert_eq!(entry.result, AuditResult::Success);
+        assert!(entry.ip_address.is_none());
+        assert!(entry.user_agent.is_none());
+        assert!(entry.metadata.is_empty());
+    }
+
+    #[test]
+    fn test_audit_entry_builder_chain() {
+        let entry = EnterpriseAuditEntry::new(
+            "user1",
+            "s1",
+            AuditAction::ConfigChange,
+            "config",
+            AuditResult::Partial,
+        )
+        .with_ip("192.168.1.1")
+        .with_user_agent("Mozilla/5.0")
+        .with_metadata("key1", "val1")
+        .with_metadata("key2", "val2");
+
+        assert_eq!(entry.ip_address, Some("192.168.1.1".to_string()));
+        assert_eq!(entry.user_agent, Some("Mozilla/5.0".to_string()));
+        assert_eq!(entry.metadata.get("key1"), Some(&"val1".to_string()));
+        assert_eq!(entry.metadata.get("key2"), Some(&"val2".to_string()));
+    }
+
+    #[test]
+    fn test_audit_entry_to_json() {
+        let entry = EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Login,
+            "system",
+            AuditResult::Success,
+        );
+        let json = entry.to_json();
+        assert!(!json.is_empty());
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["user_id"], "u1");
+        assert_eq!(parsed["action"], "Login");
+    }
+
+    #[test]
+    fn test_audit_entry_serialization_roundtrip() {
+        let entry = EnterpriseAuditEntry::new(
+            "user1",
+            "session1",
+            AuditAction::FileRead,
+            "/etc/passwd",
+            AuditResult::Denied,
+        )
+        .with_ip("10.0.0.1")
+        .with_metadata("reason", "forbidden");
+
+        let json = serde_json::to_string(&entry).unwrap();
+        let deserialized: EnterpriseAuditEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.user_id, "user1");
+        assert_eq!(deserialized.action, AuditAction::FileRead);
+        assert_eq!(deserialized.result, AuditResult::Denied);
+        assert_eq!(deserialized.ip_address, Some("10.0.0.1".to_string()));
+    }
+
+    #[test]
+    fn test_audit_entry_unique_ids() {
+        let e1 = EnterpriseAuditEntry::new("u1", "s1", AuditAction::Login, "r", AuditResult::Success);
+        let e2 = EnterpriseAuditEntry::new("u2", "s2", AuditAction::Logout, "r", AuditResult::Success);
+        assert_ne!(e1.id, e2.id);
+    }
+
+    #[test]
+    fn test_audit_log_max_entries_eviction() {
+        let log = EnterpriseAuditLog::new(3);
+
+        for i in 0..5 {
+            log.log(EnterpriseAuditEntry::new(
+                &format!("u{}", i),
+                "s1",
+                AuditAction::ToolExecute,
+                "r",
+                AuditResult::Success,
+            ));
+        }
+
+        assert_eq!(log.len(), 3);
+    }
+
+    #[test]
+    fn test_audit_log_query_by_user() {
+        let log = EnterpriseAuditLog::new(100);
+        log.log(EnterpriseAuditEntry::new(
+            "alice",
+            "s1",
+            AuditAction::Login,
+            "system",
+            AuditResult::Success,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "bob",
+            "s2",
+            AuditAction::Login,
+            "system",
+            AuditResult::Success,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "alice",
+            "s3",
+            AuditAction::Logout,
+            "system",
+            AuditResult::Success,
+        ));
+
+        let alice_entries = log.query(Some("alice"), None);
+        assert_eq!(alice_entries.len(), 2);
+        let bob_entries = log.query(Some("bob"), None);
+        assert_eq!(bob_entries.len(), 1);
+    }
+
+    #[test]
+    fn test_audit_log_query_by_action() {
+        let log = EnterpriseAuditLog::new(100);
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Login,
+            "system",
+            AuditResult::Success,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Logout,
+            "system",
+            AuditResult::Success,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::ToolExecute,
+            "r",
+            AuditResult::Success,
+        ));
+
+        let logins = log.query(None, Some(AuditAction::Login));
+        assert_eq!(logins.len(), 1);
+        assert_eq!(logins[0].action, AuditAction::Login);
+    }
+
+    #[test]
+    fn test_audit_log_query_combined_filters() {
+        let log = EnterpriseAuditLog::new(100);
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Login,
+            "sys",
+            AuditResult::Success,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Login,
+            "sys",
+            AuditResult::Failure,
+        ));
+        log.log(EnterpriseAuditEntry::new(
+            "u2",
+            "s2",
+            AuditAction::Login,
+            "sys",
+            AuditResult::Success,
+        ));
+
+        let result = log.query(Some("u1"), Some(AuditAction::Login));
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_audit_log_export_json() {
+        let log = EnterpriseAuditLog::new(100);
+        log.log(EnterpriseAuditEntry::new(
+            "u1",
+            "s1",
+            AuditAction::Login,
+            "sys",
+            AuditResult::Success,
+        ));
+
+        let json = log.export_json();
+        let parsed: Vec<serde_json::Value> = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.len(), 1);
+    }
+
+    #[test]
+    fn test_audit_log_empty() {
+        let log = EnterpriseAuditLog::new(10);
+        assert_eq!(log.len(), 0);
+        let results = log.query(None, None);
+        assert!(results.is_empty());
+        let json = log.export_json();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_new() {
+        let bucket = RateLimitBucket::new(60, 100000, 10);
+        assert_eq!(bucket.requests_per_minute, 60);
+        assert_eq!(bucket.tokens_per_minute, 100000);
+        assert_eq!(bucket.burst, 10);
+        assert_eq!(bucket.remaining_requests(), 60);
+        assert_eq!(bucket.remaining_tokens(), 100000);
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_burst_limit() {
+        let mut bucket = RateLimitBucket::new(3, 10000, 2);
+        assert!(bucket.allows(1)); // request 1, burst 1
+        assert!(bucket.allows(1)); // request 2, burst 2
+        assert!(!bucket.allows(1)); // burst exceeded (2 >= 2)
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_token_limit() {
+        let mut bucket = RateLimitBucket::new(100, 50, 100);
+        assert!(bucket.allows(30));
+        assert!(bucket.allows(20)); // exactly at token limit
+        assert!(!bucket.allows(1)); // would exceed tokens
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_request_limit() {
+        let mut bucket = RateLimitBucket::new(2, 100000, 100);
+        assert!(bucket.allows(1));
+        assert!(bucket.allows(1));
+        assert!(!bucket.allows(1)); // request count exceeded
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_reset() {
+        let mut bucket = RateLimitBucket::new(5, 1000, 5);
+        bucket.allows(100);
+        bucket.allows(100);
+        assert_eq!(bucket.remaining_requests(), 3);
+
+        bucket.reset();
+        assert_eq!(bucket.remaining_requests(), 5);
+        assert_eq!(bucket.remaining_tokens(), 1000);
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_remaining_saturates() {
+        let bucket = RateLimitBucket::new(5, 1000, 5);
+        // remaining_requests should saturate at 0 if somehow overspent
+        assert_eq!(bucket.remaining_requests(), 5);
+        assert_eq!(bucket.remaining_tokens(), 1000);
+    }
+
+    #[test]
+    fn test_rate_limit_bucket_zero_tokens() {
+        let mut bucket = RateLimitBucket::new(10, 100, 10);
+        // allows(0) consumes 0 tokens and 1 request slot
+        assert!(bucket.allows(0));
+        assert_eq!(bucket.remaining_requests(), 9);
+        assert_eq!(bucket.remaining_tokens(), 100);
+    }
+
+    #[test]
+    fn test_rate_limiter_multiple_keys() {
+        let limiter = RateLimiter::new(10, 1000, 5);
+
+        limiter.check("user_a", 100);
+        limiter.check("user_a", 100);
+        limiter.check("user_b", 100);
+
+        let (req_a, _) = limiter.get_remaining("user_a");
+        assert_eq!(req_a, 8);
+        let (req_b, _) = limiter.get_remaining("user_b");
+        assert_eq!(req_b, 9);
+    }
+
+    #[test]
+    fn test_rate_limiter_get_remaining_unknown_key() {
+        let limiter = RateLimiter::new(20, 5000, 10);
+        let (req, tokens) = limiter.get_remaining("nonexistent");
+        assert_eq!(req, 20);
+        assert_eq!(tokens, 5000);
+    }
+
+    #[test]
+    fn test_rate_limiter_reset() {
+        let limiter = RateLimiter::new(10, 1000, 10);
+        limiter.check("user1", 500);
+        limiter.check("user1", 500);
+        let (req, _) = limiter.get_remaining("user1");
+        assert_eq!(req, 8);
+
+        limiter.reset("user1");
+        let (req, _) = limiter.get_remaining("user1");
+        assert_eq!(req, 10);
+    }
+
+    #[test]
+    fn test_rate_limiter_reset_nonexistent_key() {
+        let limiter = RateLimiter::new(10, 1000, 5);
+        limiter.reset("nonexistent"); // should not panic
+    }
+
+    #[test]
+    fn test_rate_limiter_concurrent_access() {
+        let limiter = Arc::new(RateLimiter::new(100, 10000, 50));
+        let mut handles = vec![];
+
+        for i in 0..10 {
+            let limiter = limiter.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..5 {
+                    limiter.check(&format!("user_{}", i), 10);
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        for i in 0..10 {
+            let (req, _) = limiter.get_remaining(&format!("user_{}", i));
+            assert_eq!(req, 95);
+        }
+    }
+
+    #[test]
+    fn test_audit_log_concurrent_access() {
+        let log = Arc::new(EnterpriseAuditLog::new(1000));
+        let mut handles = vec![];
+
+        for i in 0..10 {
+            let log = log.clone();
+            handles.push(thread::spawn(move || {
+                for _ in 0..5 {
+                    log.log(EnterpriseAuditEntry::new(
+                        &format!("user_{}", i),
+                        "s1",
+                        AuditAction::ToolExecute,
+                        "r",
+                        AuditResult::Success,
+                    ));
+                }
+            }));
+        }
+
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        assert_eq!(log.len(), 50);
+    }
+
+    #[test]
+    fn test_enterprise_config_default() {
+        let config = EnterpriseConfig::default();
+        assert_eq!(config.rate_limit_requests, 60);
+        assert_eq!(config.rate_limit_tokens, 100_000);
+        assert_eq!(config.rate_limit_burst, 10);
+        assert_eq!(config.audit_max_entries, 10_000);
+        assert_eq!(config.audit_retention_days, 90);
+        assert!(!config.enable_sso);
+        assert!(config.sso_provider.is_none());
+        assert!(config.enable_heuristic_engine);
+        assert!(config.enable_health_probes);
+        assert!(config.adaptive_rate_limiting);
+    }
+
+    #[test]
+    fn test_enterprise_config_serialization() {
+        let config = EnterpriseConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: EnterpriseConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.rate_limit_requests, 60);
+        assert_eq!(deserialized.hae_critical_threshold, 0.95);
+        assert_eq!(deserialized.circuit_breaker_failure_threshold, 5);
+    }
+
+    #[test]
+    fn test_enterprise_config_custom() {
+        let config = EnterpriseConfig {
+            enable_sso: true,
+            sso_provider: Some("okta".to_string()),
+            rate_limit_requests: 120,
+            ..Default::default()
+        };
+        assert!(config.enable_sso);
+        assert_eq!(config.sso_provider, Some("okta".to_string()));
+        assert_eq!(config.rate_limit_requests, 120);
+    }
+
+    #[test]
+    fn test_audit_action_serialization_variants() {
+        let actions = [
+            AuditAction::Login,
+            AuditAction::Logout,
+            AuditAction::ApiKeySet,
+            AuditAction::ApiKeyClear,
+            AuditAction::ConfigChange,
+            AuditAction::SessionCreate,
+            AuditAction::SessionEnd,
+            AuditAction::ToolExecute,
+            AuditAction::FileRead,
+            AuditAction::FileWrite,
+            AuditAction::FileDelete,
+            AuditAction::ProviderSwitch,
+            AuditAction::ModelChange,
+        ];
+
+        for action in &actions {
+            let json = serde_json::to_string(action).unwrap();
+            let deserialized: AuditAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(format!("{:?}", action), format!("{:?}", deserialized));
+        }
+    }
+
+    #[test]
+    fn test_audit_result_serialization_variants() {
+        let results = [
+            AuditResult::Success,
+            AuditResult::Failure,
+            AuditResult::Partial,
+            AuditResult::Denied,
+        ];
+
+        for result in &results {
+            let json = serde_json::to_string(result).unwrap();
+            let deserialized: AuditResult = serde_json::from_str(&json).unwrap();
+            assert_eq!(format!("{:?}", result), format!("{:?}", deserialized));
+        }
     }
 }

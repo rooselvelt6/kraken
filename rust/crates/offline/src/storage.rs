@@ -186,4 +186,206 @@ mod tests {
             matches!(state, ConnectionState::Offline) || matches!(state, ConnectionState::Online)
         );
     }
+
+    #[tokio::test]
+    async fn test_queue_and_get_multiple_operations() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        for i in 0..5 {
+            let op = Operation {
+                id: format!("op-{}", i),
+                operation_type: "create".to_string(),
+                payload: format!("{{\"i\":{}}}", i),
+                created_at: 1000 + i as i64,
+                synced: false,
+                retry_count: 0,
+            };
+            manager.queue_operation(op).await.unwrap();
+        }
+
+        let pending = manager.get_pending_operations().await.unwrap();
+        assert_eq!(pending.len(), 5);
+        assert_eq!(pending[0].id, "op-0");
+        assert_eq!(pending[4].id, "op-4");
+    }
+
+    #[tokio::test]
+    async fn test_mark_synced_nonexistent() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+        // Should not error - just update 0 rows
+        assert!(manager.mark_synced("nonexistent-id").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_queue_operation_replaces_existing() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        let op1 = Operation {
+            id: "dup-1".to_string(),
+            operation_type: "create".to_string(),
+            payload: "old".to_string(),
+            created_at: 1000,
+            synced: false,
+            retry_count: 0,
+        };
+        let op2 = Operation {
+            id: "dup-1".to_string(),
+            operation_type: "update".to_string(),
+            payload: "new".to_string(),
+            created_at: 2000,
+            synced: false,
+            retry_count: 0,
+        };
+
+        manager.queue_operation(op1).await.unwrap();
+        manager.queue_operation(op2).await.unwrap();
+
+        let pending = manager.get_pending_operations().await.unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].operation_type, "update");
+        assert_eq!(pending[0].payload, "new");
+    }
+
+    #[tokio::test]
+    async fn test_save_session_overwrites() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        manager.save_session("s1", "data1").await.unwrap();
+        manager.save_session("s1", "data2").await.unwrap();
+
+        let loaded = manager.load_session("s1").await.unwrap();
+        assert_eq!(loaded, Some("data2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_multiple_sessions_independent() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        manager.save_session("a", "alpha").await.unwrap();
+        manager.save_session("b", "beta").await.unwrap();
+
+        assert_eq!(manager.load_session("a").await.unwrap(), Some("alpha".into()));
+        assert_eq!(manager.load_session("b").await.unwrap(), Some("beta".into()));
+        assert_eq!(manager.load_session("c").await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn test_empty_session_data() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+        manager.save_session("empty", "").await.unwrap();
+        let loaded = manager.load_session("empty").await.unwrap();
+        assert_eq!(loaded, Some("".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_mark_synced_leaves_other_pending() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        let ops: Vec<Operation> = (0..10)
+            .map(|i| Operation {
+                id: format!("op-{}", i),
+                operation_type: "test".into(),
+                payload: i.to_string(),
+                created_at: i as i64,
+                synced: false,
+                retry_count: 0,
+            })
+            .collect();
+
+        for op in ops {
+            manager.queue_operation(op).await.unwrap();
+        }
+
+        manager.mark_synced("op-3").await.unwrap();
+        manager.mark_synced("op-7").await.unwrap();
+
+        let pending = manager.get_pending_operations().await.unwrap();
+        assert_eq!(pending.len(), 8);
+        assert!(pending.iter().all(|op| op.id != "op-3" && op.id != "op-7"));
+    }
+
+    #[tokio::test]
+    async fn test_connection_state_update() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        let initial = manager.get_state().await;
+        assert_eq!(initial, ConnectionState::Offline);
+
+        // Without network feature, update_connection_state should return Offline
+        let updated = manager.update_connection_state().await;
+        assert_eq!(updated, ConnectionState::Offline);
+    }
+
+    #[tokio::test]
+    async fn test_is_online_returns_false() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+        assert!(!manager.is_online());
+    }
+
+    #[tokio::test]
+    async fn test_check_connection_returns_false() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+        let connected = manager.check_connection().await;
+        assert!(!connected);
+    }
+
+    #[tokio::test]
+    async fn test_db_file_created() {
+        let tmp = TempDir::new().unwrap();
+        let _manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+        assert!(tmp.path().join("offline.db").exists());
+    }
+
+    #[tokio::test]
+    async fn test_large_payload() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        let large_payload = "x".repeat(100_000);
+        let op = Operation {
+            id: "large".to_string(),
+            operation_type: "data".to_string(),
+            payload: large_payload.clone(),
+            created_at: 1,
+            synced: false,
+            retry_count: 0,
+        };
+
+        manager.queue_operation(op).await.unwrap();
+        let pending = manager.get_pending_operations().await.unwrap();
+        assert_eq!(pending[0].payload.len(), 100_000);
+    }
+
+    #[tokio::test]
+    async fn test_pending_operations_limit() {
+        let tmp = TempDir::new().unwrap();
+        let manager = OfflineManager::new(tmp.path().to_path_buf()).unwrap();
+
+        // Queue more than 100 operations (the LIMIT in the query)
+        for i in 0..120 {
+            let op = Operation {
+                id: format!("op-{}", i),
+                operation_type: "test".into(),
+                payload: i.to_string(),
+                created_at: i as i64,
+                synced: false,
+                retry_count: 0,
+            };
+            manager.queue_operation(op).await.unwrap();
+        }
+
+        let pending = manager.get_pending_operations().await.unwrap();
+        // Should be limited to 100
+        assert_eq!(pending.len(), 100);
+    }
 }

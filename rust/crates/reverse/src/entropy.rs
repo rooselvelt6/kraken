@@ -203,4 +203,133 @@ mod tests {
         let result = EntropyAnalyzer::analyze(&data, 128);
         assert_eq!(result.global_entropy > 0.0, true);
     }
+
+    #[test]
+    fn test_entropy_single_byte() {
+        assert_eq!(compute_entropy(&[42]), 0.0);
+    }
+
+    #[test]
+    fn test_entropy_two_bytes_same() {
+        assert_eq!(compute_entropy(&[0, 0]), 0.0);
+    }
+
+    #[test]
+    fn test_entropy_two_bytes_different() {
+        let ent = compute_entropy(&[0, 1]);
+        assert!((ent - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_entropy_result_struct() {
+        let result = EntropyResult {
+            global_entropy: 5.0,
+            section_entropies: vec![(".text".to_string(), 6.0), (".data".to_string(), 3.0)],
+            high_entropy_regions: vec![EntropyRegion {
+                offset: 0,
+                size: 256,
+                entropy: 7.0,
+            }],
+            is_packed: true,
+            packer_confidence: 0.7,
+        };
+        assert!(result.is_packed);
+        assert_eq!(result.section_entropies.len(), 2);
+        assert_eq!(result.high_entropy_regions.len(), 1);
+    }
+
+    #[test]
+    fn test_analyze_binary_sections() {
+        let mut data = vec![0u8; 1024];
+        for i in 0..256 {
+            data[i] = (i ^ (i >> 3)) as u8;
+        }
+        let sections = vec![
+            ("high".to_string(), 0, 256),
+            ("low".to_string(), 256, 256),
+        ];
+        let result = EntropyAnalyzer::analyze_binary_sections(&data, &sections);
+        assert_eq!(result.section_entropies.len(), 2);
+        assert!(result.section_entropies.iter().any(|(n, _)| n == "high"));
+        assert!(result.section_entropies.iter().any(|(n, _)| n == "low"));
+    }
+
+    #[test]
+    fn test_analyze_binary_sections_out_of_bounds() {
+        let data = vec![0u8; 100];
+        let sections = vec![("large".to_string(), 100, 200)];
+        let result = EntropyAnalyzer::analyze_binary_sections(&data, &sections);
+        assert_eq!(result.section_entropies.len(), 0);
+    }
+
+    #[test]
+    fn test_format_entropy_result_with_sections() {
+        let result = EntropyResult {
+            global_entropy: 4.0,
+            section_entropies: vec![(".text".to_string(), 5.5), (".rdata".to_string(), 7.0)],
+            high_entropy_regions: vec![],
+            is_packed: false,
+            packer_confidence: 0.0,
+        };
+        let formatted = format_entropy_result(&result);
+        assert!(formatted.contains(".text"));
+        assert!(formatted.contains(".rdata"));
+        assert!(formatted.contains("Section Entropies"));
+    }
+
+    #[test]
+    fn test_format_entropy_result_with_high_regions() {
+        let result = EntropyResult {
+            global_entropy: 6.0,
+            section_entropies: vec![],
+            high_entropy_regions: vec![
+                EntropyRegion { offset: 0x100, size: 256, entropy: 7.5 },
+            ],
+            is_packed: true,
+            packer_confidence: 0.9,
+        };
+        let formatted = format_entropy_result(&result);
+        assert!(formatted.contains("YES"));
+        assert!(formatted.contains("High Entropy Regions"));
+        assert!(formatted.contains("0x100"));
+    }
+
+    #[test]
+    fn test_format_entropy_result_packer_confidence_levels() {
+        let result = EntropyResult {
+            global_entropy: 7.0,
+            section_entropies: vec![],
+            high_entropy_regions: vec![EntropyRegion { offset: 0, size: 100, entropy: 7.6 }],
+            is_packed: true,
+            packer_confidence: 0.9,
+        };
+        let formatted = format_entropy_result(&result);
+        assert!(formatted.contains("90.0"));
+    }
+
+    #[test]
+    fn test_entropy_analyzer_confidence_levels() {
+        let mut high_data = vec![0u8; 512];
+        for i in 0..512 {
+            high_data[i] = (i ^ (i >> 3) ^ (i >> 6)) as u8;
+        }
+        let result = EntropyAnalyzer::analyze(&high_data, 128);
+        assert!(result.is_packed);
+        assert!(result.packer_confidence > 0.0);
+    }
+
+    #[test]
+    fn test_analyze_binary_sections_high_entropy() {
+        let mut data = vec![0u8; 512];
+        for i in 0..256 {
+            data[i] = (i ^ (i >> 2)) as u8;
+            data[256 + i] = 0;
+        }
+        let sections = vec![
+            ("packed".to_string(), 0, 256),
+            ("clear".to_string(), 256, 256),
+        ];
+        let result = EntropyAnalyzer::analyze_binary_sections(&data, &sections);
+        assert!(result.section_entropies[0].1 > result.section_entropies[1].1);
+    }
 }

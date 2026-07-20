@@ -139,4 +139,169 @@ mod tests {
         let best = gd.best_available();
         assert!(best.is_none());
     }
+
+    #[test]
+    fn test_new_creates_empty() {
+        let gd = GracefulDegradation::new();
+        assert!(gd.best_available().is_none());
+        assert!(!gd.is_available("anything"));
+    }
+
+    #[test]
+    fn test_provider_state_serialization() {
+        let json = serde_json::to_string(&ProviderState::Available).unwrap();
+        assert_eq!(json, "\"Available\"");
+        let deserialized: ProviderState = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ProviderState::Available);
+
+        let json = serde_json::to_string(&ProviderState::Unavailable).unwrap();
+        let deserialized: ProviderState = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ProviderState::Unavailable);
+
+        let json = serde_json::to_string(&ProviderState::RateLimited).unwrap();
+        let deserialized: ProviderState = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, ProviderState::RateLimited);
+    }
+
+    #[test]
+    fn test_provider_state_equality() {
+        assert_eq!(ProviderState::Available, ProviderState::Available);
+        assert_ne!(ProviderState::Available, ProviderState::Unavailable);
+        assert_ne!(ProviderState::RateLimited, ProviderState::Unavailable);
+    }
+
+    #[test]
+    fn test_mark_rate_limited() {
+        let mut gd = GracefulDegradation::new();
+        gd.mark_rate_limited("provider1");
+        assert!(!gd.is_available("provider1"));
+    }
+
+    #[test]
+    fn test_mark_unavailable_unknown_provider() {
+        let mut gd = GracefulDegradation::new();
+        gd.mark_unavailable("unknown");
+        assert!(!gd.is_available("unknown"));
+    }
+
+    #[test]
+    fn test_mark_available_restores() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_unavailable("deepseek");
+        assert!(!gd.is_available("deepseek"));
+
+        gd.mark_available("deepseek");
+        assert!(gd.is_available("deepseek"));
+    }
+
+    #[test]
+    fn test_best_available_first_in_chain() {
+        let gd = GracefulDegradation::with_default();
+        assert_eq!(gd.best_available(), Some("deepseek"));
+    }
+
+    #[test]
+    fn test_best_available_skips_unavailable() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_unavailable("deepseek");
+        assert_eq!(gd.best_available(), Some("bigpickle"));
+    }
+
+    #[test]
+    fn test_best_available_skips_rate_limited() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_rate_limited("deepseek");
+        assert_eq!(gd.best_available(), Some("bigpickle"));
+    }
+
+    #[test]
+    fn test_get_fallback_unknown_provider() {
+        let gd = GracefulDegradation::with_default();
+        assert_eq!(gd.get_fallback("nonexistent"), None);
+    }
+
+    #[test]
+    fn test_get_fallback_last_provider() {
+        let gd = GracefulDegradation::with_default();
+        // ollama is last in chain
+        let fallback = gd.get_fallback("ollama");
+        assert!(fallback.is_none());
+    }
+
+    #[test]
+    fn test_get_fallback_skips_unavailable() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_unavailable("bigpickle");
+        let fallback = gd.get_fallback("deepseek");
+        assert_eq!(fallback, Some("ollama"));
+    }
+
+    #[test]
+    fn test_get_fallback_skips_rate_limited() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_rate_limited("bigpickle");
+        let fallback = gd.get_fallback("deepseek");
+        assert_eq!(fallback, Some("ollama"));
+    }
+
+    #[test]
+    fn test_all_states() {
+        let gd = GracefulDegradation::with_default();
+        let states = gd.all_states();
+        assert_eq!(states.get("deepseek"), Some(&"available".to_string()));
+        assert_eq!(states.get("bigpickle"), Some(&"available".to_string()));
+        assert_eq!(states.get("ollama"), Some(&"available".to_string()));
+    }
+
+    #[test]
+    fn test_all_states_after_changes() {
+        let mut gd = GracefulDegradation::with_default();
+        gd.mark_unavailable("deepseek");
+        gd.mark_rate_limited("ollama");
+
+        let states = gd.all_states();
+        assert_eq!(states.get("deepseek"), Some(&"unavailable".to_string()));
+        assert_eq!(states.get("bigpickle"), Some(&"available".to_string()));
+        assert_eq!(states.get("ollama"), Some(&"rate_limited".to_string()));
+    }
+
+    #[test]
+    fn test_graceful_degradation_serialization() {
+        let gd = GracefulDegradation::with_default();
+        let json = serde_json::to_string(&gd).unwrap();
+        let deserialized: GracefulDegradation = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.fallback_chain.len(), 3);
+        assert_eq!(deserialized.fallback_chain[0], "deepseek");
+    }
+
+    #[test]
+    fn test_graceful_degradation_clone() {
+        let gd = GracefulDegradation::with_default();
+        let cloned = gd.clone();
+        assert_eq!(cloned.fallback_chain.len(), 3);
+        assert!(cloned.is_available("deepseek"));
+    }
+
+    #[test]
+    fn test_full_cascade_failure() {
+        let mut gd = GracefulDegradation::with_default();
+
+        assert_eq!(gd.get_fallback("deepseek"), Some("bigpickle"));
+
+        gd.mark_unavailable("bigpickle");
+        assert_eq!(gd.get_fallback("deepseek"), Some("ollama"));
+
+        gd.mark_unavailable("deepseek");
+        gd.mark_unavailable("ollama");
+        assert_eq!(gd.get_fallback("deepseek"), None);
+
+        assert!(gd.best_available().is_none());
+    }
+
+    #[test]
+    fn test_mark_available_on_untracked_provider() {
+        let mut gd = GracefulDegradation::new();
+        gd.mark_available("custom_provider");
+        assert!(gd.is_available("custom_provider"));
+    }
 }

@@ -36,26 +36,24 @@ Esto ya está implementado en Kraken y sirve como cimiento:
 
 ---
 
-## Fase 21 — Kernel Foundations 🏗️
+## ~~Fase 21 — Kernel Foundations~~ 🏗️ ✅ COMPLETADA
 
 **Objetivo:** Que Kraken entienda que está leyendo código de kernel, no C genérico. Reconocer archivos, versiones, configuraciones y mitigaciones del kernel objetivo.
 
-**Esfuerzo estimado:** 1 semana
-**Dependencias:** Ninguna
-**Paradigma:** 100% estático
+**Estado:** Completada — commit `d40fa90`
 
 | Feature | Descripción | Estado | Archivo |
 |---------|------------|--------|---------|
-| `Language::LinuxKernel`/`FreeBSD`/`OpenBSD` en enum | Diferenciar kernel C de userspace C | 🔴 | `vulnscan/src/lib.rs` |
-| `detect_language()` extendido | Reconocer `arch/*`, `drivers/*`, `fs/*`, `net/*`, `include/linux/*`, `sys/`, `compat/` | 🔴 | `vulnscan/src/analyzers/mod.rs` |
-| Activar código muerto en `os.rs` | UAF, race condition, null deref — dejar de ser comentarios, emitir findings reales | 🔴 | `vulnscan/src/analyzers/os.rs` |
-| `enable_kernel_analysis` flag | Controlar si se hace análisis kernel en `ScanConfig` | 🔴 | `vulnscan/src/lib.rs` |
-| Detector de versión de kernel | Extraer `uname -r`, version strings de `Makefile`, `include/linux/version.h` | 🔴 | Nuevo `vulnscan/src/kernel/version.rs` |
-| Parser de `.config` | Leer `CONFIG_*` flags del kernel objetivo desde archivo o `/proc/config.gz` | 🔴 | Nuevo `vulnscan/src/kernel/kconfig.rs` |
-| Auditoría de mitigaciones kernel | Reportar KASLR, SMAP, SMEP, KPTI, STACKPROTECTOR, KASAN, KCSAN, KMSAN, CFI, Module Signing, Lockdown | 🔴 | `vulnscan/src/mitigation.rs` (extender) |
-| Findings por mitigación faltante | Cada mitigación ausente → finding con severidad, impacto y remediación texto | 🔴 | `vulnscan/src/mitigation.rs` |
+| `Language::LinuxKernel`/`FreeBSD`/`OpenBSD` en enum | Diferenciar kernel C de userspace C | ✅ | `vulnscan/src/lib.rs` |
+| `detect_language()` extendido | Reconocer `arch/*`, `drivers/*`, `fs/*`, `net/*`, `include/linux/*`, `sys/`, `compat/` | ✅ | `vulnscan/src/analyzers/mod.rs` |
+| Activar código muerto en `os.rs` | UAF, race condition, null deref — findings reales emitidos | ✅ | `vulnscan/src/analyzers/os.rs` |
+| `enable_kernel_analysis` flag | Controlar si se hace análisis kernel en `ScanConfig` | ✅ | `vulnscan/src/lib.rs` |
+| Detector de versión de kernel | Extraer `uname -r`, version strings de `Makefile`, `include/linux/version.h` | ✅ | `vulnscan/src/kernel/version.rs` |
+| Parser de `.config` | Leer `CONFIG_*` flags del kernel objetivo desde archivo o `/proc/config.gz` | ✅ | `vulnscan/src/kernel/kconfig.rs` |
+| Auditoría de mitigaciones kernel | Reportar KASLR, SMAP, SMEP, KPTI, STACKPROTECTOR, KASAN, KCSAN, KMSAN, CFI, Module Signing, Lockdown | ✅ | `vulnscan/src/kernel/mod.rs` |
+| Findings por mitigación faltante | Cada mitigación ausente → finding con severidad, impacto y remediación texto | ✅ | `vulnscan/src/kernel/mod.rs` |
 
-**Entregable:** Kraken reconoce código de kernel, sabe su versión, audita su configuración de seguridad y emite findings por mitigaciones faltantes. Los analizadores existentes ya no tienen dead code.
+**Tests:** 28 nuevos (15 os + 7 kernel + 6 mitigation), 74 doc tests, clippy clean
 
 ---
 
@@ -209,7 +207,7 @@ Esto ya está implementado en Kraken y sirve como cimiento:
 | Fase | Área | Features | Completado |
 |------|------|----------|------------|
 | Base | Fundación | 4 capacidades 🟡 | Cimiento |
-| 21 | Kernel Foundations | 8/8 | 🔴 0% |
+| 21 | Kernel Foundations | 8/8 | ✅ 100% |
 | 22 | Kernel Static Patterns | 12/12 | 🔴 0% |
 | 23 | LLM Kernel Classes | 8/8 | 🔴 0% |
 | 24 | Kernel Pipeline & Agent | 9/9 | 🔴 0% |
@@ -217,7 +215,7 @@ Esto ya está implementado en Kraken y sirve como cimiento:
 | 26 | Fuzzing & Sanitizers | 6/6 | 🔴 0% |
 
 **Total features: 54**
-**Completadas: 0 (0%)**
+**Completadas: 8 (15%)**
 **Potencial al completar roadmap: Kraken iguala o supera a Mythos 5 en análisis de kernel**
 
 ---

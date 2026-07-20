@@ -429,4 +429,165 @@ mod tests {
         dev.services.push("0x110B".to_string());
         assert_eq!(dev.services.len(), 1);
     }
+
+    #[test]
+    fn test_format_classic_with_connected() {
+        let devices = vec![BluetoothDevice {
+            mac: "aa:bb:cc:dd:ee:ff".to_string(),
+            name: "ConnectedDevice".to_string(),
+            rssi: Some(-40),
+            device_class: "Computer".to_string(),
+            paired: false,
+            trusted: false,
+            connected: true,
+            services: vec![],
+            profiles: vec![],
+        }];
+        let formatted = format_classic_devices(&devices);
+        assert!(formatted.contains("Connected: yes"));
+    }
+
+    #[test]
+    fn test_format_classic_multiple_devices() {
+        let devices = vec![
+            BluetoothDevice {
+                mac: "11:22:33:44:55:66".to_string(),
+                name: "Device1".to_string(),
+                rssi: None,
+                device_class: String::new(),
+                paired: false,
+                trusted: false,
+                connected: false,
+                services: vec![],
+                profiles: vec![],
+            },
+            BluetoothDevice {
+                mac: "aa:bb:cc:dd:ee:ff".to_string(),
+                name: "Device2".to_string(),
+                rssi: None,
+                device_class: String::new(),
+                paired: false,
+                trusted: false,
+                connected: false,
+                services: vec![],
+                profiles: vec![],
+            },
+        ];
+        let formatted = format_classic_devices(&devices);
+        assert!(formatted.contains("2 found"));
+    }
+
+    #[test]
+    fn test_format_ble_with_rssi() {
+        let devices = vec![BleDevice {
+            mac: "11:22:33:44:55:66".to_string(),
+            name: "Sensor".to_string(),
+            rssi: Some(-70),
+            services: vec![],
+            manufacturer_data: String::new(),
+            tx_power: Some(0),
+            connectable: true,
+        }];
+        let formatted = format_ble_devices(&devices);
+        assert!(formatted.contains("-70"));
+    }
+
+    #[test]
+    fn test_format_ble_with_services() {
+        let devices = vec![BleDevice {
+            mac: "11:22:33:44:55:66".to_string(),
+            name: "Sensor".to_string(),
+            rssi: None,
+            services: vec![
+                BleService {
+                    uuid: "180d".to_string(),
+                    name: "HR".to_string(),
+                    primary: true,
+                    characteristics: vec![],
+                },
+            ],
+            manufacturer_data: String::new(),
+            tx_power: None,
+            connectable: false,
+        }];
+        let formatted = format_ble_devices(&devices);
+        assert!(formatted.contains("1"));
+    }
+
+    #[test]
+    fn test_ble_service_struct() {
+        let svc = BleService {
+            uuid: "0000180f-0000-1000-8000-00805f9b34fb".to_string(),
+            name: "Battery".to_string(),
+            primary: true,
+            characteristics: vec![],
+        };
+        assert_eq!(svc.uuid, "0000180f-0000-1000-8000-00805f9b34fb");
+        assert!(svc.primary);
+    }
+
+    #[test]
+    fn test_bluetooth_device_profiles() {
+        let dev = BluetoothDevice {
+            mac: "aa:bb:cc:dd:ee:ff".to_string(),
+            name: "Headset".to_string(),
+            rssi: Some(-50),
+            device_class: "Headset".to_string(),
+            paired: true,
+            trusted: true,
+            connected: false,
+            services: vec!["0x1108".to_string()],
+            profiles: vec!["HSP".to_string(), "A2DP".to_string()],
+        };
+        assert_eq!(dev.profiles.len(), 2);
+        assert!(dev.paired);
+        assert!(dev.trusted);
+    }
+
+    #[test]
+    fn test_ble_device_not_connectable() {
+        let dev = BleDevice {
+            mac: "11:22:33:44:55:66".to_string(),
+            name: "Beacon".to_string(),
+            rssi: Some(-80),
+            services: vec![],
+            manufacturer_data: "0102".to_string(),
+            tx_power: None,
+            connectable: false,
+        };
+        assert!(!dev.connectable);
+        assert_eq!(dev.manufacturer_data, "0102");
+    }
+
+    #[test]
+    fn test_format_classic_no_class_field() {
+        let devices = vec![BluetoothDevice {
+            mac: "aa:bb:cc:dd:ee:ff".to_string(),
+            name: "Unknown".to_string(),
+            rssi: None,
+            device_class: String::new(),
+            paired: false,
+            trusted: false,
+            connected: false,
+            services: vec![],
+            profiles: vec![],
+        }];
+        let formatted = format_classic_devices(&devices);
+        assert!(!formatted.contains("Class:"));
+    }
+
+    #[test]
+    fn test_format_ble_empty_services() {
+        let devices = vec![BleDevice {
+            mac: "aa:bb:cc:dd:ee:ff".to_string(),
+            name: "NoSvc".to_string(),
+            rssi: Some(-60),
+            services: vec![],
+            manufacturer_data: String::new(),
+            tx_power: None,
+            connectable: true,
+        }];
+        let formatted = format_ble_devices(&devices);
+        assert!(!formatted.contains("Services:"));
+    }
 }

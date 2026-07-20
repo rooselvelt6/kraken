@@ -74,6 +74,17 @@ pub fn generate_cli_report(findings: &[Finding]) {
     writeln!(&mut stdout, "Total: {} findings", findings.len()).unwrap();
 }
 
+/// Generates a JSON report string from a list of findings.
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::report::generate_json_report;
+/// use vulnscan::{Finding, Severity, DiscoveryMethod};
+/// let findings = vec![Finding::new(Severity::High, "vuln", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching)];
+/// let json = generate_json_report(&findings);
+/// assert!(json.contains("vuln"));
+/// ```
 pub fn generate_json_report(findings: &[Finding]) -> String {
     serde_json::to_string_pretty(findings).unwrap_or_else(|_| "[]".to_string())
 }

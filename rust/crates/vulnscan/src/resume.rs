@@ -13,6 +13,7 @@ pub enum ScanPhase {
     PatternAnalysis,
     LlmAnalysis,
     Chaining,
+    Fuzzing,
     ExploitGeneration,
     Reporting,
     Complete,

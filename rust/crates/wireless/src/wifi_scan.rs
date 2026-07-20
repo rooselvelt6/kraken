@@ -383,4 +383,159 @@ BSS 11:22:33:44:55:66(on wlan0)
         assert_eq!(*map.get(&1).unwrap(), 2412);
         assert_eq!(*map.get(&36).unwrap(), 5180);
     }
+
+    #[test]
+    fn test_freq_to_channel_5ghz() {
+        assert_eq!(freq_to_channel(5200), 40);
+        assert_eq!(freq_to_channel(5220), 44);
+        assert_eq!(freq_to_channel(5240), 48);
+        assert_eq!(freq_to_channel(5765), 153);
+        assert_eq!(freq_to_channel(5785), 157);
+        assert_eq!(freq_to_channel(5805), 161);
+        assert_eq!(freq_to_channel(5825), 165);
+    }
+
+    #[test]
+    fn test_freq_to_channel_2ghz_all() {
+        assert_eq!(freq_to_channel(2412), 1);
+        assert_eq!(freq_to_channel(2417), 2);
+        assert_eq!(freq_to_channel(2422), 3);
+        assert_eq!(freq_to_channel(2427), 4);
+        assert_eq!(freq_to_channel(2432), 5);
+        assert_eq!(freq_to_channel(2442), 7);
+        assert_eq!(freq_to_channel(2447), 8);
+        assert_eq!(freq_to_channel(2452), 9);
+        assert_eq!(freq_to_channel(2457), 10);
+        assert_eq!(freq_to_channel(2467), 12);
+        assert_eq!(freq_to_channel(2472), 13);
+        assert_eq!(freq_to_channel(2484), 14);
+    }
+
+    #[test]
+    fn test_parse_iw_scan_no_aps() {
+        let sample = "";
+        let aps = parse_iw_scan(sample);
+        assert!(aps.is_empty());
+    }
+
+    #[test]
+    fn test_parse_iw_scan_wpa1() {
+        let sample = r#"BSS aa:bb:cc:dd:ee:ff(on wlan0)
+	freq: 2412
+	signal: -50.00 dBm
+	SSID: WPA1Net
+	* Version: 1
+"#;
+        let aps = parse_iw_scan(sample);
+        assert_eq!(aps.len(), 1);
+        assert_eq!(aps[0].encryption, "WPA");
+    }
+
+    #[test]
+    fn test_parse_iw_scan_no_signal() {
+        let sample = r#"BSS aa:bb:cc:dd:ee:ff(on wlan0)
+	freq: 2412
+	SSID: NoSignal
+"#;
+        let aps = parse_iw_scan(sample);
+        assert_eq!(aps.len(), 1);
+        assert_eq!(aps[0].signal_dbm, 0);
+    }
+
+    #[test]
+    fn test_scan_result_formatting_hidden_ssid() {
+        let result = ScanResult {
+            access_points: vec![AccessPoint {
+                bssid: "00:11:22:33:44:55".to_string(),
+                ssid: String::new(),
+                channel: 6,
+                frequency: 2437,
+                signal_dbm: -70,
+                encryption: "WPA2".to_string(),
+                cipher: String::new(),
+                auth: String::new(),
+                wps: false,
+                clients: vec![],
+            }],
+            interface: "wlan0".to_string(),
+            scan_time_secs: 1.0,
+        };
+        let formatted = format_scan_result(&result);
+        assert!(formatted.contains("<hidden>"));
+    }
+
+    #[test]
+    fn test_scan_result_formatting_no_cipher_no_auth() {
+        let result = ScanResult {
+            access_points: vec![AccessPoint {
+                bssid: "00:11:22:33:44:55".to_string(),
+                ssid: "OpenNet".to_string(),
+                channel: 1,
+                frequency: 2412,
+                signal_dbm: -50,
+                encryption: "OPN".to_string(),
+                cipher: String::new(),
+                auth: String::new(),
+                wps: false,
+                clients: vec![],
+            }],
+            interface: "wlan0".to_string(),
+            scan_time_secs: 1.0,
+        };
+        let formatted = format_scan_result(&result);
+        assert!(!formatted.contains("Cipher:"));
+        assert!(!formatted.contains("Auth:"));
+    }
+
+    #[test]
+    fn test_scan_result_formatting_no_wps() {
+        let result = ScanResult {
+            access_points: vec![AccessPoint {
+                bssid: "00:11:22:33:44:55".to_string(),
+                ssid: "NoWPS".to_string(),
+                channel: 6,
+                frequency: 2437,
+                signal_dbm: -50,
+                encryption: "WPA2".to_string(),
+                cipher: String::new(),
+                auth: String::new(),
+                wps: false,
+                clients: vec![],
+            }],
+            interface: "wlan0".to_string(),
+            scan_time_secs: 1.0,
+        };
+        let formatted = format_scan_result(&result);
+        assert!(!formatted.contains("WPS:"));
+    }
+
+    #[test]
+    fn test_access_point_struct() {
+        let ap = AccessPoint {
+            bssid: "aa:bb:cc:dd:ee:ff".to_string(),
+            ssid: "Test".to_string(),
+            channel: 36,
+            frequency: 5180,
+            signal_dbm: -60,
+            encryption: "WPA2".to_string(),
+            cipher: "CCMP".to_string(),
+            auth: "PSK".to_string(),
+            wps: true,
+            clients: vec![],
+        };
+        assert_eq!(ap.bssid, "aa:bb:cc:dd:ee:ff");
+        assert_eq!(ap.channel, 36);
+        assert!(ap.wps);
+    }
+
+    #[test]
+    fn test_client_struct() {
+        let c = Client {
+            mac: "11:22:33:44:55:66".to_string(),
+            signal_dbm: -55,
+            is_associated: true,
+        };
+        assert_eq!(c.mac, "11:22:33:44:55:66");
+        assert!(c.is_associated);
+    }
 }

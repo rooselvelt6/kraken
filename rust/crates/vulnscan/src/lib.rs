@@ -41,6 +41,18 @@ pub enum Severity {
 }
 
 impl Severity {
+    /// Returns the numeric severity level (0=Info, 4=Critical).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::Severity;
+    /// assert_eq!(Severity::Info.value(), 0);
+    /// assert_eq!(Severity::Low.value(), 1);
+    /// assert_eq!(Severity::Medium.value(), 2);
+    /// assert_eq!(Severity::High.value(), 3);
+    /// assert_eq!(Severity::Critical.value(), 4);
+    /// ```
     pub fn value(&self) -> u8 {
         match self {
             Severity::Info => 0,
@@ -51,6 +63,18 @@ impl Severity {
         }
     }
 
+    /// Parses a severity string (case-insensitive) into a `Severity`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::Severity;
+    /// assert_eq!(Severity::from_str("critical"), Severity::Critical);
+    /// assert_eq!(Severity::from_str("HIGH"), Severity::High);
+    /// assert_eq!(Severity::from_str("medium"), Severity::Medium);
+    /// assert_eq!(Severity::from_str("low"), Severity::Low);
+    /// assert_eq!(Severity::from_str("unknown"), Severity::Info);
+    /// ```
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
@@ -87,6 +111,17 @@ pub enum Language {
 }
 
 impl Language {
+    /// Returns file extensions associated with this language.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::Language;
+    /// assert!(Language::Rust.extensions().contains(&"rs"));
+    /// assert!(Language::C.extensions().contains(&"c"));
+    /// assert!(Language::Python.extensions().contains(&"py"));
+    /// assert!(Language::JavaScript.extensions().contains(&"js"));
+    /// ```
     pub fn extensions(&self) -> &'static [&'static str] {
         match self {
             Language::Rust => &["rs"],
@@ -111,6 +146,15 @@ impl Language {
         }
     }
 
+    /// Returns special filenames associated with this language.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::Language;
+    /// assert!(Language::Docker.filenames().contains(&"Dockerfile"));
+    /// assert!(Language::Rust.filenames().is_empty());
+    /// ```
     pub fn filenames(&self) -> &'static [&'static str] {
         match self {
             Language::Docker => &["Dockerfile", "Dockerfile.*", "Containerfile"],
@@ -276,6 +320,23 @@ pub struct ScanResult {
 }
 
 impl ScanResult {
+    /// Creates a new `ScanResult`, automatically computing severity counts.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{ScanResult, Finding, Severity, DiscoveryMethod};
+    /// let findings = vec![
+    ///     Finding::new(Severity::High, "vuln1", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching),
+    ///     Finding::new(Severity::Low, "vuln2", None, None, None, None, None, 0.5, DiscoveryMethod::StaticPatternMatching),
+    /// ];
+    /// let result = ScanResult::new(findings, 10, 500);
+    /// assert_eq!(result.total_findings, 2);
+    /// assert_eq!(result.high_count, 1);
+    /// assert_eq!(result.low_count, 1);
+    /// assert_eq!(result.files_scanned, 10);
+    /// assert_eq!(result.duration_ms, 500);
+    /// ```
     pub fn new(findings: Vec<Finding>, files_scanned: usize, duration_ms: u64) -> Self {
         let total = findings.len();
         let critical = findings
@@ -349,6 +410,27 @@ impl Default for Finding {
 }
 
 impl Finding {
+    /// Creates a new `Finding` with all specified parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// let f = Finding::new(
+    ///     Severity::High,
+    ///     "buffer overflow detected",
+    ///     Some(std::path::PathBuf::from("src/main.c")),
+    ///     Some(42),
+    ///     None,
+    ///     None,
+    ///     Some("CWE-120".to_string()),
+    ///     0.9,
+    ///     DiscoveryMethod::StaticPatternMatching,
+    /// );
+    /// assert_eq!(f.severity, Severity::High);
+    /// assert_eq!(f.cwe.as_deref(), Some("CWE-120"));
+    /// assert_eq!(f.confidence, 0.9);
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         severity: Severity,
@@ -386,6 +468,21 @@ impl Finding {
         }
     }
 
+    /// Creates an informational finding with default confidence (0.5).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// let f = Finding::info(
+    ///     "code review note",
+    ///     Some(std::path::PathBuf::from("lib.rs")),
+    ///     Some(10),
+    ///     DiscoveryMethod::StaticPatternMatching,
+    /// );
+    /// assert_eq!(f.severity, Severity::Info);
+    /// assert_eq!(f.confidence, 0.5);
+    /// ```
     pub fn info(
         description: impl Into<String>,
         file_path: Option<std::path::PathBuf>,
@@ -405,6 +502,17 @@ impl Finding {
         )
     }
 
+    /// Attaches exploit code and marks the finding as confirmed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod, ExploitType, FindingStatus};
+    /// let f = Finding::info("test", None, None, DiscoveryMethod::Fuzzing)
+    ///     .with_exploit("exploit_code()".to_string(), ExploitType::RopChain);
+    /// assert_eq!(f.exploit_type, Some(ExploitType::RopChain));
+    /// assert_eq!(f.status, FindingStatus::Confirmed);
+    /// ```
     pub fn with_exploit(mut self, exploit_code: String, exploit_type: ExploitType) -> Self {
         self.exploit_code = Some(exploit_code);
         self.exploit_type = Some(exploit_type);
@@ -412,17 +520,48 @@ impl Finding {
         self
     }
 
+    /// Sets the CVSS score for this finding.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, DiscoveryMethod};
+    /// let f = Finding::info("test", None, None, DiscoveryMethod::Fuzzing)
+    ///     .with_cvss(9.8);
+    /// assert_eq!(f.cvss_score, Some(9.8));
+    /// ```
     pub fn with_cvss(mut self, score: f32) -> Self {
         self.cvss_score = Some(score);
         self
     }
 
+    /// Chains this finding to another finding by ID.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, DiscoveryMethod};
+    /// let f = Finding::info("test", None, None, DiscoveryMethod::Fuzzing)
+    ///     .chain_to("finding-abc-123");
+    /// assert_eq!(f.chained_findings, vec!["finding-abc-123"]);
+    /// ```
     pub fn chain_to(mut self, other_id: &str) -> Self {
         self.chained_findings.push(other_id.to_string());
         self.discovery_method = DiscoveryMethod::ExploitChaining;
         self
     }
 
+    /// Marks the finding as disclosed with a commitment hash.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, DiscoveryMethod, FindingStatus};
+    /// let f = Finding::info("test", None, None, DiscoveryMethod::Fuzzing)
+    ///     .disclose("abc123".to_string());
+    /// assert!(f.disclosed);
+    /// assert_eq!(f.status, FindingStatus::Reported);
+    /// ```
     pub fn disclose(mut self, commitment: String) -> Self {
         self.disclosed = true;
         self.disclosure_hash = Some(commitment);
@@ -431,6 +570,17 @@ impl Finding {
     }
 }
 
+/// Generates a new unique finding ID (UUID v4).
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::new_finding_id;
+/// let id1 = new_finding_id();
+/// let id2 = new_finding_id();
+/// assert!(!id1.is_empty());
+/// assert_ne!(id1, id2);
+/// ```
 pub fn new_finding_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
@@ -444,7 +594,9 @@ pub use exploit::ExploitGenerator;
 pub use fuzz::FuzzGuide;
 pub use hypothesis::{GeneratedHypothesis, HypothesisGenerator};
 pub use kernel::{
+    fuzz::{CrashTriage, CrashType, KaflRunner, SyzkallerRunner},
     kconfig::KernelConfig,
+    sanitizers::SanitizerParser,
     version::KernelVersion,
     KernelMitigationAuditor,
 };

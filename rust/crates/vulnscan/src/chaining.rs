@@ -24,6 +24,23 @@ pub enum ChainType {
 pub struct VulnerabilityChainer;
 
 impl VulnerabilityChainer {
+    /// Finds exploit chains by combining related vulnerabilities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::chaining::VulnerabilityChainer;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod, ExploitType};
+    /// use std::path::PathBuf;
+    /// let r = Finding::new(Severity::High, "info leak read primitive",
+    ///     Some(PathBuf::from("/kernel/vuln.c")), None, None, None,
+    ///     Some("CWE-200".to_string()), 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let w = Finding::new(Severity::Critical, "heap overflow write primitive",
+    ///     Some(PathBuf::from("/kernel/vuln.c")), None, None, None,
+    ///     Some("CWE-787".to_string()), 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let chains = VulnerabilityChainer::find_chains(&[r, w]);
+    /// assert!(!chains.is_empty());
+    /// ```
     pub fn find_chains(findings: &[Finding]) -> Vec<ChainedExploit> {
         let mut chains = Vec::new();
 
@@ -158,6 +175,19 @@ impl VulnerabilityChainer {
         })
     }
 
+    /// Chains read and write bugs in the same file into a Read+Write exploit chain.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::chaining::VulnerabilityChainer;
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// use std::path::PathBuf;
+    /// let r = Finding::new(Severity::High, "read bug", Some(PathBuf::from("a.c")), None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let w = Finding::new(Severity::Critical, "write bug", Some(PathBuf::from("a.c")), None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let chains = VulnerabilityChainer::chain_read_write(&[r], &[w]);
+    /// assert_eq!(chains.len(), 1);
+    /// ```
     pub fn chain_read_write(read_bugs: &[Finding], write_bugs: &[Finding]) -> Vec<ChainedExploit> {
         let mut chains = Vec::new();
         for read_bug in read_bugs {

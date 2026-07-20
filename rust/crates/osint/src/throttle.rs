@@ -125,4 +125,62 @@ mod tests {
             drop(p3);
         });
     }
+
+    #[test]
+    fn rate_limiter_one_per_window() {
+        let limiter = RateLimiter::new(1, 1);
+        assert!(limiter.allow());
+        assert!(!limiter.allow());
+    }
+
+    #[test]
+    fn backoff_base_zero() {
+        let d = backoff_delay(0, 0);
+        assert_eq!(d.as_millis(), 0);
+    }
+
+    #[test]
+    fn backoff_exponential_growth() {
+        let d1 = backoff_delay(0, 100);
+        let d2 = backoff_delay(1, 100);
+        let d3 = backoff_delay(2, 100);
+        let d4 = backoff_delay(3, 100);
+        assert!(d1 < d2);
+        assert!(d2 < d3);
+        assert!(d3 < d4);
+    }
+
+    #[test]
+    fn jitter_within_bounds() {
+        let dur = Duration::from_millis(1000);
+        let j = jitter(dur);
+        assert!(j.as_millis() <= 1000);
+    }
+
+    #[test]
+    fn jitter_zero_duration() {
+        let j = jitter(Duration::from_millis(0));
+        assert_eq!(j.as_millis(), 0);
+    }
+
+    #[test]
+    fn semaphore_try_acquire_single() {
+        let limiter = SemaphoreLimiter::new(1);
+        let p1 = limiter.try_acquire();
+        assert!(p1.is_some());
+        let p2 = limiter.try_acquire();
+        assert!(p2.is_none());
+        drop(p1);
+        let p3 = limiter.try_acquire();
+        assert!(p3.is_some());
+    }
+
+    #[test]
+    fn rate_limiter_new_struct() {
+        let limiter = RateLimiter::new(10, 30);
+        for _ in 0..10 {
+            assert!(limiter.allow());
+        }
+        assert!(!limiter.allow());
+    }
 }

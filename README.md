@@ -3,13 +3,13 @@
 <p align="center">
   <strong>Navaja suiza de ciberseguridad · Agente de código autónomo · OSINT · Exploits · 200 capacidades ofensivas</strong>
   <br>
-  <em>100% Rust · 35 crates · 210 000 líneas · 2 620 tests · 59 herramientas · Ningún `unsafe`</em>
+  <em>100% Rust · 35 crates · 210 000 líneas · 2 650 tests · 59 herramientas · Ningún `unsafe`</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/rust-1.85+-orange.svg" alt="Rust">
   <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/tests-2620-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-2650-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/unsafe-forbidden-red" alt="Unsafe Forbidden">
   <img src="https://img.shields.io/badge/SLSA-3-purple" alt="SLSA 3">
   <img src="https://img.shields.io/badge/cosign-signed-brightgreen" alt="Cosign Signed">
@@ -51,7 +51,7 @@ kraken campaign --target 192.168.1.0/24 --auto
 |---------|-------|
 | Crates en workspace | **35** |
 | Líneas de Rust | **210 000** |
-| Tests unitarios | **2 620** |
+| Tests unitarios | **2 650** |
 | Roadmap completado | **200/200 (100%)** |
 | Herramientas de agente | **59** |
 | Comandos slash | **200+** |
@@ -170,15 +170,14 @@ kraken campaign --target 192.168.1.0/24 --auto
 - Bot de Telegram con alertas por severidad, sesiones multi-usuario colaborativas
 - Screenshot capture (EyeWitness-style), estadísticas de contraseñas (Pipal-style)
 
-### 🐧 Análisis Profundo de Kernel (Fases 21-25)
-- **Detección de lenguaje kernel** — reconocimiento automático de Linux/FreeBSD/OpenBSD por rutas (`arch/`, `drivers/`, `fs/`, `net/`)
-- **Auditor de mitigaciones** — 15 checks (KASLR, SMAP, SMEP, KPTI, stack protector, FORTIFY_SOURCE, MM_MINIMAL, etc.) parseando `.config` real
-- **Detector de versión** — parseo de `Makefile` y `UTS_RELEASE` para identificar versión exacta del kernel
-- **Análisis estático con tree-sitter** — validación de C estructural + 8 checkers: `copy_from_user` sin size, `copy_to_user` sin zero-fill, `kmalloc` sin NULL check, doble fetch, ioctl handlers, procfs locking, stack buffers, null deref post-alloc
-- **LLM especializado en kernel** — 4 clases expertas (kernel_memory, kernel_race, kernel_info_leak, kernel_priv_esc) con prompts de terminología real de kernel
-- **Pipeline kernel-aware** — flag `enable_kernel_analysis` integrado en pipeline de escaneo; `run_kernel_mitigation_audit()` ejecutado automáticamente en targets kernel
-- **Explotación de kernel** — `commit_creds` ROP, shellcode, modprobe_path, core_pattern; `ChainType::InfoLeakChain` / `PhysmapSpray` / `DirtyPipeStyle` / `BPFChain` para cadenas de explotación
-- **122 tests en vulnscan** — cobertura completa de patrones kernel, mitigaciones y parseo
+### 🐧 Análisis Profundo de Kernel (Fases 21-26)
+- **Fase 21 ✅ — Kernel Foundations** — `Language::LinuxKernel/FreeBSD/OpenBSD`, `detect_kernel_language()`, `enable_kernel_analysis` flag, `KernelVersion` parser, `KernelConfig` parser, `KernelMitigationAuditor` (15 checks: KASLR, SMAP, SMEP, KPTI, FORTIFY_SOURCE, KASAN, KCSAN, LSM, etc.), `MitigationStatus` poblada desde `.config`
+- **Fase 22 — Kernel Static Patterns** — 11 checkers AST con tree-sitter-c: `copy_from_user` sin size, `copy_to_user` sin zero-fill, `kmalloc` sin NULL check, double fetch, ioctl handlers, procfs locking, stack buffer overflow, UAF, double free, integer wraparound, type confusion
+- **Fase 23 — LLM Kernel Classes** — 4 clases expertas (kernel_memory, kernel_race, kernel_info_leak, kernel_priv_esc) con prompts de terminología real de kernel
+- **Fase 24 — Kernel Pipeline & Agent** — `KernelAnalysis` phase en pipeline, `run_kernel_mitigation_audit()` automático, integración estático + LLM
+- **Fase 25 — Kernel Exploitation** — `commit_creds` ROP, shellcode ring0, modprobe_path, core_pattern; `ChainType::InfoLeakChain` / `PhysmapSpray` / `DirtyPipeStyle` / `BPFChain`
+- **Fase 26 — Fuzzing & Sanitizers** — syzkaller wrapper, kAFL, KASAN/KCSAN/KMSAN log parsers, crash triage, exploit generation
+- **150+ tests en kernel modules** — cobertura completa de patrones, mitigaciones y parseo
 
 ---
 
@@ -340,5 +339,5 @@ cosign verify-blob kraken-linux-x86_64 \
 
 <p align="center">
   🦀 <strong>Hecho en Rust, construido en Venezuela</strong> 🦀<br>
-  <sub>210 000 líneas · 2 620 tests · 0 unsafe · 35 crates · Cosign firmado · CI/CD completo</sub>
+  <sub>210 000 líneas · 2 650 tests · 0 unsafe · 35 crates · Cosign firmado · CI/CD completo</sub>
 </p>

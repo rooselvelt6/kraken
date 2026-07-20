@@ -505,4 +505,97 @@ mod tests {
         assert_eq!(p.as_str(), "TestPlatform");
         assert!(p.profile_url("user").is_none());
     }
+
+    #[test]
+    fn github_profile_url_format() {
+        let url = Platform::GitHub.profile_url("torvalds").unwrap();
+        assert_eq!(url, "https://github.com/torvalds");
+    }
+
+    #[test]
+    fn reddit_profile_url_format() {
+        let url = Platform::Reddit.profile_url("user123").unwrap();
+        assert_eq!(url, "https://reddit.com/user/user123");
+    }
+
+    #[test]
+    fn youtube_profile_url_format() {
+        let url = Platform::YouTube.profile_url("channel").unwrap();
+        assert_eq!(url, "https://youtube.com/@channel");
+    }
+
+    #[test]
+    fn tiktok_profile_url_format() {
+        let url = Platform::TikTok.profile_url("creator").unwrap();
+        assert_eq!(url, "https://tiktok.com/@creator");
+    }
+
+    #[test]
+    fn twitch_profile_url_format() {
+        let url = Platform::Twitch.profile_url("streamer").unwrap();
+        assert_eq!(url, "https://twitch.tv/streamer");
+    }
+
+    #[test]
+    fn bluesky_profile_url_format() {
+        let url = Platform::Bluesky.profile_url("user").unwrap();
+        assert_eq!(url, "https://bsky.app/profile/user");
+    }
+
+    #[test]
+    fn linkedin_profile_url_format() {
+        let url = Platform::LinkedIn.profile_url("professional").unwrap();
+        assert_eq!(url, "https://linkedin.com/in/professional");
+    }
+
+    #[test]
+    fn stacks_returns_none() {
+        assert!(Platform::StackOverflow.profile_url("user").is_none());
+    }
+
+    #[test]
+    fn whatsapp_returns_none() {
+        assert!(Platform::WhatsApp.profile_url("user").is_none());
+    }
+
+    #[test]
+    fn all_platforms_count() {
+        let all = Platform::all();
+        assert!(all.len() >= 60);
+    }
+
+    #[test]
+    fn platform_serialization() {
+        let p = Platform::GitHub;
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("GitHub"));
+    }
+
+    #[test]
+    fn platform_deserialization() {
+        let json = r#""GitHub""#;
+        let p: Platform = serde_json::from_str(json).unwrap();
+        assert!(matches!(p, Platform::GitHub));
+    }
+
+    #[test]
+    fn platform_clone() {
+        let p = Platform::Reddit;
+        let p2 = p.clone();
+        assert_eq!(p.as_str(), p2.as_str());
+    }
+
+    #[test]
+    fn profile_url_none_returning_platforms() {
+        let none_platforms = vec![
+            Platform::Discord, Platform::StackOverflow, Platform::StackExchange,
+            Platform::WhatsApp, Platform::Signal, Platform::WeChat, Platform::QQ,
+            Platform::Bloomberg, Platform::Forbes, Platform::DuckDuckGo,
+            Platform::Mastodon, Platform::Slack, Platform::Matrix, Platform::Element,
+            Platform::RocketChat, Platform::DiscordServer,
+        ];
+        for p in none_platforms {
+            assert!(p.profile_url("test").is_none(), "expected None for {:?}", p);
+        }
+    }
 }

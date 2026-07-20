@@ -277,4 +277,93 @@ mod tests {
         et.set_portal_html("<html><body>Custom</body></html>");
         assert_eq!(et.portal_html, "<html><body>Custom</body></html>");
     }
+
+    #[test]
+    fn test_beacon_flood_empty_ssids_error() {
+        let mut flood = BeaconFlood::new("wlan0")
+            .with_ssid_list(vec![]);
+        let result = flood.start();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No SSIDs"));
+    }
+
+    #[test]
+    fn test_evil_twin_new_defaults() {
+        let et = EvilTwin::new("wlan1", "MyNet", 11);
+        assert_eq!(et.interface, "wlan1");
+        assert_eq!(et.target_essid, "MyNet");
+        assert_eq!(et.channel, 11);
+        assert!(et.captive_portal);
+        assert!(et.target_bssid.is_empty());
+    }
+
+    #[test]
+    fn test_beacon_flood_defaults() {
+        let flood = BeaconFlood::new("wlan0");
+        assert_eq!(flood.channel, 1);
+        assert_eq!(flood.packet_rate, 50);
+        assert_eq!(flood.ssids.len(), 3);
+    }
+
+    #[test]
+    fn test_beacon_flood_custom_all() {
+        let flood = BeaconFlood::new("wlan1")
+            .with_ssid_list(vec!["Net1".to_string()])
+            .with_channel(6);
+        assert_eq!(flood.interface, "wlan1");
+        assert_eq!(flood.ssids, vec!["Net1".to_string()]);
+        assert_eq!(flood.channel, 6);
+    }
+
+    #[test]
+    fn test_fake_access_point_struct() {
+        let ap = FakeAccessPoint {
+            ssid: "EvilNet".to_string(),
+            bssid: "00:11:22:33:44:55".to_string(),
+            channel: 6,
+            encryption: "WPA2".to_string(),
+            is_evil_twin: true,
+            target_bssid: Some("aa:bb:cc:dd:ee:ff".to_string()),
+        };
+        assert!(ap.is_evil_twin);
+        assert_eq!(ap.encryption, "WPA2");
+    }
+
+    #[test]
+    fn test_beacon_flood_stats_format_empty_interface() {
+        let stats = BeaconFloodStats {
+            packets_sent: 0,
+            ssids_broadcast: 0,
+            duration_secs: 0.0,
+            interface: "wlan0".to_string(),
+        };
+        let formatted = format_beacon_stats(&stats);
+        assert!(formatted.contains("0"));
+    }
+
+    #[test]
+    fn test_random_bssid_locally_administered() {
+        let mac = BeaconFlood::generate_random_bssid();
+        assert_eq!(mac.len(), 6);
+        assert_eq!(mac[0] & 0x02, 0x02);
+        assert_eq!(mac[0] & 0x01, 0x00);
+    }
+
+    #[test]
+    fn test_random_bssid_varies() {
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..10 {
+            let mac = BeaconFlood::generate_random_bssid();
+            let key: Vec<u8> = mac.to_vec();
+            seen.insert(key);
+        }
+        assert!(seen.len() > 1);
+    }
+
+    #[test]
+    fn test_evil_twin_set_portal() {
+        let mut et = EvilTwin::new("wlan0", "Test", 1);
+        et.set_portal_html("<html>evil</html>");
+        assert_eq!(et.portal_html, "<html>evil</html>");
+    }
 }

@@ -200,19 +200,122 @@ mod tests {
     }
 
     #[test]
-    fn test_k8s_pod() {
-        let p = K8sPod {
-            name: "test".to_string(),
+    fn test_audit_pods_empty() {
+        let result = K8sAuditor::audit_pods(&[]);
+        assert_eq!(result.privileged_pods, 0);
+        assert_eq!(result.root_pods, 0);
+    }
+
+    #[test]
+    fn test_audit_volume_host_path() {
+        let spec = "volumes:\n- name: hostvol\n  hostPath:\n    path: /etc";
+        let findings = K8sAuditor::audit_pod_spec(spec);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_audit_run_as_user_0() {
+        let spec = "runasroot: true";
+        let findings = K8sAuditor::audit_pod_spec(spec);
+        assert!(findings.iter().any(|f| f.category == "Root User"));
+    }
+
+    #[test]
+    fn test_audit_net_admin() {
+        let spec = "cap_add:\n- NET_ADMIN";
+        let findings = K8sAuditor::audit_pod_spec(spec);
+        assert!(findings.iter().any(|f| f.category == "Linux Capabilities"));
+    }
+
+    #[test]
+    fn test_audit_privileged_false() {
+        let spec = "securityContext:\n  privileged: false";
+        let findings = K8sAuditor::audit_pod_spec(spec);
+        assert!(findings.iter().all(|f| f.category != "Privileged Container"));
+    }
+
+    #[test]
+    fn test_audit_host_pid() {
+        let spec = "hostPID: true";
+        let findings = K8sAuditor::audit_pod_spec(spec);
+        assert!(findings.iter().any(|f| f.category == "Host PID"));
+    }
+
+    #[test]
+    fn test_audit_default_service_account() {
+        let pods = vec![K8sPod {
+            name: "sa-pod".to_string(),
             namespace: "default".to_string(),
-            service_account: "sa".to_string(),
+            service_account: "default".to_string(),
             privileged: false,
             host_network: false,
             host_pid: false,
             run_as_root: false,
             capabilities: vec![],
             volumes: vec![],
+        }];
+        let result = K8sAuditor::audit_pods(&pods);
+        assert!(result.findings.is_empty());
+    }
+
+    #[test]
+    fn test_k8s_finding_severity_variants() {
+        for sev in &["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] {
+            let f = K8sFinding {
+                severity: sev.to_string(),
+                category: "test".to_string(),
+                description: "desc".to_string(),
+                resource: "pod/test".to_string(),
+                recommendation: "fix".to_string(),
+            };
+            let json = serde_json::to_string(&f).unwrap();
+            assert!(json.contains(sev));
+        }
+    }
+
+    #[test]
+    fn test_k8s_audit_result_struct() {
+        let result = K8sAuditResult {
+            pods: vec![],
+            findings: vec![],
+            total_pods: 0,
+            privileged_pods: 0,
+            root_pods: 0,
+            host_network_pods: 0,
         };
-        let json = serde_json::to_string_pretty(&p).unwrap();
-        assert!(json.contains("\"privileged\": false"));
+        assert_eq!(result.total_pods, 0);
+    }
+
+    #[test]
+    fn test_audit_multiple_pods_mixed() {
+        let pods = vec![
+            K8sPod {
+                name: "safe".to_string(),
+                namespace: "prod".to_string(),
+                service_account: "sa-app".to_string(),
+                privileged: false,
+                host_network: false,
+                host_pid: false,
+                run_as_root: false,
+                capabilities: vec![],
+                volumes: vec![],
+            },
+            K8sPod {
+                name: "unsafe".to_string(),
+                namespace: "default".to_string(),
+                service_account: "default".to_string(),
+                privileged: true,
+                host_network: true,
+                host_pid: true,
+                run_as_root: true,
+                capabilities: vec!["SYS_ADMIN".to_string()],
+                volumes: vec!["/host".to_string()],
+            },
+        ];
+        let result = K8sAuditor::audit_pods(&pods);
+        assert_eq!(result.privileged_pods, 1);
+        assert_eq!(result.root_pods, 1);
+        assert_eq!(result.host_network_pods, 1);
+        assert!(result.findings.len() >= 3);
     }
 }

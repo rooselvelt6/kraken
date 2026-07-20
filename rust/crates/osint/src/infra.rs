@@ -1021,4 +1021,48 @@ mod tests {
         let findings = analyze_domain("example.com");
         assert!(!findings.is_empty());
     }
+
+    #[test]
+    fn port_scan_custom_port() {
+        let findings = PortScanner::scan("127.0.0.1", Some(&[22]));
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].value.contains("22"));
+    }
+
+    #[test]
+    fn port_scan_closed_port() {
+        let findings = PortScanner::scan("127.0.0.1", Some(&[1]));
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].value.contains("closed"));
+    }
+
+    #[test]
+    fn common_ports_length() {
+        assert!(COMMON_PORTS.len() >= 25);
+    }
+
+    #[test]
+    fn common_ports_contains_22() {
+        assert!(COMMON_PORTS.iter().any(|(p, n)| *p == 22 && *n == "SSH"));
+    }
+
+    #[test]
+    fn common_ports_contains_443() {
+        assert!(COMMON_PORTS.iter().any(|(p, n)| *p == 443 && *n == "HTTPS"));
+    }
+
+    #[test]
+    fn common_ports_contains_3306() {
+        assert!(COMMON_PORTS.iter().any(|(p, n)| *p == 3306 && *n == "MySQL"));
+    }
+
+    #[test]
+    fn common_ports_contains_6379() {
+        assert!(COMMON_PORTS.iter().any(|(p, n)| *p == 6379 && *n == "Redis"));
+    }
+
+    #[test]
+    fn common_ports_contains_27017() {
+        assert!(COMMON_PORTS.iter().any(|(p, n)| *p == 27017 && *n == "MongoDB"));
+    }
 }

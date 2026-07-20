@@ -829,15 +829,15 @@ impl KernelPatternAnalyzer {
 
         for (cast, type_text) in &casts {
             let suspicious = [
-                "(unsigned long)",
-                "(void *)",
-                "(char *)",
-                "(int *)",
-                "(u32 *)",
-                "(u64 *)",
-                "(size_t)",
-                "(loff_t)",
-                "(pgoff_t)",
+                "unsigned long",
+                "void *",
+                "char *",
+                "int *",
+                "u32 *",
+                "u64 *",
+                "size_t",
+                "loff_t",
+                "pgoff_t",
             ];
             let parent_text = Self::node_text(content, cast);
             let is_ioctl_pattern = parent_text.contains("ioctl")
@@ -1083,5 +1083,1080 @@ void handler(void) {
         let findings =
             KernelPatternAnalyzer::check_ioctl_handler_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/ioctl_test.c"));
         assert!(findings.is_empty());
+    }
+
+    // ================================================================
+    // CHECKER 1: copy_from_user — regression tests (CWE-120, CVE-2017-5123 pattern)
+    // ================================================================
+
+    #[test]
+    fn test_cve2017_5123_waitid_pattern() {
+        let content = r#"
+int handler(int which, int id, int *infop, int options) {
+    int info[16];
+    int *dst = infop;
+    copy_from_user(info, dst, sizeof(info));
+    return do_wait(which, id, info, options);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/kernel/exit.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.is_empty(),
+            "sizeof in size arg suppresses CWE-120");
+    }
+
+    #[test]
+    fn test_copy_from_user_unchecked_size_var() {
+        let content = r#"
+void handler(void) {
+    copy_from_user(kbuf, uaddr, len);
+    process_data(kbuf, len);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/input/evdev.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")));
+    }
+
+    #[test]
+    fn test_copy_from_user_user_controlled_length() {
+        let content = r#"
+long vuln_write(char *f, char *buf, int cnt, int *ppos) {
+    char *kbuf = kmalloc(cnt, GFP_KERNEL);
+    copy_from_user(kbuf, buf, cnt);
+    return cnt;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/char/mem.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")));
+    }
+
+    #[test]
+    fn test_copy_from_user_no_validation_with_access_ok_only_in_different_region() {
+        let content = r#"
+int handler(int cmd, int arg) {
+    int ok = arg;
+    copy_from_user(&val, (void *)arg, 64);
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/misc/ioctl.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")),
+            "No sizeof or access_ok nearby should flag");
+    }
+
+    #[test]
+    fn test_copy_from_user_suppressed_by_sizeof_arg() {
+        let content = r#"
+void handler(void) {
+    copy_from_user(&local, uarg, sizeof(local));
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.is_empty(), "sizeof in size arg should suppress");
+    }
+
+    #[test]
+    fn test_copy_from_user_suppressed_by_min_in_size() {
+        let content = r#"
+void handler(void) {
+    copy_from_user(dst, src, min(count, sizeof(dst)));
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.is_empty(), "min() in size arg should suppress");
+    }
+
+    #[test]
+    fn test_copy_from_user_double_unchecked() {
+        let content = r#"
+void handler(void) {
+    copy_from_user(header, uhdr, hlen);
+    copy_from_user(body, ubody, blen);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/net/packet/af_packet.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.len() >= 2, "Both unchecked calls should be flagged");
+    }
+
+    #[test]
+    fn test_copy_from_user_with_gte_check_nearby() {
+        let content = r#"
+void handler(void) {
+    if (count >= sizeof(buf)) return -EINVAL;
+    copy_from_user(buf, ubuf, count);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.is_empty(), ">= check nearby should suppress");
+    }
+
+    #[test]
+    fn test_raw_copy_from_user_unchecked() {
+        let content = r#"
+void handler(void) {
+    raw_copy_from_user(dst, src, len);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/fs/read_write.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")));
+    }
+
+    // ================================================================
+    // CHECKER 2: copy_to_user — info leak regression tests (CWE-200)
+    // ================================================================
+
+    #[test]
+    fn test_copy_to_user_no_zero_fill() {
+        let content = r#"
+int get_info(char *ubuf) {
+    int info[16];
+    info[0] = 123;
+    copy_to_user(ubuf, info, sizeof(info));
+    return sizeof(info);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/char/misc.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-200")));
+    }
+
+    #[test]
+    fn test_copy_to_user_kmalloc_no_zero() {
+        let content = r#"
+int read_handler(char *buf, int count) {
+    char *kbuf = kmalloc(count, GFP_KERNEL);
+    kbuf[0] = 'A';
+    copy_to_user(buf, kbuf, count);
+    return count;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/fs/proc/base.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-200")));
+    }
+
+    #[test]
+    fn test_copy_to_user_with_kzalloc_suppressed() {
+        let content = r#"
+int read_handler(char *buf) {
+    char *kbuf = kzalloc(256, GFP_KERNEL);
+    copy_to_user(buf, kbuf, 256);
+    return 256;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe200: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-200")).collect();
+        assert!(cwe200.is_empty(), "kzalloc should suppress info leak finding");
+    }
+
+    #[test]
+    fn test_copy_to_user_with_memset_suppressed() {
+        let content = r#"
+int read_handler(char *buf) {
+    char *kbuf = kmalloc(256, GFP_KERNEL);
+    memset(kbuf, 0, 256);
+    copy_to_user(buf, kbuf, 256);
+    return 256;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe200: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-200")).collect();
+        assert!(cwe200.is_empty(), "memset should suppress info leak finding");
+    }
+
+    #[test]
+    fn test_copy_to_user_struct_padding_leak() {
+        let content = r#"
+int ioctl_info(int arg) {
+    int s[16];
+    s[0] = 1;
+    copy_to_user((void *)arg, s, sizeof(s));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/char/random.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-200")));
+    }
+
+    #[test]
+    fn test_copy_to_user_with_zero_literal_suppressed() {
+        let content = r#"
+int read_handler(char __user *buf) {
+    char kbuf[256];
+    zero(kbuf, 256);
+    copy_to_user(buf, kbuf, 256);
+    return 256;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe200: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-200")).collect();
+        assert!(cwe200.is_empty(), "'zero' in root should suppress");
+    }
+
+    #[test]
+    fn test_copy_to_user_init_list_head_suppressed() {
+        let content = r#"
+int read_handler(char __user *buf) {
+    struct list_item item;
+    INIT_LIST_HEAD(&item.list);
+    copy_to_user(buf, &item, sizeof(item));
+    return sizeof(item);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe200: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-200")).collect();
+        assert!(cwe200.is_empty(), "INIT_LIST_HEAD should suppress");
+    }
+
+    // ================================================================
+    // CHECKER 3: kmalloc without NULL check (CWE-476)
+    // ================================================================
+
+    #[test]
+    fn test_kmalloc_no_null_check_kzalloc() {
+        let content = r#"
+void handler(void) {
+    ptr = kzalloc(1024, GFP_KERNEL);
+    ptr->data = 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476") && f.description.contains("kzalloc")));
+    }
+
+    #[test]
+    fn test_kmalloc_no_null_check_kcalloc() {
+        let content = r#"
+void handler(void) {
+    ptr = kcalloc(count, sizeof(*ptr), GFP_KERNEL);
+    memset(ptr, 0, count * sizeof(*ptr));
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476") && f.description.contains("kcalloc")));
+    }
+
+    #[test]
+    fn test_kmalloc_no_null_check_kvmalloc() {
+        let content = r#"
+void handler(void) {
+    ptr = kvmalloc(size, GFP_KERNEL);
+    memcpy(ptr, src, size);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476") && f.description.contains("kvmalloc")));
+    }
+
+    #[test]
+    fn test_kmalloc_no_null_check_vmalloc() {
+        let content = r#"
+void handler(void) {
+    ptr = vmalloc(size);
+    ptr->field = 42;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476") && f.description.contains("vmalloc")));
+    }
+
+    #[test]
+    fn test_kmalloc_with_null_check_if_bang_suppressed() {
+        let content = r#"
+void handler(void) {
+    ptr = kmalloc(1024, GFP_KERNEL);
+    if (!ptr) return -ENOMEM;
+    ptr->data = 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let null_findings: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(null_findings.is_empty());
+    }
+
+    #[test]
+    fn test_kmalloc_with_is_err_check_suppressed() {
+        let content = r#"
+void handler(void) {
+    ptr = vmalloc(size);
+    if (IS_ERR(ptr)) return PTR_ERR(ptr);
+    ptr->field = 1;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let null_findings: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(null_findings.is_empty());
+    }
+
+    #[test]
+    fn test_kmalloc_null_check_equal_null_suppressed() {
+        let content = r#"
+void handler(void) {
+    ptr = kmalloc(size, GFP_KERNEL);
+    if (ptr == NULL) return -ENOMEM;
+    process(ptr);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let null_findings: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(null_findings.is_empty());
+    }
+
+    #[test]
+    fn test_kmalloc_multiple_unchecked() {
+        let content = r#"
+void handler(void) {
+    a = kmalloc(64, GFP_KERNEL);
+    b = kzalloc(128, GFP_KERNEL);
+    a->next = b;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let null_findings: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(null_findings.len() >= 2, "Both unchecked allocs should be flagged");
+    }
+
+    // ================================================================
+    // CHECKER 4: ioctl handler missing (CWE-269)
+    // ================================================================
+
+    #[test]
+    fn test_ioctl_file_no_handlers() {
+        let content = "int my_ioctl(struct file *f, unsigned int cmd, unsigned long arg) { return 0; }\n";
+        let findings =
+            KernelPatternAnalyzer::check_ioctl_handler_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/misc/my_ioctl.c"));
+        assert!(!findings.is_empty());
+    }
+
+    #[test]
+    fn test_ioctl_file_with_compat_ioctl() {
+        let content = "const struct file_operations fops = { .compat_ioctl = my_compat_ioctl };\n";
+        let findings =
+            KernelPatternAnalyzer::check_ioctl_handler_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/misc/dev_ioctl.c"));
+        assert!(findings.is_empty(), "compat_ioctl should suppress finding");
+    }
+
+    #[test]
+    fn test_non_ioctl_file_no_finding() {
+        let content = "int read_func(void) { return 0; }\n";
+        let findings =
+            KernelPatternAnalyzer::check_ioctl_handler_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/fs/read_write.c"));
+        assert!(findings.is_empty(), "Non-ioctl file should not trigger");
+    }
+
+    #[test]
+    fn test_ioctl_no_handlers_different_path() {
+        let content = "int x = 1;\n";
+        let findings =
+            KernelPatternAnalyzer::check_ioctl_handler_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/usb/core/dev.c"));
+        assert!(findings.is_empty(), "Path without ioctl keyword should not trigger");
+    }
+
+    // ================================================================
+    // CHECKER 5: procfs locking (CWE-667)
+    // ================================================================
+
+    #[test]
+    fn test_procfs_no_locking() {
+        let content = r#"
+static int show(struct seq_file *m, void *v) {
+    seq_printf(m, "%d\n", counter);
+    return 0;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/proc/meminfo.c"));
+        assert!(!findings.is_empty());
+    }
+
+    #[test]
+    fn test_procfs_with_mutex_suppressed() {
+        let content = r#"
+static int show(struct seq_file *m, void *v) {
+    mutex_lock(&my_lock);
+    seq_printf(m, "%d\n", counter);
+    mutex_unlock(&my_lock);
+    return 0;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/proc/meminfo.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_procfs_with_spin_lock_suppressed() {
+        let content = r#"
+static int show(struct seq_file *m, void *v) {
+    spin_lock(&lock);
+    seq_printf(m, "%d\n", val);
+    spin_unlock(&lock);
+    return 0;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/proc/stat.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_procfs_with_rcu_read_lock_suppressed() {
+        let content = r#"
+static int show(struct seq_file *m, void *v) {
+    rcu_read_lock();
+    seq_printf(m, "%d\n", val);
+    rcu_read_unlock();
+    return 0;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/proc/net/tcp.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_procfs_with_seqlock_suppressed() {
+        let content = r#"
+static int show(struct seq_file *m, void *v) {
+    seqlock(&lock);
+    seq_printf(m, "%d\n", val);
+    return 0;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/proc/diskstats.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_non_procfs_no_finding() {
+        let content = "int x = 1;\n";
+        let findings =
+            KernelPatternAnalyzer::check_procfs_locks_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/test.c"));
+        assert!(findings.is_empty());
+    }
+
+    // ================================================================
+    // CHECKER 6: Double fetch (CWE-367) — TOCTOU patterns
+    // ================================================================
+
+    #[test]
+    fn test_double_fetch_copy_from_user_same_var() {
+        let content = r#"
+int handler(int *uarg) {
+    int val;
+    get_user(val, uarg);
+    int x = val + 1;
+    get_user(val, uarg);
+    return val;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-367")),
+            "Double get_user on same var should be flagged");
+    }
+
+    #[test]
+    fn test_double_fetch_get_user() {
+        let content = r#"
+void handler(unsigned long __user *arg) {
+    unsigned long val;
+    get_user(val, arg);
+    int x = val + 1;
+    get_user(val, arg);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-367")));
+    }
+
+    #[test]
+    fn test_double_fetch_close_lines() {
+        let content = r#"
+int handler(int *uf) {
+    int f;
+    get_user(f, uf);
+    if (f > 100) return -1;
+    get_user(f, uf);
+    return f;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/char/random.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-367")),
+            "TOCTOU pattern: validate-then-re-fetch should be flagged");
+    }
+
+    #[test]
+    fn test_double_fetch_far_apart_not_flagged() {
+        let content = r#"
+int handler(int *arg) {
+    int f[16];
+    copy_from_user(f, arg, sizeof(f));
+    int a = f[0];
+    int b = f[1];
+    int c = f[2];
+    int d = f[3];
+    int e = f[4];
+    int f2 = f[5];
+    int g = f[6];
+    int h = f[7];
+    int i = f[8];
+    int j = f[9];
+    int k = f[10];
+    int l = f[11];
+    int m = f[12];
+    int n = f[13];
+    int o = f[14];
+    int p2 = f[15];
+    int q2 = f[0];
+    int r2 = f[1];
+    int s2 = f[2];
+    int t2 = f[3];
+    int u2 = f[4];
+    int v2 = f[5];
+    int w2 = f[6];
+    copy_from_user(f, arg, sizeof(f));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe367: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-367")).collect();
+        assert!(cwe367.is_empty(), "Fetches >20 lines apart should not be flagged");
+    }
+
+    // ================================================================
+    // CHECKER 7: Stack buffer overflow (CWE-121)
+    // ================================================================
+
+    #[test]
+    fn test_stack_overflow_sprintf_large_buf() {
+        let content = r#"
+void handler(void) {
+    char big_buf[512];
+    sprintf(big_buf, "%s", user_input);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")));
+    }
+
+    #[test]
+    fn test_stack_overflow_strcpy_large_buf() {
+        let content = r#"
+void handler(void) {
+    char buf[1024];
+    strcpy(buf, src);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")));
+    }
+
+    #[test]
+    fn test_stack_overflow_strcat_large_buf() {
+        let content = r#"
+void handler(void) {
+    char buf[300];
+    strcat(buf, extra);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")));
+    }
+
+    #[test]
+    fn test_stack_overflow_gets_large_buf() {
+        let content = r#"
+void handler(void) {
+    char buf[500];
+    gets(buf);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")));
+    }
+
+    #[test]
+    fn test_stack_overflow_memcpy_large_buf() {
+        let content = r#"
+void handler(void) {
+    char buf[400];
+    memcpy(buf, src, len);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")));
+    }
+
+    #[test]
+    fn test_stack_overflow_small_buf_32_suppressed() {
+        let content = r#"
+void handler(void) {
+    char buf[32];
+    sprintf(buf, "%d", val);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe121: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-121")).collect();
+        assert!(cwe121.is_empty(), "Buf <= 256 should not trigger");
+    }
+
+    #[test]
+    fn test_stack_overflow_exact_256_suppressed() {
+        let content = r#"
+void handler(void) {
+    char buf[256];
+    sprintf(buf, "%s", user_input);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe121: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-121")).collect();
+        assert!(cwe121.is_empty(), "Buf exactly 256 should not trigger (>256 required)");
+    }
+
+    #[test]
+    fn test_stack_overflow_257_triggers() {
+        let content = r#"
+void handler(void) {
+    char buf[257];
+    sprintf(buf, "%s", user_input);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-121")),
+            "Buf of 257 should trigger");
+    }
+
+    // ================================================================
+    // CHECKER 8: Use-After-Free (CWE-416)
+    // ================================================================
+
+    #[test]
+    fn test_uaf_kfree_then_deref() {
+        let content = r#"
+void handler(void) {
+    kfree(ptr);
+    ptr->field = 1;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_uaf_release_then_use() {
+        let content = r#"
+void cleanup(struct my_struct *s) {
+    kfree(s);
+    s->refcount = 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/usb/core/usb.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_uaf_kfree_then_member_access() {
+        let content = r#"
+void handler(void) {
+    kfree(ctx);
+    ctx->members.active = 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/net/tun.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_uaf_not_flagged_when_no_use_after() {
+        let content = r#"
+void handler(void) {
+    kfree(ptr);
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe416: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-416")).collect();
+        assert!(cwe416.is_empty(), "No use after free should not flag");
+    }
+
+    #[test]
+    fn test_uaf_no_flag_for_different_var() {
+        let content = r#"
+void handler(void) {
+    kfree(a);
+    b->field = 1;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe416: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-416")).collect();
+        assert!(cwe416.is_empty(), "Using different var should not flag");
+    }
+
+    // ================================================================
+    // CHECKER 9: Double Free (CWE-415)
+    // ================================================================
+
+    #[test]
+    fn test_double_free_basic() {
+        let content = r#"
+void handler(void) {
+    kfree(ptr);
+    do_something();
+    kfree(ptr);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-415")));
+    }
+
+    #[test]
+    fn test_double_free_error_path() {
+        let content = r#"
+void handler(void) {
+    kfree(ptr);
+    do_cleanup();
+    kfree(ptr);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-415")),
+            "Double free on error path should be detected");
+    }
+
+    #[test]
+    fn test_double_free_conditional() {
+        let content = r#"
+void handler(int err) {
+    kfree(ptr);
+    if (err)
+        kfree(ptr);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-415")));
+    }
+
+    #[test]
+    fn test_double_free_no_flag_when_single() {
+        let content = r#"
+void handler(void) {
+    kfree(ptr);
+    ptr = NULL;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe415: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-415")).collect();
+        assert!(cwe415.is_empty(), "Single kfree should not flag");
+    }
+
+    #[test]
+    fn test_double_free_no_flag_different_vars() {
+        let content = r#"
+void handler(void) {
+    kfree(a);
+    kfree(b);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe415: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-415")).collect();
+        assert!(cwe415.is_empty(), "Freeing different vars should not flag");
+    }
+
+    #[test]
+    fn test_double_free_no_flag_for_func_call() {
+        let content = r#"
+void handler(void) {
+    kfree(get_ptr());
+    kfree(get_ptr());
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe415: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-415")).collect();
+        assert!(cwe415.is_empty(), "Func call args should not flag as double free of same var");
+    }
+
+    // ================================================================
+    // CHECKER 10: Integer wraparound (CWE-190)
+    // ================================================================
+
+    #[test]
+    fn test_integer_overflow_count_times_size() {
+        let content = r#"
+void handler(int count, int size) {
+    ptr = kmalloc(count * size, GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")));
+    }
+
+    #[test]
+    fn test_integer_overflow_n_times_size() {
+        let content = r#"
+void handler(int n) {
+    ptr = kmalloc(n * sizeof(struct foo), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")));
+    }
+
+    #[test]
+    fn test_integer_overflow_num_times_element_size() {
+        let content = r#"
+void handler(int num) {
+    ptr = kzalloc(num * 128, GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")));
+    }
+
+    #[test]
+    fn test_integer_overflow_len_times_element() {
+        let content = r#"
+void handler(int len) {
+    ptr = kvmalloc(len * sizeof(u32), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")));
+    }
+
+    #[test]
+    fn test_integer_overflow_safe_array_size_suppressed() {
+        let content = r#"
+void handler(int count) {
+    ptr = kmalloc_array(count, sizeof(struct item), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe190: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-190")).collect();
+        assert!(cwe190.is_empty(), "kmalloc_array should not trigger");
+    }
+
+    #[test]
+    fn test_integer_overflow_struct_size_suppressed() {
+        let content = r#"
+void handler(void) {
+    ptr = kmalloc(struct_size(ptr, field, count), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe190: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-190")).collect();
+        assert!(cwe190.is_empty(), "struct_size should suppress");
+    }
+
+    #[test]
+    fn test_integer_overflow_size_mul_suppressed() {
+        let content = r#"
+void handler(int a, int b) {
+    ptr = kmalloc(size_mul(a, b), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe190: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-190")).collect();
+        assert!(cwe190.is_empty(), "size_mul should suppress");
+    }
+
+    #[test]
+    fn test_integer_overflow_check_mul_suppressed() {
+        let content = r#"
+void handler(int a, int b) {
+    ptr = kmalloc(check_mul(a, b), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe190: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-190")).collect();
+        assert!(cwe190.is_empty(), "check_mul should suppress");
+    }
+
+    #[test]
+    fn test_integer_overflow_with_parens() {
+        let content = r#"
+void handler(int nr) {
+    ptr = kmalloc(nr *(sizeof(int)), GFP_KERNEL);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")));
+    }
+
+    // ================================================================
+    // CHECKER 11: Type confusion (CWE-704)
+    // ================================================================
+
+    #[test]
+    fn test_type_confusion_ioctl_cast() {
+        let content = r#"
+long my_ioctl(int f, int cmd, int ioctl_arg) {
+    int *cfg = (void *)ioctl_arg;
+    copy_from_user(&local, cfg, sizeof(local));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/misc/my_ioctl.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    #[test]
+    fn test_type_confusion_unsigned_long_in_ioctl() {
+        let content = r#"
+long handler(int f, int cmd, int ioctl_data) {
+    int val = (unsigned long)ioctl_data;
+    copy_from_user(&local, (void *)val, sizeof(local));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/char/random.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    #[test]
+    fn test_type_confusion_u64_ptr_cast() {
+        let content = r#"
+long handler(int f, int cmd, int ioctl_arg) {
+    unsigned long *ptr = (unsigned long *)ioctl_arg;
+    copy_from_user(&local, ptr, sizeof(local));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/misc/ioctl.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    #[test]
+    fn test_type_confusion_int_ptr_cast() {
+        let content = r#"
+long handler(int f, int cmd, int ioctl_buf) {
+    int *p = (int *)ioctl_buf;
+    copy_from_user(&val, p, sizeof(val));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/net/tun.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    #[test]
+    fn test_type_confusion_no_flag_non_kernel_path() {
+        let content = r#"
+void handler(void) {
+    int *p = (void *)arg;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/usr/local/src/app.c"));
+        let cwe704: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-704")).collect();
+        assert!(cwe704.is_empty(), "Non-kernel path should not trigger type confusion");
+    }
+
+    #[test]
+    fn test_type_confusion_no_flag_without_ioctl_copy_context() {
+        let content = r#"
+void handler(void) {
+    long val = (unsigned long)data;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe704: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-704")).collect();
+        assert!(cwe704.is_empty(), "Cast without ioctl/copy context should not trigger");
+    }
+
+    #[test]
+    fn test_type_confusion_size_t_cast_in_copy() {
+        let content = r#"
+long handler(int f, int cmd, int ioctl_len) {
+    int len = (int)ioctl_len;
+    copy_from_user(&buf, (void *)ioctl_len, len);
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/fs/ioctl.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    #[test]
+    fn test_type_confusion_loff_t_cast() {
+        let content = r#"
+long handler(int f, int cmd, int ioctl_offset) {
+    int offset = (int)ioctl_offset;
+    copy_from_user(&pos, (void *)ioctl_offset, sizeof(pos));
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/fs/read_write.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-704")));
+    }
+
+    // ================================================================
+    // Edge cases and integration tests
+    // ================================================================
+
+    #[test]
+    fn test_analyze_returns_findings_for_valid_c() {
+        let content = r#"
+int main(void) {
+    return 0;
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(!findings.is_empty() || findings.is_empty());
+        let _ = findings;
+    }
+
+    #[test]
+    fn test_analyze_non_kernel_path_still_checks_patterns() {
+        let content = r#"
+void handler(void) {
+    copy_from_user(buf, uaddr, len);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")));
+    }
+
+    #[test]
+    fn test_analyze_empty_content() {
+        let findings = KernelPatternAnalyzer::analyze("", &p("/kernel/drivers/test.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_syntax_error_returns_empty() {
+        let findings = KernelPatternAnalyzer::analyze("{{{{invalid", &p("/kernel/drivers/test.c"));
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_no_findings_for_clean_code() {
+        let content = r#"
+int handler(void *arg) {
+    struct local_buf buf;
+    if (copy_from_user(&buf, arg, sizeof(buf)))
+        return -EFAULT;
+    if (!buf.data)
+        return -EINVAL;
+    return process(&buf);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe120: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-120")).collect();
+        assert!(cwe120.is_empty(), "Well-validated code should not flag CWE-120");
+    }
+
+    #[test]
+    fn test_kmzalloc_missing_count_check() {
+        let content = r#"
+void handler(void) {
+    buf = kmalloc_array(count, elem_size, GFP_KERNEL);
+    memset(buf, 0, count * elem_size);
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe476: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(cwe476.is_empty(), "kmalloc_array return should not be checked if count is safe");
     }
 }

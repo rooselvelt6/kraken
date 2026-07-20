@@ -6,6 +6,21 @@ use std::path::Path;
 pub struct WebAppScanner;
 
 impl WebAppScanner {
+    /// Scans web application code for injection, XSS, and other web vulnerabilities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::webapp::WebAppScanner;
+    /// use vulnscan::Language;
+    /// use std::path::Path;
+    /// let findings = WebAppScanner::scan(
+    ///     "query(\"SELECT * FROM users WHERE id=\" + userId)",
+    ///     Path::new("app.js"),
+    ///     Language::JavaScript,
+    /// );
+    /// assert!(!findings.is_empty());
+    /// ```
     pub fn scan(content: &str, file_path: &Path, _language: Language) -> Vec<Finding> {
         let mut findings = Vec::new();
         findings.extend(Self::check_sqli(content, file_path));

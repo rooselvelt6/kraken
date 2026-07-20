@@ -208,15 +208,23 @@ impl super::LanguageAnalyzer for FreeBSDAnalyzer {
                 ));
             }
 
-            // Use after free
-            if trimmed.contains("free(")
-                && content
-                    .lines()
-                    .skip(i + 1)
-                    .take(20)
-                    .any(|l| l.contains("->") || l.contains("*"))
-            {
-                // Simplified check
+            if trimmed.contains("free(") || trimmed.contains("kfree(") {
+                let next_lines: Vec<&str> = content.lines().skip(i + 1).take(20).collect();
+                let has_deref = next_lines.iter().any(|l| {
+                    let t = l.trim();
+                    (t.contains("->") || t.contains("*")) && !t.starts_with("//") && !t.starts_with("/*")
+                });
+                if has_deref {
+                    findings.push(self.create_finding(
+                        "Potential use-after-free: free followed by pointer dereference",
+                        "CWE-416",
+                        crate::Severity::Critical,
+                        i,
+                        line,
+                        file_path,
+                        "Set pointer to NULL after free and check before use",
+                    ));
+                }
             }
         }
 
@@ -308,5 +316,130 @@ impl FreeBSDAnalyzer {
             discovery_method: crate::DiscoveryMethod::StaticPatternMatching,
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::LanguageAnalyzer;
+    use crate::Language;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_linux_kernel_buffer_overflow() {
+        let analyzer = LinuxKernelAnalyzer;
+        let path = PathBuf::from("drivers/net/eth.c");
+        let findings = analyzer.analyze("strcpy(buf, user_input);", &path, &crate::ScanConfig::default());
+        assert!(!findings.is_empty());
+        assert_eq!(findings[0].cwe.as_deref(), Some("CWE-120"));
+        assert_eq!(findings[0].severity, crate::Severity::Critical);
+    }
+
+    #[test]
+    fn test_linux_kernel_null_deref() {
+        let analyzer = LinuxKernelAnalyzer;
+        let path = PathBuf::from("fs/readme.c");
+        let findings = analyzer.analyze("ptr = *dev->driver_data;", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476")));
+    }
+
+    #[test]
+    fn test_linux_kernel_lock_without_unlock() {
+        let analyzer = LinuxKernelAnalyzer;
+        let path = PathBuf::from("kernel/locking.c");
+        let findings = analyzer.analyze("mutex_lock(&dev->mutex);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-667")));
+    }
+
+    #[test]
+    fn test_linux_kernel_uaf() {
+        let analyzer = LinuxKernelAnalyzer;
+        let path = PathBuf::from("mm/slab.c");
+        let code = "kfree(ptr);\nptr->field = 0;";
+        let findings = analyzer.analyze(code, &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_linux_kernel_clean_code() {
+        let analyzer = LinuxKernelAnalyzer;
+        let path = PathBuf::from("drivers/gpu/drm.c");
+        let code = "int x = 0;\nif (x > 0) {\n    return x;\n}";
+        let findings = analyzer.analyze(code, &path, &crate::ScanConfig::default());
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn test_openbsd_tcp_sack() {
+        let analyzer = OpenBSDAnalyzer;
+        let path = PathBuf::from("net/tcp_input.c");
+        let findings = analyzer.analyze("tcp_sack_process(segs);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-125")));
+    }
+
+    #[test]
+    fn test_openbsd_buffer_overflow() {
+        let analyzer = OpenBSDAnalyzer;
+        let path = PathBuf::from("sys/dev/usb.c");
+        let findings = analyzer.analyze("strcpy(dest, src);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-120")));
+    }
+
+    #[test]
+    fn test_openbsd_privilege_change() {
+        let analyzer = OpenBSDAnalyzer;
+        let path = PathBuf::from("usr.sbin/ssh.c");
+        let findings = analyzer.analyze("setuid(0);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-250")));
+    }
+
+    #[test]
+    fn test_freebsd_nfs_vuln() {
+        let analyzer = FreeBSDAnalyzer;
+        let path = PathBuf::from("nfs/nfs_vnops.c");
+        let findings = analyzer.analyze("nfs_malloc(bp->b_data);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-125")));
+    }
+
+    #[test]
+    fn test_freebsd_command_execution() {
+        let analyzer = FreeBSDAnalyzer;
+        let path = PathBuf::from("kern/kern_exec.c");
+        let findings = analyzer.analyze("system(cmd);", &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-78")));
+    }
+
+    #[test]
+    fn test_freebsd_uaf() {
+        let analyzer = FreeBSDAnalyzer;
+        let path = PathBuf::from("sys/vm/vm_page.c");
+        let code = "free(m);\nm->flags = 0;";
+        let findings = analyzer.analyze(code, &path, &crate::ScanConfig::default());
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_freebsd_uaf_no_deref() {
+        let analyzer = FreeBSDAnalyzer;
+        let path = PathBuf::from("sys/vm/vm_page.c");
+        let code = "free(m);\nreturn 0;";
+        let findings = analyzer.analyze(code, &path, &crate::ScanConfig::default());
+        assert!(!findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-416")));
+    }
+
+    #[test]
+    fn test_linux_kernel_language() {
+        assert_eq!(LinuxKernelAnalyzer.language(), Language::LinuxKernel);
+    }
+
+    #[test]
+    fn test_openbsd_language() {
+        assert_eq!(OpenBSDAnalyzer.language(), Language::OpenBSD);
+    }
+
+    #[test]
+    fn test_freebsd_language() {
+        assert_eq!(FreeBSDAnalyzer.language(), Language::FreeBSD);
     }
 }

@@ -104,27 +104,33 @@
 
 ---
 
-## Fase D — Fuzzing & Sanitizers (Fase 26)
+## ~~Fase D — Fuzzing & Sanitizers (Fase 26)~~ ✅ COMPLETADA
 
 **Objetivo:** Implementar la Fase 26 del roadmap original: fuzzing de kernel con análisis de sanitizers, triage automático y generación de exploits desde crashes.
 
-**Esfuerzo:** 5 semanas
+**Estado:** Completada
 
-| Feature | Descripción |
-|---------|-------------|
-| syzkaller wrapper | Lanzar syzkaller contra kernel target, capturar crashes en cola. |
-| KASAN log parser | Parsear logs de Kernel Address Sanitizer → UAF, OOB, double free → finding con CWE. |
-| KCSAN log parser | Parsear logs de Kernel Concurrency Sanitizer → data races → finding con CWE-362. |
-| KMSAN log parser | Parsear logs de Kernel Memory Sanitizer → uninitialized memory → finding con CWE-457. |
-| kAFL integration | Wrapper para kAFL (hardware-assisted kernel fuzzing). |
-| Crash dedup | Agrupar crashes por backtrace hash. |
-| Crash → CWE assignment | Asignar CWE según patrón de crash. |
-| Crash → exploit generation | Si hay crash con control de RIP → generar PoC automáticamente. |
-| Minimizer | Reducir input que causa crash al mínimo. |
+| Feature | Estado |
+|---------|--------|
+| syzkaller wrapper | ✅ `SyzkallerRunner::generate_config()`, `collect_crashes()` |
+| KASAN log parser | ✅ `SanitizerParser::parse_kasan_log()` — detecta UAF, OOB, double-free, stack/heap overflow |
+| KCSAN log parser | ✅ `SanitizerParser::parse_kcsan_log()` — detecta data-race con variable/conflicting accesses |
+| KMSAN log parser | ✅ `SanitizerParser::parse_kmsan_log()` — detecta uninit-value con origin stack |
+| kAFL integration | ✅ `KaflRunner::run()`, `collect_crashes()` |
+| Crash dedup | ✅ `CrashTriage` con hash SHA-256 de backtraces |
+| Crash → CWE assignment | ✅ 12 tipos de crash mapeados a CWEs (CWE-416/787/415/362/476/121/200/269/457/20/119) |
+| Crash → exploit generation | ✅ `generate_exploit_from_crash()` — genera PoC C para kernel |
+| Minimizer | ✅ `minimize_input()` — delta-debugging para reducir crashing inputs |
+| Pipeline integration | ✅ `run_fuzzing_phase()` en los 3 modos (Fast/Deep/Overnight) |
 
-**Dependencias:** Fase C (AST profundo para análisis de crashes).
+**Archivos creados/modificados:**
+- `vulnscan/src/kernel/sanitizers.rs` — KASAN/KCSAN/KMSAN parsers (550 líneas)
+- `vulnscan/src/kernel/fuzz.rs` — CrashTriage, syzkaller, kAFL, exploit gen, minimizer (780 líneas)
+- `vulnscan/src/kernel/mod.rs` — registros de módulos
+- `vulnscan/src/resume.rs` — `ScanPhase::Fuzzing`
+- `vulnscan/src/pipeline.rs` — integración fuzzing en 3 modos
 
-**Entregable:** Kraken puede hacer fuzzing de kernel, parsear sanitizers, triagear crashes y generar exploits desde ellos.
+**Tests:** 40 tests kernel pasan, 0 warnings clippy
 
 **Ganancia en rating:** 95 → 98
 

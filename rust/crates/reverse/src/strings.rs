@@ -242,4 +242,132 @@ mod tests {
         assert_eq!(entry.value, "hello");
         assert_eq!(entry.offset, 0x1000);
     }
+
+    #[test]
+    fn test_extract_ascii_long_string() {
+        let data = b"AAAAAAAAAAAAAAAAAAAA\x00";
+        let mut results = Vec::new();
+        StringExtractor::extract_ascii(data, 5, &mut results);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].value.len(), 20);
+        assert_eq!(results[0].type_name, "ASCII");
+    }
+
+    #[test]
+    fn test_extract_unicode_empty() {
+        let data = b"\x00\x00\x00\x00";
+        let mut results = Vec::new();
+        StringExtractor::extract_unicode(data, 1, &mut results);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_extract_urls_none() {
+        let strings = vec![
+            StringEntry { value: "hello world".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 11 },
+        ];
+        let urls = StringExtractor::extract_urls(&strings);
+        assert!(urls.is_empty());
+    }
+
+    #[test]
+    fn test_extract_emails_none() {
+        let strings = vec![
+            StringEntry { value: "not an email".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 12 },
+        ];
+        let emails = StringExtractor::extract_emails(&strings);
+        assert!(emails.is_empty());
+    }
+
+    #[test]
+    fn test_extract_ip_addresses_none() {
+        let strings = vec![
+            StringEntry { value: "no ip here".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 10 },
+        ];
+        let ips = StringExtractor::extract_ip_addresses(&strings);
+        assert!(ips.is_empty());
+    }
+
+    #[test]
+    fn test_format_strings_truncation() {
+        let strings: Vec<StringEntry> = (0..10)
+            .map(|i| StringEntry {
+                value: format!("str_{}", i),
+                offset: i * 10,
+                type_name: "ASCII".to_string(),
+                length: 5,
+            })
+            .collect();
+        let formatted = format_strings(&strings, 3);
+        assert!(formatted.contains("showing 3"));
+        assert!(formatted.contains("and 7 more"));
+    }
+
+    #[test]
+    fn test_format_strings_with_entries() {
+        let strings = vec![
+            StringEntry { value: "hello".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 5 },
+        ];
+        let formatted = format_strings(&strings, 100);
+        assert!(formatted.contains("Strings found: 1"));
+        assert!(formatted.contains("hello"));
+    }
+
+    #[test]
+    fn test_extract_ascii_with_tabs() {
+        let data = b"hello\tworld\x00";
+        let mut results = Vec::new();
+        StringExtractor::extract_ascii(data, 1, &mut results);
+        assert!(results.iter().any(|s| s.value.contains('\t')));
+    }
+
+    #[test]
+    fn test_extract_unicode_long_string() {
+        let mut data = Vec::new();
+        for &c in b"Hello" {
+            data.push(c);
+            data.push(0);
+        }
+        data.push(0);
+        data.push(0);
+        let mut results = Vec::new();
+        StringExtractor::extract_unicode(&data, 3, &mut results);
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_min_length_exactly_at_boundary() {
+        let data = b"abc\x00";
+        let mut results = Vec::new();
+        StringExtractor::extract_ascii(data, 3, &mut results);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].value, "abc");
+    }
+
+    #[test]
+    fn test_min_length_one_above_boundary() {
+        let data = b"abc\x00";
+        let mut results = Vec::new();
+        StringExtractor::extract_ascii(data, 4, &mut results);
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_extract_urls_multiple() {
+        let strings = vec![
+            StringEntry { value: "visit https://a.com today".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 25 },
+            StringEntry { value: "or http://b.org".to_string(), offset: 25, type_name: "ASCII".to_string(), length: 15 },
+        ];
+        let urls = StringExtractor::extract_urls(&strings);
+        assert_eq!(urls.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_ip_multiple() {
+        let strings = vec![
+            StringEntry { value: "192.168.1.1 and 10.0.0.1".to_string(), offset: 0, type_name: "ASCII".to_string(), length: 24 },
+        ];
+        let ips = StringExtractor::extract_ip_addresses(&strings);
+        assert_eq!(ips.len(), 1);
+    }
 }

@@ -265,4 +265,113 @@ mod tests {
         let json = serde_json::to_string_pretty(&f).unwrap();
         assert!(json.contains("CRITICAL"));
     }
+
+    #[test]
+    fn test_metadata_finding_inaccessible() {
+        let f = MetadataFinding {
+            endpoint: "GCP".to_string(),
+            accessible: false,
+            data: None,
+            risk: "NONE".to_string(),
+        };
+        assert!(!f.accessible);
+        assert!(f.data.is_none());
+    }
+
+    #[test]
+    fn test_check_aws_accessibility() {
+        let result = CloudMetadataApi::check_aws();
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.source, "AWS IMDS");
+        assert!(!resp.accessible);
+    }
+
+    #[test]
+    fn test_check_gcp_accessibility() {
+        let result = CloudMetadataApi::check_gcp();
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.source, "GCP Metadata");
+        assert!(!resp.accessible);
+    }
+
+    #[test]
+    fn test_check_azure_accessibility() {
+        let result = CloudMetadataApi::check_azure();
+        assert!(result.is_ok());
+        let resp = result.unwrap();
+        assert_eq!(resp.source, "Azure IMDS");
+        assert!(!resp.accessible);
+    }
+
+    #[test]
+    fn test_scan_all_returns_three() {
+        let findings = CloudMetadataApi::scan_all();
+        assert_eq!(findings.len(), 3);
+        let endpoints: Vec<&str> = findings.iter().map(|f| f.endpoint.as_str()).collect();
+        assert!(endpoints.iter().any(|e| e.contains("AWS")));
+        assert!(endpoints.iter().any(|e| e.contains("GCP")));
+        assert!(endpoints.iter().any(|e| e.contains("Azure")));
+    }
+
+    #[test]
+    fn test_scan_all_none_accessible() {
+        let findings = CloudMetadataApi::scan_all();
+        for f in &findings {
+            assert!(!f.accessible);
+        }
+    }
+
+    #[test]
+    fn test_check_ssrf_with_ip() {
+        let result = CloudMetadataApi::check_ssrf_vulnerability("http://10.0.0.1/admin");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_ssrf_with_localhost() {
+        let result = CloudMetadataApi::check_ssrf_vulnerability("http://localhost:8080/api");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_metadata_risk_levels() {
+        let risks = vec!["CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"];
+        for risk in risks {
+            let f = MetadataFinding {
+                endpoint: "test".to_string(),
+                accessible: false,
+                data: None,
+                risk: risk.to_string(),
+            };
+            let json = serde_json::to_string(&f).unwrap();
+            assert!(json.contains(risk));
+        }
+    }
+
+    #[test]
+    fn test_metadata_finding_serialized_keys() {
+        let f = MetadataFinding {
+            endpoint: "AWS".to_string(),
+            accessible: true,
+            data: Some("secret".to_string()),
+            risk: "HIGH".to_string(),
+        };
+        let json = serde_json::to_string_pretty(&f).unwrap();
+        assert!(json.contains("\"endpoint\""));
+        assert!(json.contains("\"accessible\""));
+        assert!(json.contains("\"data\""));
+        assert!(json.contains("\"risk\""));
+    }
+
+    #[test]
+    fn test_cloud_metadata_api_url_constants() {
+        let aws = "http://169.254.169.254/latest/meta-data/";
+        let gcp = "http://metadata.google.internal/computeMetadata/v1/";
+        let azure = "http://169.254.169.254/metadata/instance";
+        assert!(aws.contains("169.254.169.254"));
+        assert!(gcp.contains("metadata.google.internal"));
+        assert!(azure.contains("169.254.169.254"));
+    }
 }

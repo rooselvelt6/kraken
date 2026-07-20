@@ -524,6 +524,15 @@ pub struct LlmAnalysisReport {
 }
 
 /// Map a finding to its vulnerability class based on CWE.
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::{Finding, Severity, DiscoveryMethod};
+/// use vulnscan::llm_analyst::class_for_finding;
+/// let f = Finding::new(Severity::High, "sqli", None, None, None, None, Some("CWE-89".to_string()), 0.9, DiscoveryMethod::StaticPatternMatching);
+/// assert_eq!(class_for_finding(&f), "sqli");
+/// ```
 pub fn class_for_finding(finding: &Finding) -> &str {
     match finding.cwe.as_deref() {
         Some(cwe) if cwe.contains("89") => "sqli",
@@ -579,6 +588,16 @@ pub fn class_for_finding(finding: &Finding) -> &str {
 }
 
 /// Check if a finding belongs to a specific vulnerability class.
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::{Finding, Severity, DiscoveryMethod};
+/// use vulnscan::llm_analyst::matches_class;
+/// let f = Finding::new(Severity::High, "xss", None, None, None, None, Some("CWE-79".to_string()), 0.9, DiscoveryMethod::StaticPatternMatching);
+/// assert!(matches_class(&f, "xss"));
+/// assert!(!matches_class(&f, "sqli"));
+/// ```
 pub fn matches_class(finding: &Finding, class: &str) -> bool {
     class_for_finding(finding) == class
 }

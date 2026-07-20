@@ -16,6 +16,17 @@ impl DisclosurePipeline {
         }
     }
 
+    /// Computes a SHA-3 commitment hash for a finding.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// use vulnscan::disclosure::DisclosurePipeline;
+    /// let f = Finding::new(Severity::High, "test vuln", None, None, None, None, Some("CWE-120".to_string()), 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let hash = DisclosurePipeline::commit_hash(&f);
+    /// assert_eq!(hash.len(), 64); // SHA-3 256 hex
+    /// ```
     pub fn commit_hash(finding: &Finding) -> String {
         let mut hasher = Sha3_256::new();
         hasher.update(finding.id.as_bytes());
@@ -69,6 +80,17 @@ impl DisclosurePipeline {
         Ok(report_path)
     }
 
+    /// Computes a CVSS-like score for a finding based on severity and confidence.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::{Finding, Severity, DiscoveryMethod};
+    /// use vulnscan::disclosure::DisclosurePipeline;
+    /// let f = Finding::new(Severity::Critical, "test", None, None, None, None, None, 0.9, DiscoveryMethod::StaticPatternMatching);
+    /// let score = DisclosurePipeline::compute_cvss(&f);
+    /// assert!(score >= 9.0 && score <= 10.0);
+    /// ```
     pub fn compute_cvss(finding: &Finding) -> f32 {
         let base = match finding.severity {
             crate::Severity::Critical => 9.0,

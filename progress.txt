@@ -237,3 +237,28 @@ VERIFICATION STATUS:
 - cargo build --workspace: PASSED
 - cargo test -p reporting: 63/63 passed
 - cargo clippy -p reporting: clean
+
+Iteration 4: 2026-07-20
+------------------------
+
+FASE 21 COMPLETED (Kernel Foundations)
+- Crate: rust/crates/vulnscan/
+- Archivos modificados:
+  - src/analyzers/os.rs — FreeBSDAnalyzer UAF check activado (antes era stub vacío), 15 tests nuevos
+  - src/kernel/mod.rs — KernelMitigationAuditor integrado con KernelConfig, audit_status() para MitigationStatus, re-exports, 7 tests nuevos
+  - src/mitigation.rs — check_kernel_config_struct(), audit_kernel_status(), 6 tests nuevos
+- Funcionalidad:
+  - Language::LinuxKernel/FreeBSD/OpenBSD ya existían (verificados)
+  - detect_kernel_language() ya existía (verificado)
+  - enable_kernel_analysis flag ya existía en ScanConfig (verificado)
+  - kernel/version.rs — KernelVersion parser con 16 tests (ya existía)
+  - kernel/kconfig.rs — KernelConfig parser con 14 tests (ya existía)
+  - KernelMitigationAuditor audita 15 mitigaciones de kernel (KASLR, SMAP, SMEP, KPTI, etc.)
+  - MitigationStatus poblada desde KernelConfig
+- Tests: 28 nuevos (15 os + 7 kernel + 6 mitigation)
+- Estado: compila, tests pasan, clippy clean
+
+VERIFICATION STATUS:
+- cargo build -p vulnscan: PASSED
+- cargo test -p vulnscan: 74 doc tests + 28+ unit tests PASSED
+- cargo clippy -p vulnscan: clean (0 warnings)

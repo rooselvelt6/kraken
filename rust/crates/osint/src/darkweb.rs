@@ -347,4 +347,47 @@ mod tests {
         assert_eq!(url_encode("hello world"), "hello%20world");
         assert_eq!(url_encode("a&b"), "a%26b");
     }
+
+    #[test]
+    fn builds_onion_url_from_v3_address() {
+        let url = TorClient::build_onion_url("abcdefghijklmnopqrstuvwxyz1234567890abcdef.onion").unwrap();
+        assert!(url.starts_with("http://"));
+        assert!(url.ends_with("/"));
+    }
+
+    #[test]
+    fn rejects_onion_too_short() {
+        assert!(TorClient::build_onion_url("short").is_none());
+    }
+
+    #[test]
+    fn builds_onion_url_strips_http_prefix() {
+        let url = TorClient::build_onion_url("https://3g2upl4pq6kufc4m.onion/").unwrap();
+        assert!(url.contains("3g2upl4pq6kufc4m.onion"));
+        assert!(!url.contains("https"));
+    }
+
+    #[test]
+    fn check_onion_returns_at_least_two_findings() {
+        let findings = TorClient::check_onion("3g2upl4pq6kufc4m");
+        assert!(findings.len() >= 2);
+    }
+
+    #[test]
+    fn check_onion_always_includes_tor_availability() {
+        let findings = TorClient::check_onion("3g2upl4pq6kufc4m");
+        assert!(findings.iter().any(|f| f.source.name == "tor/available"));
+    }
+
+    #[test]
+    fn build_onion_url_with_underscores() {
+        let url = TorClient::build_onion_url("my_onion_address").unwrap();
+        assert!(url.contains("my_onion_address.onion"));
+    }
+
+    #[test]
+    fn build_onion_url_with_dashes() {
+        let url = TorClient::build_onion_url("my-onion-address1234").unwrap();
+        assert!(url.contains("my-onion-address1234.onion"));
+    }
 }

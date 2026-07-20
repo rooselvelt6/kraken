@@ -5,6 +5,21 @@ use std::path::Path;
 pub struct LogicAnalyzer;
 
 impl LogicAnalyzer {
+    /// Analyzes code for authentication bypass and logic vulnerabilities.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::logic::LogicAnalyzer;
+    /// use vulnscan::Language;
+    /// use std::path::Path;
+    /// let findings = LogicAnalyzer::analyze(
+    ///     "if (is_admin == true) { grant_access(); }",
+    ///     Path::new("auth.js"),
+    ///     Language::JavaScript,
+    /// );
+    /// assert!(!findings.is_empty());
+    /// ```
     pub fn analyze(content: &str, file_path: &Path, _language: Language) -> Vec<Finding> {
         let mut findings = Vec::new();
         findings.extend(Self::check_auth_bypass(content, file_path));

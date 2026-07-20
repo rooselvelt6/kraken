@@ -207,4 +207,81 @@ mod tests {
         let findings = DataCollector::extract_emails(text, None);
         assert_eq!(findings.len(), 1);
     }
+
+    #[test]
+    fn extracts_emails_case_insensitive() {
+        let text = "User@Example.COM and USER@EXAMPLE.COM";
+        let findings = DataCollector::extract_emails(text, None);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn extracts_ip_with_source_url() {
+        let text = "Server at 10.0.0.1";
+        let findings = DataCollector::extract_ips(text, Some("https://example.com"));
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].source.url.is_some());
+    }
+
+    #[test]
+    fn extract_urls_no_matches() {
+        let text = "No URLs here, just plain text.";
+        let findings = DataCollector::extract_urls(text, None);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn extract_emails_no_matches() {
+        let text = "No emails here.";
+        let findings = DataCollector::extract_emails(text, None);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn extract_ips_no_matches() {
+        let text = "No IPs here.";
+        let findings = DataCollector::extract_ips(text, None);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn extract_phones_no_matches() {
+        let text = "No phones here.";
+        let findings = DataCollector::extract_phones(text, None);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn extract_from_html_no_mailto() {
+        let html = r#"<a href="https://example.com">Link</a>"#;
+        let findings = DataCollector::extract_from_html(html, None);
+        assert!(!findings.iter().any(|f| f.kind == FindingKind::Email));
+    }
+
+    #[test]
+    fn deduplicates_urls() {
+        let text = "Visit https://example.com and again https://example.com";
+        let findings = DataCollector::extract_urls(text, None);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn deduplicates_ips() {
+        let text = "10.0.0.1 and 10.0.0.1 again";
+        let findings = DataCollector::extract_ips(text, None);
+        assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn extract_all_empty_text() {
+        let findings = DataCollector::extract_all("", None);
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn extract_html_mailto_with_params() {
+        let html = r#"<a href="mailto:user@example.com?subject=hello">Email</a>"#;
+        let findings = DataCollector::extract_from_html(html, None);
+        assert!(findings.iter().any(|f| f.value.contains("user@example.com")));
+    }
 }

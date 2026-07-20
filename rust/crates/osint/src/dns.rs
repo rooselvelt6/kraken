@@ -309,4 +309,72 @@ mod tests {
     fn invalid_record_type_returns_none() {
         assert!(RecordType::parse_str("INVALID").is_none());
     }
+
+    #[test]
+    fn record_type_case_insensitive() {
+        assert!(RecordType::parse_str("a").is_some());
+        assert!(RecordType::parse_str("aaaa").is_some());
+        assert!(RecordType::parse_str("Mx").is_some());
+    }
+
+    #[test]
+    fn record_type_all_variants_as_str() {
+        for rt in [RecordType::A, RecordType::AAAA, RecordType::MX, RecordType::TXT, RecordType::NS, RecordType::SOA, RecordType::CNAME] {
+            assert!(!rt.as_str().is_empty());
+        }
+    }
+
+    #[test]
+    fn dns_record_struct() {
+        let r = DnsRecord {
+            name: "example.com".into(),
+            record_type: "A".into(),
+            value: "93.184.216.34".into(),
+            ttl: Some(300),
+        };
+        assert_eq!(r.record_type, "A");
+        assert!(r.ttl.is_some());
+    }
+
+    #[test]
+    fn dns_result_struct() {
+        let r = DnsResult {
+            domain: "example.com".into(),
+            records: vec![],
+            resolved_ips: vec!["1.2.3.4".into()],
+            whois: None,
+        };
+        assert_eq!(r.resolved_ips.len(), 1);
+        assert!(r.whois.is_none());
+    }
+
+    #[test]
+    fn record_type_parse_all_invalid() {
+        for invalid in &["", "PTR", "MXIP", "123", "SOAX"] {
+            assert!(RecordType::parse_str(invalid).is_none(), "should be None for: {}", invalid);
+        }
+    }
+
+    #[test]
+    fn dns_result_with_whois() {
+        let r = DnsResult {
+            domain: "test.com".into(),
+            records: vec![DnsRecord { name: "test.com".into(), record_type: "A".into(), value: "1.1.1.1".into(), ttl: Some(60) }],
+            resolved_ips: vec!["1.1.1.1".into()],
+            whois: Some("Registrar: Example".into()),
+        };
+        assert!(r.whois.is_some());
+        assert!(!r.records.is_empty());
+    }
+
+    #[test]
+    fn dns_record_no_ttl() {
+        let r = DnsRecord {
+            name: "test.com".into(),
+            record_type: "TXT".into(),
+            value: "v=spf1 include:_spf.google.com ~all".into(),
+            ttl: None,
+        };
+        assert!(r.ttl.is_none());
+    }
 }

@@ -255,4 +255,84 @@ mod tests {
         assert_eq!(url_encode("hello world"), "hello%20world");
         assert_eq!(url_encode("a/b"), "a%2Fb");
     }
+
+    #[test]
+    fn decode_redirect_protocol_relative() {
+        assert_eq!(decode_redirect("//example.com/path"), "https://example.com/path");
+    }
+
+    #[test]
+    fn decode_redirect_uddg_param() {
+        let href = "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com&rut=abc";
+        assert_eq!(decode_redirect(href), "https://example.com");
+    }
+
+    #[test]
+    fn decode_redirect_no_transform() {
+        assert_eq!(decode_redirect("https://example.com"), "https://example.com");
+    }
+
+    #[test]
+    fn percent_decode_hex() {
+        assert_eq!(percent_decode("%41%42%43"), "ABC");
+    }
+
+    #[test]
+    fn percent_decode_empty() {
+        assert_eq!(percent_decode(""), "");
+    }
+
+    #[test]
+    fn percent_decode_invalid_hex() {
+        assert_eq!(percent_decode("%ZZ"), "");
+    }
+
+    #[test]
+    fn rank_score_https_bonus() {
+        let r = SearchResult { title: "T".into(), url: "https://a.com".into(), snippet: None, source: "web".into() };
+        let r2 = SearchResult { title: "T".into(), url: "http://a.com".into(), snippet: None, source: "web".into() };
+        assert!(rank_score(&r) > rank_score(&r2));
+    }
+
+    #[test]
+    fn rank_score_snippet_bonus() {
+        let r = SearchResult { title: "T".into(), url: "https://a.com".into(), snippet: Some("desc".into()), source: "web".into() };
+        let r2 = SearchResult { title: "T".into(), url: "https://a.com".into(), snippet: None, source: "web".into() };
+        assert!(rank_score(&r) > rank_score(&r2));
+    }
+
+    #[test]
+    fn rank_score_title_bonus() {
+        let r = SearchResult { title: "Title".into(), url: "http://a.com".into(), snippet: None, source: "web".into() };
+        let r2 = SearchResult { title: "".into(), url: "http://a.com".into(), snippet: None, source: "web".into() };
+        assert!(rank_score(&r) > rank_score(&r2));
+    }
+
+    #[test]
+    fn deduplicate_preserves_first() {
+        let results = vec![
+            SearchResult { title: "First".into(), url: "https://a.com".into(), snippet: None, source: "web".into() },
+            SearchResult { title: "Second".into(), url: "https://a.com".into(), snippet: None, source: "web".into() },
+        ];
+        let deduped = SearchAggregator::deduplicate(results);
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].title, "First");
+    }
+
+    #[test]
+    fn rank_preserves_order_when_equal() {
+        let mut results = vec![
+            SearchResult { title: "A".into(), url: "http://a.com".into(), snippet: None, source: "web".into() },
+            SearchResult { title: "B".into(), url: "http://b.com".into(), snippet: None, source: "web".into() },
+        ];
+        results = SearchAggregator::rank(results);
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn search_result_struct() {
+        let r = SearchResult { title: "Test".into(), url: "https://test.com".into(), snippet: Some("desc".into()), source: "web".into() };
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains("Test"));
+    }
 }

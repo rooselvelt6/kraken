@@ -925,4 +925,161 @@ mod tests {
         assert!(findings.iter().any(|f| f.value.contains("Robert")));
         assert!(findings.iter().any(|f| f.value.contains("Suffix")));
     }
+
+    #[test]
+    fn parses_empty_string() {
+        let p = NameParser::parse("");
+        assert!(p.first.is_none());
+        assert!(p.last.is_none());
+    }
+
+    #[test]
+    fn parses_single_name() {
+        let p = NameParser::parse("Madonna");
+        assert_eq!(p.first.as_deref(), Some("Madonna"));
+        assert!(p.last.is_none());
+    }
+
+    #[test]
+    fn parses_prefix_dr_without_period() {
+        let p = NameParser::parse("Dr Jane Doe");
+        assert_eq!(p.prefix.as_deref(), Some("Dr"));
+        assert_eq!(p.first.as_deref(), Some("Jane"));
+    }
+
+    #[test]
+    fn parses_comma_with_prefix() {
+        let p = NameParser::parse("Doe, Dr Jane");
+        assert_eq!(p.last.as_deref(), Some("Doe"));
+        assert_eq!(p.prefix.as_deref(), Some("Dr"));
+        assert_eq!(p.first.as_deref(), Some("Jane"));
+    }
+
+    #[test]
+    fn phone_validates_empty() {
+        let info = PhoneOSINT::validate("");
+        assert!(!info.is_valid);
+    }
+
+    #[test]
+    fn phone_validates_plus_only() {
+        let info = PhoneOSINT::validate("+");
+        assert!(!info.is_valid);
+    }
+
+    #[test]
+    fn phone_detects_france() {
+        let info = PhoneOSINT::validate("+33612345678");
+        assert!(info.is_valid);
+        assert_eq!(info.country_code.as_deref(), Some("33"));
+        assert_eq!(info.country_name.as_deref(), Some("France"));
+    }
+
+    #[test]
+    fn phone_detects_germany() {
+        let info = PhoneOSINT::validate("+49170123456");
+        assert!(info.is_valid);
+        assert_eq!(info.country_code.as_deref(), Some("49"));
+        assert_eq!(info.country_name.as_deref(), Some("Germany"));
+    }
+
+    #[test]
+    fn phone_detects_japan() {
+        let info = PhoneOSINT::validate("+81901234567");
+        assert!(info.is_valid);
+        assert_eq!(info.country_code.as_deref(), Some("81"));
+        assert_eq!(info.country_name.as_deref(), Some("Japan"));
+    }
+
+    #[test]
+    fn phone_detects_india() {
+        let info = PhoneOSINT::validate("+919876543210");
+        assert!(info.is_valid);
+        assert_eq!(info.country_code.as_deref(), Some("91"));
+    }
+
+    #[test]
+    fn phone_uk_carrier() {
+        let info = PhoneOSINT::validate("+447911123456");
+        assert!(info.is_valid);
+        assert!(info.carrier.is_some());
+    }
+
+    #[test]
+    fn phone_france_carrier() {
+        let info = PhoneOSINT::validate("+33612345678");
+        assert!(info.carrier.is_some());
+    }
+
+    #[test]
+    fn phone_germany_carrier() {
+        let info = PhoneOSINT::validate("+49170123456");
+        assert!(info.carrier.is_some());
+    }
+
+    #[test]
+    fn phone_spain_carrier() {
+        let info = PhoneOSINT::validate("+34612345678");
+        assert!(info.carrier.is_some());
+    }
+
+    #[test]
+    fn person_searcher_returns_minimum_10() {
+        let findings = PersonSearcher::search_urls("Jane Doe");
+        assert!(findings.len() >= 10);
+    }
+
+    #[test]
+    fn identity_correlator_all_fields() {
+        let data = IdentityData {
+            names: vec!["John Doe".into()],
+            usernames: vec!["johndoe".into()],
+            emails: vec!["john@example.com".into()],
+            phones: vec!["+14155551234".into()],
+            urls: vec!["https://example.com".into()],
+            addresses: vec!["123 Main St".into()],
+            organizations: vec!["Acme Corp".into()],
+        };
+        let findings = IdentityCorrelator::correlate(&data);
+        assert!(findings.len() >= 7);
+        let summary = findings.iter().find(|f| f.source.name == "identity/summary").unwrap();
+        assert!(summary.confidence > 0.0);
+    }
+
+    #[test]
+    fn phone_info_struct_fields() {
+        let info = PhoneOSINT::validate("+14155551234");
+        assert!(!info.raw.is_empty());
+        assert!(!info.normalized.is_empty());
+    }
+
+    #[test]
+    fn parsed_name_struct_serialization() {
+        let p = NameParser::parse("John Smith");
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("John"));
+        assert!(json.contains("Smith"));
+    }
+
+    #[test]
+    fn phone_info_serialization() {
+        let info = PhoneOSINT::validate("+14155551234");
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("+14155551234"));
+    }
+
+    #[test]
+    fn identity_data_serialization() {
+        let data = IdentityData {
+            names: vec!["Test".into()],
+            usernames: vec![],
+            emails: vec![],
+            phones: vec![],
+            urls: vec![],
+            addresses: vec![],
+            organizations: vec![],
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.contains("Test"));
+    }
 }

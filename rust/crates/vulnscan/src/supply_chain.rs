@@ -5,6 +5,21 @@ use std::path::Path;
 pub struct SupplyChainAnalyzer;
 
 impl SupplyChainAnalyzer {
+    /// Analyzes dependency manifests for supply chain risks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::supply_chain::SupplyChainAnalyzer;
+    /// use vulnscan::Language;
+    /// use std::path::Path;
+    /// let findings = SupplyChainAnalyzer::analyze(
+    ///     "[dependencies]\nserde = \"*\"\n",
+    ///     Path::new("Cargo.toml"),
+    ///     Language::Rust,
+    /// );
+    /// assert!(!findings.is_empty());
+    /// ```
     pub fn analyze(content: &str, file_path: &Path, language: Language) -> Vec<Finding> {
         let mut findings = Vec::new();
         match language {

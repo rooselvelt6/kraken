@@ -87,6 +87,12 @@ impl HuntPipeline {
         phases.push(ScanPhase::FileScanning);
         phases.push(ScanPhase::PatternAnalysis);
 
+        if self.config.enable_fuzzing {
+            let fuzz_findings = Self::run_fuzzing_phase(&target, &self.config);
+            findings.extend(fuzz_findings);
+            phases.push(ScanPhase::Fuzzing);
+        }
+
         let attack_graph = LateralMovement::build_attack_graph(&findings);
         let attack_paths = LateralMovement::find_attack_paths(&attack_graph);
         let deorphaned = LateralMovement::deorphan_findings(&attack_graph);
@@ -177,6 +183,12 @@ impl HuntPipeline {
 
         phases.push(ScanPhase::FileScanning);
         phases.push(ScanPhase::PatternAnalysis);
+
+        if self.config.enable_fuzzing {
+            let fuzz_findings = Self::run_fuzzing_phase(&target, &self.config);
+            findings.extend(fuzz_findings);
+            phases.push(ScanPhase::Fuzzing);
+        }
 
         let attack_graph = LateralMovement::build_attack_graph(&findings);
         let attack_paths = LateralMovement::find_attack_paths(&attack_graph);
@@ -363,6 +375,11 @@ impl HuntPipeline {
         let deorphaned = LateralMovement::deorphan_findings(&attack_graph);
         let hypotheses = HypothesisGenerator::generate_from_findings(&findings);
 
+        if self.config.enable_fuzzing {
+            let fuzz_findings = Self::run_fuzzing_phase(&target, &self.config);
+            findings.extend(fuzz_findings);
+        }
+
         let llm_analysis = if self.config.enable_llm_validation || self.config.enable_bughunt_pipeline {
             let analyst = LlmAnalyst::new(LlmAnalystConfig {
                 model: self.config.model.clone(),
@@ -477,6 +494,54 @@ impl HuntPipeline {
             ],
             llm_analysis,
         }
+    }
+
+    fn run_fuzzing_phase(_target: &Path, config: &ScanConfig) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        let workdir = std::env::temp_dir().join("kraken-fuzz");
+
+        let mut triage = crate::kernel::fuzz::CrashTriage::new();
+
+        if let Ok(crashes) = crate::kernel::fuzz::SyzkallerRunner::collect_crashes(
+            &crate::kernel::fuzz::SyzkallerConfig {
+                workdir: workdir.join("syzkaller"),
+                ..Default::default()
+            },
+        ) {
+            for crash in crashes {
+                triage.add_crash(crash);
+            }
+        }
+
+        if let Ok(crashes) = crate::kernel::fuzz::KaflRunner::collect_crashes(
+            &crate::kernel::fuzz::KaflConfig {
+                workdir: workdir.join("kafl"),
+                ..Default::default()
+            },
+        ) {
+            for crash in crashes {
+                triage.add_crash(crash);
+            }
+        }
+
+        let report = triage.triage();
+        findings.extend(report.findings);
+
+        if config.enable_sanitizers {
+            let dmesg_path = workdir.join("dmesg.log");
+            if dmesg_path.exists() {
+                if let Ok(dmesg) = std::fs::read_to_string(&dmesg_path) {
+                    let reports = crate::kernel::sanitizers::SanitizerParser::parse_any_log(&dmesg);
+                    for report in &reports {
+                        findings.push(
+                            crate::kernel::sanitizers::sanitizer_report_to_finding(report),
+                        );
+                    }
+                }
+            }
+        }
+
+        findings
     }
 
     fn run_kernel_mitigation_audit(target: &Path, findings: &mut Vec<Finding>) {

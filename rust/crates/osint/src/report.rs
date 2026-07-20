@@ -412,4 +412,101 @@ mod tests {
         assert!(!ReportGenerator::to_csv(&report).is_empty());
         assert!(!ReportGenerator::to_text(&report).is_empty());
     }
+
+    #[test]
+    fn kind_label_all_variants() {
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Email), "Email");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Url), "URL");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::IpAddress), "IP Address");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::PhoneNumber), "Phone");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Username), "Username");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::DnsRecord), "DNS");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::WhoisInfo), "WHOIS");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Technology), "Technology");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Subdomain), "Subdomain");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::SocialProfile), "Social Profile");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::BreachData), "Breach");
+        assert_eq!(ReportGenerator::kind_label(&FindingKind::Custom("Test".into())), "Test");
+    }
+
+    #[test]
+    fn report_format_equality() {
+        assert_eq!(ReportFormat::Json, ReportFormat::Json);
+        assert_ne!(ReportFormat::Json, ReportFormat::Html);
+    }
+
+    #[test]
+    fn csv_no_escaping_needed() {
+        let target = OsintTarget { value: "test".into(), kind: TargetKind::Domain };
+        let findings = vec![OsintFinding {
+            source: OsintSource { name: "simple".into(), reliability: Reliability::High, url: None },
+            kind: FindingKind::Email,
+            value: "user@example.com".into(),
+            context: None,
+            confidence: 0.9,
+            timestamp: "2024-01-01T00:00:00Z".into(),
+        }];
+        let report = OsintReport::new(target, findings);
+        let csv = ReportGenerator::to_csv(&report);
+        assert!(!csv.contains('"'));
+    }
+
+    #[test]
+    fn csv_escape_newlines() {
+        let result = ReportGenerator::csv_escape("line1\nline2");
+        assert!(result.contains("\""));
+        assert!(result.contains("\n"));
+    }
+
+    #[test]
+    fn html_multiple_findings_same_kind() {
+        let target = OsintTarget { value: "test.com".into(), kind: TargetKind::Domain };
+        let findings = vec![
+            OsintFinding {
+                source: OsintSource { name: "a".into(), reliability: Reliability::High, url: None },
+                kind: FindingKind::IpAddress,
+                value: "1.1.1.1".into(),
+                context: None,
+                confidence: 0.9,
+                timestamp: "2024-01-01T00:00:00Z".into(),
+            },
+            OsintFinding {
+                source: OsintSource { name: "b".into(), reliability: Reliability::Medium, url: None },
+                kind: FindingKind::IpAddress,
+                value: "2.2.2.2".into(),
+                context: None,
+                confidence: 0.8,
+                timestamp: "2024-01-01T00:00:00Z".into(),
+            },
+        ];
+        let report = OsintReport::new(target, findings);
+        let html = ReportGenerator::to_html(&report);
+        assert!(html.contains("(2)"));
+    }
+
+    #[test]
+    fn markdown_reliability_badges() {
+        let target = OsintTarget { value: "test.com".into(), kind: TargetKind::Domain };
+        let findings = vec![
+            OsintFinding {
+                source: OsintSource { name: "a".into(), reliability: Reliability::High, url: None },
+                kind: FindingKind::IpAddress,
+                value: "1.1.1.1".into(),
+                context: None,
+                confidence: 0.9,
+                timestamp: "2024-01-01T00:00:00Z".into(),
+            },
+            OsintFinding {
+                source: OsintSource { name: "b".into(), reliability: Reliability::Low, url: None },
+                kind: FindingKind::IpAddress,
+                value: "2.2.2.2".into(),
+                context: None,
+                confidence: 0.5,
+                timestamp: "2024-01-01T00:00:00Z".into(),
+            },
+        ];
+        let report = OsintReport::new(target, findings);
+        let md = ReportGenerator::to_markdown(&report);
+        assert!(md.contains("IP Address (2)"));
+    }
 }

@@ -299,4 +299,89 @@ mod tests {
         let findings = EmailEnricher::check_breaches("test@example.com");
         assert!(findings.iter().any(|f| f.source.name == "hibp/url"));
     }
+
+    #[test]
+    fn validates_subdomain_email() {
+        assert!(EmailEnricher::validate_format("user@mail.sub.example.com"));
+    }
+
+    #[test]
+    fn rejects_domain_without_dot() {
+        assert!(!EmailEnricher::validate_format("user@localhost"));
+    }
+
+    #[test]
+    fn rejects_domain_ending_with_dot() {
+        assert!(!EmailEnricher::validate_format("user@example.com."));
+    }
+
+    #[test]
+    fn extract_domain_with_subdomain() {
+        assert_eq!(EmailEnricher::extract_domain("user@mail.example.com"), Some("mail.example.com".into()));
+    }
+
+    #[test]
+    fn extract_domain_empty_after_at() {
+        assert_eq!(EmailEnricher::extract_domain("user@"), None);
+    }
+
+    #[test]
+    fn detects_protonmail_provider() {
+        let findings = EmailEnricher::enrich("user@protonmail.com");
+        assert!(findings.iter().any(|f| f.value.contains("ProtonMail")));
+    }
+
+    #[test]
+    fn detects_outlook_provider() {
+        let findings = EmailEnricher::enrich("user@outlook.com");
+        assert!(findings.iter().any(|f| f.value.contains("Outlook")));
+    }
+
+    #[test]
+    fn detects_hotmail_provider() {
+        let findings = EmailEnricher::enrich("user@hotmail.com");
+        assert!(findings.iter().any(|f| f.value.contains("Hotmail")));
+    }
+
+    #[test]
+    fn validates_long_local_part() {
+        let long_local = "a".repeat(64);
+        assert!(EmailEnricher::validate_format(&format!("{}@example.com", long_local)));
+    }
+
+    #[test]
+    fn enrich_invalid_email_returns_empty() {
+        let findings = EmailEnricher::enrich("not-an-email");
+        assert!(findings.is_empty());
+    }
+
+    #[test]
+    fn breach_check_with_hibp_url() {
+        let findings = EmailEnricher::check_breaches("test@example.com");
+        assert!(findings.iter().any(|f| f.source.url.as_ref().unwrap().contains("haveibeenpwned.com")));
+    }
+
+    #[test]
+    fn breach_entry_struct() {
+        let e = BreachEntry {
+            service: "Adobe".into(),
+            breach_date: Some("2013-10-04".into()),
+            data_classes: vec!["Email addresses".into(), "Password hints".into()],
+            source: "HaveIBeenPwned".into(),
+            confidence: 0.95,
+        };
+        let json = serde_json::to_string(&e).unwrap();
+        assert!(json.contains("Adobe"));
+        assert!(json.contains("2013-10-04"));
+    }
+
+    #[test]
+    fn validates_email_with_plus() {
+        assert!(EmailEnricher::validate_format("user+tag@example.com"));
+    }
+
+    #[test]
+    fn validates_email_with_hyphen() {
+        assert!(EmailEnricher::validate_format("user-name@example-domain.com"));
+    }
 }

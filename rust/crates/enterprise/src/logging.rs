@@ -227,4 +227,155 @@ mod tests {
         assert_eq!(Level::from_str("warn"), Level::Warn);
         assert_eq!(Level::from_str("ERROR"), Level::Error);
     }
+
+    #[test]
+    fn test_level_from_str_case_insensitive() {
+        assert_eq!(Level::from_str("debug"), Level::Debug);
+        assert_eq!(Level::from_str("TRACE"), Level::Trace);
+        assert_eq!(Level::from_str("info"), Level::Info);
+        assert_eq!(Level::from_str("Warning"), Level::Warn);
+        assert_eq!(Level::from_str("error"), Level::Error);
+    }
+
+    #[test]
+    fn test_level_from_str_unknown_defaults_to_info() {
+        assert_eq!(Level::from_str("verbose"), Level::Info);
+        assert_eq!(Level::from_str(""), Level::Info);
+        assert_eq!(Level::from_str("FATAL"), Level::Info);
+    }
+
+    #[test]
+    fn test_level_display() {
+        assert_eq!(Level::Trace.to_string(), "TRACE");
+        assert_eq!(Level::Debug.to_string(), "DEBUG");
+        assert_eq!(Level::Info.to_string(), "INFO");
+        assert_eq!(Level::Warn.to_string(), "WARN");
+        assert_eq!(Level::Error.to_string(), "ERROR");
+    }
+
+    #[test]
+    fn test_level_equality() {
+        assert_eq!(Level::Info, Level::Info);
+        assert_ne!(Level::Info, Level::Error);
+        assert_ne!(Level::Trace, Level::Debug);
+    }
+
+    #[test]
+    fn test_level_serialization() {
+        for level in [Level::Trace, Level::Debug, Level::Info, Level::Warn, Level::Error] {
+            let json = serde_json::to_string(&level).unwrap();
+            let deserialized: Level = serde_json::from_str(&json).unwrap();
+            assert_eq!(level, deserialized);
+        }
+    }
+
+    #[test]
+    fn test_log_entry_defaults() {
+        let entry = LogEntry::new(Level::Warn, "target", "msg");
+        assert!(entry.provider.is_none());
+        assert!(entry.session_id.is_none());
+        assert!(entry.user_id.is_none());
+        assert!(entry.trace_id.is_none());
+        assert!(entry.span_id.is_none());
+        assert!(entry.metadata.is_empty());
+    }
+
+    #[test]
+    fn test_log_entry_with_trace() {
+        let entry = LogEntry::new(Level::Debug, "t", "m")
+            .with_trace("trace-abc", "span-123");
+        assert_eq!(entry.trace_id, Some("trace-abc".to_string()));
+        assert_eq!(entry.span_id, Some("span-123".to_string()));
+    }
+
+    #[test]
+    fn test_log_entry_with_metadata() {
+        let entry = LogEntry::new(Level::Info, "t", "m")
+            .with_metadata("key", serde_json::json!("value"))
+            .with_metadata("num", serde_json::json!(42));
+        assert_eq!(entry.metadata.get("key"), Some(&serde_json::json!("value")));
+        assert_eq!(entry.metadata.get("num"), Some(&serde_json::json!(42)));
+    }
+
+    #[test]
+    fn test_log_entry_builder_chain_all() {
+        let entry = LogEntry::new(Level::Error, "api", "failure")
+            .with_provider("ollama")
+            .with_session("sess-1")
+            .with_trace("tr-1", "sp-1")
+            .with_metadata("attempt", serde_json::json!(3));
+
+        assert_eq!(entry.provider, Some("ollama".to_string()));
+        assert_eq!(entry.session_id, Some("sess-1".to_string()));
+        assert_eq!(entry.trace_id, Some("tr-1".to_string()));
+        assert_eq!(entry.span_id, Some("sp-1".to_string()));
+        assert_eq!(entry.metadata.len(), 1);
+    }
+
+    #[test]
+    fn test_log_entry_to_string_format() {
+        let entry = LogEntry::new(Level::Info, "target", "hello");
+        let s = entry.to_string();
+        assert!(s.contains("INFO"));
+        assert!(s.contains("target"));
+        assert!(s.contains("hello"));
+        assert!(s.contains("["));
+    }
+
+    #[test]
+    fn test_log_entry_serialization_roundtrip() {
+        let entry = LogEntry::new(Level::Error, "api", "boom")
+            .with_provider("deepseek")
+            .with_metadata("x", serde_json::json!(1));
+
+        let json = serde_json::to_string(&entry).unwrap();
+        let deserialized: LogEntry = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.level, Level::Error);
+        assert_eq!(deserialized.target, "api");
+        assert_eq!(deserialized.message, "boom");
+        assert_eq!(deserialized.provider, Some("deepseek".to_string()));
+    }
+
+    #[test]
+    fn test_json_logger_new() {
+        let logger = JsonLogger::new(Level::Warn);
+        assert!(matches!(logger.level, Level::Warn));
+    }
+
+    #[test]
+    fn test_json_logger_levels() {
+        // Just verify logger can be created at each level without panic
+        let _trace = JsonLogger::new(Level::Trace);
+        let _debug = JsonLogger::new(Level::Debug);
+        let _info = JsonLogger::new(Level::Info);
+        let _warn = JsonLogger::new(Level::Warn);
+        let _error = JsonLogger::new(Level::Error);
+    }
+
+    #[test]
+    fn test_init_logger_and_get() {
+        init_logger(Level::Debug);
+        let guard = get_logger().lock().unwrap();
+        assert!(guard.is_some());
+    }
+
+    #[test]
+    fn test_global_log_functions() {
+        init_logger(Level::Trace);
+        // These should not panic
+        trace("test", "trace msg");
+        debug("test", "debug msg");
+        info("test", "info msg");
+        warn("test", "warn msg");
+        error("test", "error msg");
+    }
+
+    #[test]
+    fn test_log_entry_empty_strings() {
+        let entry = LogEntry::new(Level::Info, "", "");
+        assert_eq!(entry.target, "");
+        assert_eq!(entry.message, "");
+        let json = entry.to_json();
+        assert!(!json.is_empty());
+    }
 }

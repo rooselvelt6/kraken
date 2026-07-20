@@ -6,6 +6,18 @@ use std::process::Command;
 pub struct FuzzGuide;
 
 impl FuzzGuide {
+    /// Suggests fuzz targets from source code by finding parse/decode/read functions and unsafe blocks.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::fuzz::FuzzGuide;
+    /// use vulnscan::Language;
+    /// use std::path::Path;
+    /// let code = "fn parse_header(data: &[u8]) -> Header {\n    unsafe { /* ... */ }\n}";
+    /// let targets = FuzzGuide::suggest_targets(code, Path::new("parser.rs"), Language::Rust);
+    /// assert!(!targets.is_empty());
+    /// ```
     pub fn suggest_targets(content: &str, file_path: &Path, _language: Language) -> Vec<String> {
         let mut targets = Vec::new();
         for (i, line) in content.lines().enumerate() {
@@ -29,6 +41,17 @@ impl FuzzGuide {
         targets
     }
 
+    /// Generates a cargo-fuzz target template for the given function.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::fuzz::FuzzGuide;
+    /// use std::path::Path;
+    /// let template = FuzzGuide::generate_fuzz_target(Path::new("src/parser.rs"), "parse_input");
+    /// assert!(template.contains("parse_input"));
+    /// assert!(template.contains("fuzz_target"));
+    /// ```
     pub fn generate_fuzz_target(file_path: &Path, function_name: &str) -> String {
         let file_stem = file_path
             .file_stem()

@@ -71,6 +71,16 @@ impl SecretsRedactor {
         }
     }
 
+    /// Redacts detected secrets in the input string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::secrets::SecretsRedactor;
+    /// let r = SecretsRedactor::new();
+    /// let redacted = r.redact("api_key=sk_live_abc123def456ghi789");
+    /// assert!(redacted.contains("[REDACTED]"));
+    /// ```
     pub fn redact(&self, input: &str) -> String {
         let mut result = input.to_string();
         for cp in &self.patterns {
@@ -79,10 +89,30 @@ impl SecretsRedactor {
         result
     }
 
+    /// Returns true if the input contains a detected secret pattern.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::secrets::SecretsRedactor;
+    /// let r = SecretsRedactor::new();
+    /// assert!(r.contains_secret("AKIAIOSFODNN7EXAMPLE"));
+    /// assert!(!r.contains_secret("no secrets here"));
+    /// ```
     pub fn contains_secret(&self, input: &str) -> bool {
         self.patterns.iter().any(|cp| cp.regex.is_match(input))
     }
 
+    /// Redacts a sensitive value based on its key name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::secrets::SecretsRedactor;
+    /// assert_eq!(SecretsRedactor::redact_sensitive_value("api_key", "sk_live_123456"), "sk_l...");
+    /// assert_eq!(SecretsRedactor::redact_sensitive_value("password", "ab"), "***");
+    /// assert_eq!(SecretsRedactor::redact_sensitive_value("name", "Alice"), "Alice");
+    /// ```
     pub fn redact_sensitive_value(key: &str, value: &str) -> String {
         let sensitive_keys = [
             "api_key", "apikey", "api-key",
@@ -120,10 +150,28 @@ pub fn global_redactor() -> &'static SecretsRedactor {
     GLOBAL_REDACTOR.get_or_init(SecretsRedactor::default)
 }
 
+/// Redacts secrets from the input using the global redactor.
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::secrets::redact_secrets;
+/// let redacted = redact_secrets("token=ghp_ABCDEFGHIJKLMNOP1234567890");
+/// assert!(redacted.contains("[REDACTED]"));
+/// ```
 pub fn redact_secrets(input: &str) -> String {
     global_redactor().redact(input)
 }
 
+/// Returns true if the input contains any detected secret pattern.
+///
+/// # Examples
+///
+/// ```
+/// use vulnscan::secrets::contains_secrets;
+/// assert!(contains_secrets("AKIAIOSFODNN7EXAMPLE"));
+/// assert!(!contains_secrets("hello world"));
+/// ```
 pub fn contains_secrets(input: &str) -> bool {
     global_redactor().contains_secret(input)
 }
@@ -133,6 +181,16 @@ pub fn contains_secrets(input: &str) -> bool {
 pub struct SecretsDetector;
 
 impl SecretsDetector {
+    /// Scans source code for hardcoded secrets and sensitive data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use vulnscan::secrets::SecretsDetector;
+    /// use std::path::Path;
+    /// let findings = SecretsDetector::scan("api_key = 'sk_live_abc123def456ghi789'", Path::new("config.js"));
+    /// assert!(!findings.is_empty());
+    /// ```
     pub fn scan(content: &str, file_path: &Path) -> Vec<Finding> {
         let mut findings = Vec::new();
         findings.extend(Self::scan_patterns(content, file_path));
