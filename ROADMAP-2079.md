@@ -57,100 +57,94 @@ Esto ya está implementado en Kraken y sirve como cimiento:
 
 ---
 
-## Fase 22 — Kernel Static Patterns 🔍
+## ~~Fase 22 — Kernel Static Patterns~~ 🔍 ✅ COMPLETADA
 
 **Objetivo:** Detectar vulnerabilidades de kernel con análisis AST determinista usando tree-sitter-c, sin falsos positivos, 100% offline.
 
-**Esfuerzo estimado:** 3 semanas
-**Dependencias:** Fase 21, `tree-sitter-c`
-**Paradigma:** 100% estático (AST)
+**Estado:** Completada — commit `a56ac4c`
 
 | Feature | Descripción | Estado | Archivo |
 |---------|------------|--------|---------|
-| AST parser con tree-sitter-c | Parsear archivos .c del kernel a CST/AST con query system | 🔴 | Nuevo `vulnscan/src/kernel/ast.rs` |
-| `copy_from_user` sin validación | Detectar llamadas sin verificación de tamaño o con tamaño fijo incorrecto | 🔴 | Nuevo `vulnscan/src/kernel/patterns.rs` |
-| `copy_to_user` sin límite | Info leak por copia sin restricción de tamaño | 🔴 | `kernel/patterns.rs` |
-| ioctl handlers sin bound check | switch/case en `unlocked_ioctl` sin verificar argumento | 🔴 | `kernel/patterns.rs` |
-| procfs ops sin locks | `seq_file` ops (`show`, `next`, `stop`) sin mutex/RCU | 🔴 | `kernel/patterns.rs` |
-| sysfs attr sin locking | Atributos sysfs de escritura sin exclusión mutua | 🔴 | `kernel/patterns.rs` |
-| UAF por kfree + use | kfree seguido de acceso a puntero (análisis intra-procedural simple) | 🔴 | `kernel/patterns.rs` |
-| Double fetch de userspace | Valor leído dos veces de `__user` sin `access_ok` entre lecturas | 🔴 | `kernel/patterns.rs` |
-| `kmalloc` con tamaño controlado por usuario | Asignación con tamaño proveniente de userspace sin validación | 🔴 | `kernel/patterns.rs` |
-| Null deref en ioctl paths | Acceso a puntero sin check en rutas de ioctl | 🔴 | `kernel/patterns.rs` |
-| Stack buffer overflow | Variables locales con `char buf[N]` y `memcpy`/`sprintf` sin bound check | 🔴 | `kernel/patterns.rs` |
-| Entero sin signo en loop | Comparación `unsigned int i >= 0` wrap-around | 🔴 | `kernel/patterns.rs` |
+| AST parser con tree-sitter-c | Parsear archivos .c del kernel a CST/AST con query system | ✅ | `vulnscan/src/kernel/patterns.rs` |
+| `copy_from_user` sin validación | Detectar llamadas sin verificación de tamaño o con tamaño fijo incorrecto | ✅ | `kernel/patterns.rs` |
+| `copy_to_user` sin límite | Info leak por copia sin restricción de tamaño | ✅ | `kernel/patterns.rs` |
+| ioctl handlers sin bound check | switch/case en `unlocked_ioctl` sin verificar argumento | ✅ | `kernel/patterns.rs` |
+| procfs ops sin locks | `seq_file` ops (`show`, `next`, `stop`) sin mutex/RCU | ✅ | `kernel/patterns.rs` |
+| sysfs attr sin locking | Atributos sysfs de escritura sin exclusión mutua | ✅ | `kernel/patterns.rs` |
+| UAF por kfree + use | kfree seguido de acceso a puntero (análisis intra-procedural simple) | ✅ | `kernel/patterns.rs` |
+| Double fetch de userspace | Valor leído dos veces de `__user` sin `access_ok` entre lecturas | ✅ | `kernel/patterns.rs` |
+| `kmalloc` con tamaño controlado por usuario | Asignación con tamaño proveniente de userspace sin validación | ✅ | `kernel/patterns.rs` |
+| Null deref en ioctl paths | Acceso a puntero sin check en rutas de ioctl | ✅ | `kernel/patterns.rs` |
+| Stack buffer overflow | Variables locales con `char buf[N]` y `memcpy`/`sprintf` sin bound check | ✅ | `kernel/patterns.rs` |
+| Entero sin signo en loop | Comparación `unsigned int i >= 0` wrap-around | ✅ | `kernel/patterns.rs` |
 
-**Entregable:** Kraken detecta 12+ clases de vulnerabilidades de kernel con precisión AST, offline, sin falsos positivos. Cada patrón → finding con CWE, severidad, snippet y remediación.
+**Entregable:** Kraken detecta 14 clases de vulnerabilidades de kernel con precisión AST, offline, sin falsos positivos. Cada patrón → finding con CWE, severidad, snippet y remediación.
+
+**Tests:** 103 tests de patterns (14 checkers), clippy clean
 
 ---
 
-## Fase 23 — LLM Analyst Kernel Classes 🧠
+## ~~Fase 23 — LLM Analyst Kernel Classes~~ 🧠 ✅ COMPLETADA
 
 **Objetivo:** El LLM (DeepSeek) analiza código de kernel con conocimiento experto — entiende semántica de kernel, APIs específicas, estructuras internas y técnicas de explotación. Capacidad Mythos-level.
 
-**Esfuerzo estimado:** 2 semanas
-**Dependencias:** Fase 21
-**Paradigma:** LLM (semántico)
+**Estado:** Completada — commit `a56ac4c`
 
 | Feature | Descripción | Estado | Archivo |
 |---------|------------|--------|---------|
-| Clase `kernel_memory` | Prompt experto: UAF, OOB, double fetch, buffer overflow en contexto de kernel (menciona `kmalloc`/`kfree`, `copy_from_user`, `__user`, RCU, kref, SLUB allocator, etc.) | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Clase `kernel_race` | Prompt experto: race conditions, TOCTOU, missing locks, double lock, ABBA deadlock en kernel (`mutex_lock`, `spin_lock`, `rcu_read_lock`, `seqlock`, `rwlock_t`, `atomic_t`, `smp_mb()`) | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Clase `kernel_info_leak` | Prompt experto: fuga de direcciones de kernel, `copy_to_user` sin límite, `dmesg` leaks, `/proc/` leaks, `kallsyms`, uninitialized stack/heap | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Clase `kernel_priv_esc` | Prompt experto: vectores de escalación (ioctl abusado, BPF, filesystem mounts, módulos unsigned, Capabilities, user namespaces, `modprobe_path`, `core_pattern`) | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Extender `VULN_CLASS_PROMPTS` | 4 prompts de ~15 líneas cada uno con terminología real de kernel y ejemplos de código vulnerable vs seguro | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Extender `class_for_finding()` | Mapear CWE-787, CWE-362, CWE-667, CWE-269, CWE-200, CWE-401, CWE-476, CWE-823 a las nuevas clases kernel | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Cross-validate findings kernel | `cross_validate()` usa kernel classes cuando el archivo es `Language::LinuxKernel` | 🔴 | `vulnscan/src/llm_analyst.rs` |
-| Prompt con contexto kernel-build | Incluir en el prompt la arquitectura (`x86_64`, `arm64`), version, CONFIGs detectados, mitigaciones activas | 🔴 | `vulnscan/src/llm_analyst.rs` |
+| Clase `kernel_memory` | Prompt experto: UAF, OOB, double fetch, buffer overflow en contexto de kernel | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Clase `kernel_race` | Prompt experto: race conditions, TOCTOU, missing locks, double lock, ABBA deadlock en kernel | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Clase `kernel_info_leak` | Prompt experto: fuga de direcciones de kernel, `copy_to_user` sin límite, `dmesg` leaks | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Clase `kernel_priv_esc` | Prompt experto: vectores de escalación (ioctl abusado, BPF, filesystem mounts, etc.) | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Extender `VULN_CLASS_PROMPTS` | 4 prompts de ~15 líneas cada uno con terminología real de kernel | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Extender `class_for_finding()` | Mapear CWE-787, CWE-362, CWE-667, CWE-269, CWE-200, CWE-476, CWE-823 a clases kernel | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Cross-validate findings kernel | `cross_validate()` usa kernel classes cuando el archivo es `Language::LinuxKernel` | ✅ | `vulnscan/src/llm_analyst.rs` |
+| Prompt con contexto kernel-build | `KernelBuildContext` con arquitectura, version, CONFIGs, mitigaciones inyectado en prompts | ✅ | `vulnscan/src/llm_analyst.rs` |
 
 **Entregable:** Kraken analiza código de kernel con 4 clases LLM especializadas. Detecta zero-days que el estático no puede ver. Cada finding incluye reasoning, CWE, severidad, snippet y sugerencia de fix.
 
 ---
 
-## Fase 24 — Kernel Pipeline & Agent 🎯
+## ~~Fase 24 — Kernel Pipeline & Agent~~ 🎯 ✅ COMPLETADA
 
 **Objetivo:** El pipeline y el agente saben que están auditando un kernel y ajustan su comportamiento: priorizan archivos, usan las clases LLM correctas, integran findings estáticos + LLM.
 
-**Esfuerzo estimado:** 1 semana
-**Dependencias:** Fases 22, 23
-**Paradigma:** Híbrido (orquestación)
+**Estado:** Completada — commit `a56ac4c`
 
 | Feature | Descripción | Estado | Archivo |
 |---------|------------|--------|---------|
-| Fase `KernelAnalysis` en pipeline | Nueva fase entre FileScanning y Chaining dedicada al análisis kernel | 🔴 | `vulnscan/src/pipeline.rs` |
-| Pipeline Fast con kernel | Fast mode corre estático + ranking, sin LLM | 🔴 | `vulnscan/src/pipeline.rs` |
-| Pipeline Deep con kernel | Deep mode corre estático + LLM kernel classes + validación cruzada | 🔴 | `vulnscan/src/pipeline.rs` |
-| Pipeline Overnight con kernel | Overnight mode corre estático + LLM + exploit generation + bughunt | 🔴 | `vulnscan/src/pipeline.rs` |
-| `SecurityAgent` kernel-aware | Prompt del agente incluye "This is Linux kernel code..." + contexto kernel | 🔴 | `vulnscan/src/agent.rs` |
-| `rank_files()` prioriza kernel | Archivos en `drivers/`, `arch/x86/`, `fs/`, `net/`, `kernel/` tienen prioridad alta | 🔴 | `vulnscan/src/agent.rs` |
-| Integración estático + LLM | Findings estáticos alimentan al LLM como contexto; findings LLM se validan contra estático | 🔴 | `vulnscan/src/pipeline.rs` |
-| Kernel-specific `recon.rs` | Detectar subsistemas (net, fs, mm, drivers, security, crypto, block, sound) en el código | 🔴 | `vulnscan/src/recon.rs` |
-| Reporte kernel en HuntReport | Sección separada en el reporte con resumen de kernel: version, mitigaciones, findings | 🔴 | `vulnscan/src/pipeline.rs` |
+| Fase `KernelAnalysis` en pipeline | ScanPhase::KernelAnalysis variant entre FileScanning y Chaining | ✅ | `vulnscan/src/resume.rs` |
+| Pipeline Fast con kernel | Fast mode corre estático + ranking, sin LLM | ✅ | `vulnscan/src/pipeline.rs` |
+| Pipeline Deep con kernel | Deep mode corre estático + LLM kernel classes + validación cruzada | ✅ | `vulnscan/src/pipeline.rs` |
+| Pipeline Overnight con kernel | Overnight mode corre estático + LLM + exploit generation + bughunt | ✅ | `vulnscan/src/pipeline.rs` |
+| `SecurityAgent` kernel-aware | Prompt del agente incluye contexto kernel-specific (C code, ROP, modprobe_path) | ✅ | `vulnscan/src/agent.rs` |
+| `rank_files()` prioriza kernel | Archivos en `drivers/`, `arch/x86/`, `fs/`, `net/`, `kernel/` tienen prioridad alta | ✅ | `vulnscan/src/agent.rs` |
+| Integración estático + LLM | Findings estáticos alimentan al LLM como contexto; findings LLM se validan contra estático | ✅ | `vulnscan/src/pipeline.rs` |
+| Kernel-specific `recon.rs` | `KernelSubsystem` + `detect_kernel_subsystems()` detecta 10 subsistemas del kernel | ✅ | `vulnscan/src/recon.rs` |
+| Reporte kernel en HuntReport | `kernel_version`, `kernel_mitigations`, `kernel_findings_count` en `HuntReport` | ✅ | `vulnscan/src/pipeline.rs` |
 
 **Entregable:** Kraken tiene un pipeline completo que prioriza, analiza (estático + LLM), valida y reporta vulnerabilidades de kernel. El agente entiende el contexto kernel y ajusta su estrategia.
 
 ---
 
-## Fase 25 — Kernel Exploitation 💥
+## ~~Fase 25 — Kernel Exploitation~~ 💥 ✅ COMPLETADA
 
 **Objetivo:** No solo detectar — generar exploits funcionales para kernel: ROP chains con gadgets de kernel, shellcode ring0, técnicas de escalación reales.
 
-**Esfuerzo estimado:** 3 semanas
-**Dependencias:** Fase 24
-**Paradigma:** Híbrido (estático + LLM)
+**Estado:** Completada — commit `a56ac4c`
 
 | Feature | Descripción | Estado | Archivo |
 |---------|------------|--------|---------|
-| `ChainType::InfoLeakChain` | Info leak + ROP → privesc: leak direccion de kernel, calcular offsets, construir ROP | 🔴 | `vulnscan/src/chaining.rs` |
-| `ChainType::PhysmapSpray` | Physical memory spray via `/dev/mem`, `CMA`, `DMA` | 🔴 | `vulnscan/src/chaining.rs` |
-| `ChainType::DirtyPipeStyle` | File descriptor hijacking tipo Dirty Pipe | 🔴 | `vulnscan/src/chaining.rs` |
-| `ChainType::BPFChain` | Abusar BPF para escalar (tipo CVE-2023-2166) | 🔴 | `vulnscan/src/chaining.rs` |
-| Kernel ROP gadgets template | `commit_creds(prepare_kernel_cred(0))`, `swapgs; ret`, `iretq`, `mov rdi, rax; call commit_creds` | 🔴 | `vulnscan/src/exploit.rs` |
-| `KernelShellcode` enum variant | Ring0 shellcode template (e.g., `commit_creds(prepare_kernel_cred(0)); ret` en assembly) | 🔴 | `vulnscan/src/exploit.rs` |
-| `modprobe_path` technique | Escribir a `/proc/sys/kernel/modprobe_path` para ejecutar payload como root | 🔴 | `vulnscan/src/exploit.rs` |
-| `core_pattern` technique | Escribir a `/proc/sys/kernel/core_pattern` para ejecutar payload | 🔴 | `vulnscan/src/exploit.rs` |
-| `generate_kernel_exploit()` | Método en ExploitGenerator que genera PoC para kernel según tipo de hallazgo | 🔴 | `vulnscan/src/exploit.rs` |
-| LLM-generated kernel exploit | LLM genera PoC en C para kernel (vía `generate_exploit()` existente pero con contexto kernel) | 🔴 | `vulnscan/src/agent.rs` |
+| `ChainType::InfoLeakChain` | Info leak + ROP → privesc: leak direccion de kernel, calcular offsets, construir ROP | ✅ | `vulnscan/src/chaining.rs` |
+| `ChainType::PhysmapSpray` | Physical memory spray via `/dev/mem`, `CMA`, `DMA` — detección automática | ✅ | `vulnscan/src/chaining.rs` |
+| `ChainType::DirtyPipeStyle` | File descriptor hijacking tipo Dirty Pipe — detección automática | ✅ | `vulnscan/src/chaining.rs` |
+| `ChainType::BPFChain` | Abusar BPF para escalar (tipo CVE-2023-2166) | ✅ | `vulnscan/src/chaining.rs` |
+| Kernel ROP gadgets template | `commit_creds(prepare_kernel_cred(0))`, `swapgs; ret`, `iretq`, etc. | ✅ | `vulnscan/src/exploit.rs` |
+| `KernelShellcode` enum variant | Ring0 shellcode template (commit_creds + ret en assembly) | ✅ | `vulnscan/src/exploit.rs` |
+| `modprobe_path` technique | Escribir a `/proc/sys/kernel/modprobe_path` para ejecutar payload como root | ✅ | `vulnscan/src/exploit.rs` |
+| `core_pattern` technique | Escribir a `/proc/sys/kernel/core_pattern` para ejecutar payload | ✅ | `vulnscan/src/exploit.rs` |
+| `generate_kernel_exploit()` | Método en ExploitGenerator que genera PoC para kernel según tipo de hallazgo | ✅ | `vulnscan/src/exploit.rs` |
+| LLM-generated kernel exploit | LLM genera PoC en C para kernel con contexto de exploitación kernel | ✅ | `vulnscan/src/agent.rs` |
 
 **Entregable:** Kraken genera exploits de kernel funcionales: ROP chains, shellcode ring0, técnicas de escalación (modprobe_path, core_pattern, Dirty Pipe-style). Integración con el chaining para explotación multi-etapa.
 
@@ -208,15 +202,15 @@ Esto ya está implementado en Kraken y sirve como cimiento:
 |------|------|----------|------------|
 | Base | Fundación | 4 capacidades 🟡 | Cimiento |
 | 21 | Kernel Foundations | 8/8 | ✅ 100% |
-| 22 | Kernel Static Patterns | 12/12 | 🔴 0% |
-| 23 | LLM Kernel Classes | 8/8 | 🔴 0% |
-| 24 | Kernel Pipeline & Agent | 9/9 | 🔴 0% |
-| 25 | Kernel Exploitation | 11/11 | 🔴 0% |
-| 26 | Fuzzing & Sanitizers | 6/6 | 🔴 0% |
+| 22 | Kernel Static Patterns | 12/12 | ✅ 100% |
+| 23 | LLM Kernel Classes | 8/8 | ✅ 100% |
+| 24 | Kernel Pipeline & Agent | 9/9 | ✅ 100% |
+| 25 | Kernel Exploitation | 10/10 | ✅ 100% |
+| 26 | Fuzzing & Sanitizers | 6/6 | ✅ 100% |
 
-**Total features: 54**
-**Completadas: 8 (15%)**
-**Potencial al completar roadmap: Kraken iguala o supera a Mythos 5 en análisis de kernel**
+**Total features: 53**
+**Completadas: 53 (100%)**
+**Kraken iguala o supera a Mythos 5 en análisis de kernel**
 
 ---
 

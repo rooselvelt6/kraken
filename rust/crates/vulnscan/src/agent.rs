@@ -168,16 +168,50 @@ Severity: {:?}",
     }
 
     pub async fn generate_exploit(&self, finding: &Finding) -> Finding {
-        let prompt = format!(
-            "Generate a working PoC exploit for this vulnerability.
+        let is_kernel = finding.file_path.as_ref().is_some_and(|p| {
+            let s = p.to_string_lossy();
+            s.contains("/kernel/")
+                || s.contains("/drivers/")
+                || s.contains("/arch/")
+                || s.contains("/fs/")
+                || s.contains("/net/")
+                || s.contains("/mm/")
+                || s.contains("/include/linux/")
+        });
+
+        let prompt = if is_kernel {
+            format!(
+                "Generate a working PoC exploit for this KERNEL vulnerability.
+Respond with JSON: {{\"language\":\"c\",\"code\":\"...\",\"type\":\"RCE|PrivEsc|DoS|AuthBypass\",\"notes\":\"\"}}
+
+IMPORTANT: Kernel exploits must be written in C, not Python.
+Available kernel exploitation techniques to consider:
+- commit_creds(prepare_kernel_cred(0)) ROP chain for privilege escalation
+- modprobe_path overwrite for arbitrary root execution
+- core_pattern overwrite for trigger-on-crash shell
+- Dirty Pipe (CVE-2022-0847) style page cache overwrite
+- Physmap spray + write primitive for direct kernel memory access
+
+Include architecture detection (x86_64/ARM64) in the exploit and handle KASLR/SMAP/SMEP mitigations where applicable.
+
+Description: {}
+CWE: {:?}
+Severity: {:?}
+File: {:?}",
+                finding.description, finding.cwe, finding.severity, finding.file_path
+            )
+        } else {
+            format!(
+                "Generate a working PoC exploit for this vulnerability.
 Respond with JSON: {{\"language\":\"python\",\"code\":\"...\",\"type\":\"RCE|PrivEsc|DoS|AuthBypass\",\"notes\":\"\"}}
 
 Description: {}
 CWE: {:?}
 Severity: {:?}
 File: {:?}",
-            finding.description, finding.cwe, finding.severity, finding.file_path
-        );
+                finding.description, finding.cwe, finding.severity, finding.file_path
+            )
+        };
         match self.call_llm(&prompt).await {
             Ok(response) => {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&response) {

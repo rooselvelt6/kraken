@@ -164,6 +164,120 @@ impl VulnerabilityChainer {
             });
         }
 
+        // Kernel: physmap / physical memory mapping + write primitive → kernel R/W
+        let physmap_findings: Vec<&Finding> = findings
+            .iter()
+            .filter(|f| {
+                if !Self::is_kernel_path(f) {
+                    return false;
+                }
+                let desc = f.description.to_lowercase();
+                desc.contains("physical memory")
+                    || desc.contains("/dev/mem")
+                    || desc.contains("cma")
+                    || desc.contains("dma")
+                    || desc.contains("physmap")
+                    || desc.contains("memory-mapped")
+            })
+            .collect();
+        let write_findings: Vec<&Finding> = findings
+            .iter()
+            .filter(|f| {
+                f.cwe.as_deref().is_some_and(|cwe| {
+                    cwe.contains("787") || cwe.contains("120") || cwe.contains("416")
+                }) && Self::is_kernel_path(f)
+            })
+            .collect();
+        for phys in &physmap_findings {
+            for write in &write_findings {
+                if phys.id != write.id {
+                    chains.push(ChainedExploit {
+                        id: crate::new_finding_id(),
+                        findings: vec![(*phys).clone(), (*write).clone()],
+                        chain_type: ChainType::PhysmapSpray,
+                        description: format!(
+                            "Physmap/physical memory mapping ({}) + write primitive ({}) → direct kernel memory write via physical mapping",
+                            phys.cwe.as_deref().unwrap_or("unknown"),
+                            write.cwe.as_deref().unwrap_or("unknown"),
+                        ),
+                        estimated_impact: Severity::Critical,
+                    });
+                }
+            }
+        }
+
+        // Kernel: Dirty Pipe style — page cache overwrite via pipe/splice
+        let pipe_findings: Vec<&Finding> = findings
+            .iter()
+            .filter(|f| {
+                if !Self::is_kernel_path(f) {
+                    return false;
+                }
+                let desc = f.description.to_lowercase();
+                desc.contains("pipe")
+                    || desc.contains("splice")
+                    || desc.contains("page_cache")
+                    || desc.contains("flag")
+            })
+            .collect();
+        let pipe_readwrite: Vec<&Finding> = findings
+            .iter()
+            .filter(|f| {
+                if !Self::is_kernel_path(f) {
+                    return false;
+                }
+                let desc = f.description.to_lowercase();
+                (desc.contains("read") || desc.contains("write") || desc.contains("overwrite"))
+                    && (desc.contains("read-only") || desc.contains("bypass") || desc.contains("flag"))
+            })
+            .collect();
+        for pipe_f in &pipe_findings {
+            for rw in &pipe_readwrite {
+                if pipe_f.id != rw.id {
+                    chains.push(ChainedExploit {
+                        id: crate::new_finding_id(),
+                        findings: vec![(*pipe_f).clone(), (*rw).clone()],
+                        chain_type: ChainType::DirtyPipeStyle,
+                        description: format!(
+                            "Pipe/splice page cache finding ({}) + read/write bypass ({}) → Dirty Pipe style overwrite of read-only mappings",
+                            pipe_f.description.chars().take(80).collect::<String>(),
+                            rw.description.chars().take(80).collect::<String>(),
+                        ),
+                        estimated_impact: Severity::Critical,
+                    });
+                }
+            }
+        }
+        // Also detect standalone read-only bypass or overwrite in pipe-like kernel paths
+        let overwrite_findings: Vec<&Finding> = findings
+            .iter()
+            .filter(|f| {
+                if !Self::is_kernel_path(f) {
+                    return false;
+                }
+                let desc = f.description.to_lowercase();
+                (desc.contains("read-only") || desc.contains("overwrite"))
+                    && (desc.contains("bypass") || desc.contains("pipe") || desc.contains("page"))
+            })
+            .collect();
+        for ow in &overwrite_findings {
+            if !pipe_findings.iter().any(|p| p.id == ow.id) {
+                chains.push(ChainedExploit {
+                    id: crate::new_finding_id(),
+                    findings: vec![(*ow).clone()],
+                    chain_type: ChainType::DirtyPipeStyle,
+                    description: format!(
+                        "Read-only bypass / overwrite at {} — potential Dirty Pipe style vulnerability",
+                        ow.file_path
+                            .as_ref()
+                            .map(|p| p.display().to_string())
+                            .unwrap_or_default(),
+                    ),
+                    estimated_impact: Severity::Critical,
+                });
+            }
+        }
+
         chains
     }
 
@@ -204,5 +318,180 @@ impl VulnerabilityChainer {
             }
         }
         chains
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{DiscoveryMethod, Finding};
+    use std::path::PathBuf;
+
+    #[test]
+    fn physmap_spray_chain_detected() {
+        let physmap = Finding::new(
+            Severity::High,
+            "physical memory mapping via CMA allows user access",
+            Some(PathBuf::from("/kernel/drivers/gpu/drm.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.8,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let write = Finding::new(
+            Severity::Critical,
+            "heap overflow write primitive",
+            Some(PathBuf::from("/kernel/drivers/gpu/drm.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.9,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[physmap, write]);
+        assert!(
+            chains.iter().any(|c| c.chain_type == ChainType::PhysmapSpray),
+            "expected PhysmapSpray chain, got: {:?}",
+            chains.iter().map(|c| &c.chain_type).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn physmap_dev_mem_detected() {
+        let devmem = Finding::new(
+            Severity::High,
+            "user can mmap /dev/mem to access kernel memory",
+            Some(PathBuf::from("/kernel/drivers/char/mem.c")),
+            None,
+            None,
+            None,
+            Some("CWE-120".to_string()),
+            0.7,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let overflow = Finding::new(
+            Severity::Critical,
+            "DMA buffer overflow allows controlled write",
+            Some(PathBuf::from("/kernel/drivers/char/mem.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.85,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[devmem, overflow]);
+        assert!(chains.iter().any(|c| c.chain_type == ChainType::PhysmapSpray));
+    }
+
+    #[test]
+    fn physmap_no_match_non_kernel() {
+        let physmap = Finding::new(
+            Severity::High,
+            "physical memory mapping via CMA",
+            Some(PathBuf::from("/home/user/app/mem.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.8,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let write = Finding::new(
+            Severity::Critical,
+            "heap overflow write primitive",
+            Some(PathBuf::from("/home/user/app/mem.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.9,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[physmap, write]);
+        assert!(!chains.iter().any(|c| c.chain_type == ChainType::PhysmapSpray));
+    }
+
+    #[test]
+    fn dirty_pipe_style_chain_detected() {
+        let pipe = Finding::new(
+            Severity::High,
+            "pipe splice operation lacks proper page_cache flag validation",
+            Some(PathBuf::from("/kernel/fs/pipe.c")),
+            None,
+            None,
+            None,
+            Some("CWE-20".to_string()),
+            0.8,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let bypass = Finding::new(
+            Severity::Critical,
+            "read-only bypass allows overwrite of page cache",
+            Some(PathBuf::from("/kernel/fs/pipe.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.9,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[pipe, bypass]);
+        assert!(
+            chains.iter().any(|c| c.chain_type == ChainType::DirtyPipeStyle),
+            "expected DirtyPipeStyle chain, got: {:?}",
+            chains.iter().map(|c| &c.chain_type).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn dirty_pipe_standalone_overwrite_detected() {
+        let overwrite = Finding::new(
+            Severity::Critical,
+            "read-only bypass allows overwrite of read-only mapped pages",
+            Some(PathBuf::from("/kernel/mm/mmap.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.85,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[overwrite]);
+        assert!(
+            chains.iter().any(|c| c.chain_type == ChainType::DirtyPipeStyle),
+            "expected standalone DirtyPipeStyle chain"
+        );
+    }
+
+    #[test]
+    fn dirty_pipe_no_match_non_kernel() {
+        let pipe = Finding::new(
+            Severity::High,
+            "pipe splice lacks flag validation",
+            Some(PathBuf::from("/home/user/pipe.c")),
+            None,
+            None,
+            None,
+            Some("CWE-20".to_string()),
+            0.8,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let bypass = Finding::new(
+            Severity::Critical,
+            "read-only bypass allows overwrite",
+            Some(PathBuf::from("/home/user/pipe.c")),
+            None,
+            None,
+            None,
+            Some("CWE-787".to_string()),
+            0.9,
+            DiscoveryMethod::StaticPatternMatching,
+        );
+        let chains = VulnerabilityChainer::find_chains(&[pipe, bypass]);
+        assert!(!chains.iter().any(|c| c.chain_type == ChainType::DirtyPipeStyle));
     }
 }

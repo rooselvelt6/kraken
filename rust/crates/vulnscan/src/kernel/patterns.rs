@@ -20,6 +20,9 @@ impl KernelPatternAnalyzer {
             findings.extend(Self::check_double_free_ast(content, root, file_path));
             findings.extend(Self::check_integer_wraparound_ast(content, root, file_path));
             findings.extend(Self::check_type_confusion_ast(content, root, file_path));
+            findings.extend(Self::check_sysfs_attr_locking_ast(content, root, file_path));
+            findings.extend(Self::check_null_deref_ioctl_ast(content, root, file_path));
+            findings.extend(Self::check_unsigned_loop_wraparound_ast(content, root, file_path));
         }
         findings
     }
@@ -145,7 +148,16 @@ impl KernelPatternAnalyzer {
     }
 
     fn get_function_body<'a>(func: Node<'a>) -> Option<Node<'a>> {
-        func.child_by_field_name("body")
+        func.child_by_field_name("body").or_else(|| {
+            for i in 0..func.child_count() {
+                if let Some(child) = func.child(i) {
+                    if child.kind() == "compound_statement" {
+                        return Some(child);
+                    }
+                }
+            }
+            None
+        })
     }
 
     fn sibling_after<'a>(node: Node<'a>) -> Option<Node<'a>> {
@@ -860,6 +872,191 @@ impl KernelPatternAnalyzer {
                 ));
             }
         }
+        findings
+    }
+
+    // ──────────────────────────────────────────────────
+    // CHECKER 12: sysfs attribute locking (CWE-667)
+    // ──────────────────────────────────────────────────
+    fn check_sysfs_attr_locking_ast(content: &str, root: Node, file_path: &Path) -> Vec<Finding> {
+        let mut findings = Vec::new();
+        let path_str = file_path.to_string_lossy();
+        let is_sysfs_path = path_str.contains("sysfs");
+        let has_sysfs_api =
+            content.contains("sysfs_create") || content.contains("DEVICE_ATTR") || content.contains("ATTRIBUTE_GROUPS") || content.contains("sysfs_notify");
+
+        if !is_sysfs_path && !has_sysfs_api {
+            return findings;
+        }
+
+        let mut func_defs = Vec::new();
+        Self::collect_nodes(root, "function_definition", &mut func_defs);
+
+        for func in &func_defs {
+            let func_name = Self::node_text(content, func);
+            let is_store_or_show =
+                func_name.contains("store") || func_name.contains("show");
+            if !is_store_or_show {
+                continue;
+            }
+            if let Some(body) = Self::get_function_body(*func) {
+                let body_text = Self::node_text(content, &body);
+                let has_lock = body_text.contains("mutex_lock")
+                    || body_text.contains("spin_lock")
+                    || body_text.contains("down_write")
+                    || body_text.contains("down_read")
+                    || body_text.contains("rcu_read_lock");
+                if !has_lock {
+                    let line = Self::node_line(content, func) + 1;
+                    findings.push(Self::make_finding(
+                        format!(
+                            "sysfs attr callback `{}` lacks mutex/spin_lock protection",
+                            func_name.trim()
+                        ),
+                        "CWE-667",
+                        Severity::Medium,
+                        line,
+                        Self::node_text(content, func),
+                        file_path,
+                        "Wrap sysfs store/show callback body with mutex_lock/mutex_unlock or spin_lock/spin_unlock to prevent concurrent access",
+                        0.75,
+                    ));
+                }
+            }
+        }
+        findings
+    }
+
+    // ──────────────────────────────────────────────────
+    // CHECKER 13: null deref in ioctl paths (CWE-476)
+    // ──────────────────────────────────────────────────
+    fn check_null_deref_ioctl_ast(content: &str, root: Node, file_path: &Path) -> Vec<Finding> {
+        let mut findings = Vec::new();
+
+        let mut func_defs = Vec::new();
+        Self::collect_nodes(root, "function_definition", &mut func_defs);
+
+        for func in &func_defs {
+            let func_name = Self::node_text(content, func);
+            let is_ioctl = func_name.contains("ioctl")
+                || content.contains("unlocked_ioctl")
+                || content.contains("compat_ioctl");
+            if !is_ioctl {
+                continue;
+            }
+            if let Some(body) = Self::get_function_body(*func) {
+                let mut field_exprs = Vec::new();
+                Self::collect_nodes(body, "field_expression", &mut field_exprs);
+
+                for fe in &field_exprs {
+                    if fe.kind() != "field_expression" {
+                        continue;
+                    }
+                    if let Some(structure) = fe.child_by_field_name("argument") {
+                        let var_text = Self::node_text(content, &structure).to_string();
+                        if var_text.is_empty() || var_text.contains('(') {
+                            continue;
+                        }
+                        let body_start = body.start_byte();
+                        let fe_start = fe.start_byte();
+                        if fe_start <= body_start {
+                            continue;
+                        }
+                        let preceding = &content[body_start..fe_start];
+                        let var_escaped = var_text.replace('\\', "\\\\");
+                        let has_null_check = preceding.contains(&format!("if (!{})", var_escaped))
+                            || preceding.contains(&format!("if ({} == NULL)", var_escaped))
+                            || preceding.contains(&format!("if (NULL == {})", var_escaped))
+                            || preceding.contains(&format!("if (IS_ERR({})", var_escaped))
+                            || preceding.contains(&format!("if (!{})", var_text))
+                            || preceding.contains(&format!("IS_ERR({})", var_text));
+                        if !has_null_check {
+                            let line = Self::node_line(content, fe) + 1;
+                            findings.push(Self::make_finding(
+                                format!(
+                                    "Potential NULL pointer dereference of `{}` in ioctl path",
+                                    var_text
+                                ),
+                                "CWE-476",
+                                Severity::High,
+                                line,
+                                Self::node_text(content, fe),
+                                file_path,
+                                format!("Add null check before dereference: `if (!{}) return -EINVAL;`", var_text),
+                                0.70,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        findings
+    }
+
+    // ──────────────────────────────────────────────────
+    // CHECKER 14: unsigned int loop wrap-around (CWE-190)
+    // ──────────────────────────────────────────────────
+    fn check_unsigned_loop_wraparound_ast(content: &str, root: Node, file_path: &Path) -> Vec<Finding> {
+        let mut findings = Vec::new();
+
+        let mut for_stmts = Vec::new();
+        Self::collect_nodes(root, "for_statement", &mut for_stmts);
+
+        for for_node in &for_stmts {
+            let for_text = Self::node_text(content, for_node);
+            let has_unsigned = for_text.contains("unsigned int")
+                || for_text.contains("unsigned long")
+                || for_text.contains("size_t")
+                || for_text.contains("u32")
+                || for_text.contains("u64");
+            if !has_unsigned {
+                continue;
+            }
+            let has_always_true = for_text.contains(">= 0") || for_text.contains(">=0");
+            if has_always_true {
+                let line = Self::node_line(content, for_node) + 1;
+                findings.push(Self::make_finding(
+                    "Unsigned loop variable with `>= 0` condition is always true — infinite loop",
+                    "CWE-190",
+                    Severity::High,
+                    line,
+                    Self::node_text(content, for_node),
+                    file_path,
+                    "Change loop variable to signed type, or rewrite condition (e.g., `i < limit` instead of `i >= 0`)",
+                    0.90,
+                ));
+            }
+        }
+
+        let mut while_stmts = Vec::new();
+        Self::collect_nodes(root, "while_statement", &mut while_stmts);
+
+        for while_node in &while_stmts {
+            let while_text = Self::node_text(content, while_node);
+            let has_unsigned = while_text.contains("unsigned int")
+                || while_text.contains("unsigned long")
+                || while_text.contains("size_t")
+                || while_text.contains("u32")
+                || while_text.contains("u64");
+            if !has_unsigned {
+                continue;
+            }
+            let has_always_true = while_text.contains(">= 0") || while_text.contains(">=0");
+            if has_always_true {
+                let line = Self::node_line(content, while_node) + 1;
+                findings.push(Self::make_finding(
+                    "Unsigned loop variable with `>= 0` condition is always true — infinite loop",
+                    "CWE-190",
+                    Severity::High,
+                    line,
+                    Self::node_text(content, while_node),
+                    file_path,
+                    "Change loop variable to signed type, or rewrite condition (e.g., `i < limit` instead of `i >= 0`)",
+                    0.90,
+                ));
+            }
+        }
+
         findings
     }
 }
@@ -2158,5 +2355,178 @@ void handler(void) {
         let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
         let cwe476: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
         assert!(cwe476.is_empty(), "kmalloc_array return should not be checked if count is safe");
+    }
+
+    // ================================================================
+    // CHECKER 12: sysfs attribute locking (CWE-667)
+    // ================================================================
+
+    #[test]
+    fn test_sysfs_store_no_lock_detected() {
+        let content = r#"
+DEVICE_ATTR(my_store, 0644, NULL, my_store_func);
+ssize_t my_store_func(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+    int val = simple_strtol(buf, NULL, 10);
+    global_val = val;
+    return count;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_sysfs_attr_locking_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/base/core.c"));
+        assert!(!findings.is_empty(), "sysfs store without lock should be detected");
+    }
+
+    #[test]
+    fn test_sysfs_show_no_lock_detected() {
+        let content = r#"
+DEVICE_ATTR(my_show, 0444, my_show_func, NULL);
+ssize_t my_show_func(struct device *dev, struct device_attribute *attr, char *buf) {
+    return sprintf(buf, "%d\n", global_val);
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_sysfs_attr_locking_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/base/core.c"));
+        assert!(!findings.is_empty(), "sysfs show without lock should be detected");
+    }
+
+    #[test]
+    fn test_sysfs_store_with_mutex_suppressed() {
+        let content = r#"
+ssize_t my_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+    mutex_lock(&dev_mutex);
+    int val = simple_strtol(buf, NULL, 10);
+    global_val = val;
+    mutex_unlock(&dev_mutex);
+    return count;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_sysfs_attr_locking_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/base/core.c"));
+        let cwe667: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-667")).collect();
+        assert!(cwe667.is_empty(), "mutex_lock in store should suppress finding");
+    }
+
+    #[test]
+    fn test_sysfs_show_with_spin_lock_suppressed() {
+        let content = r#"
+ssize_t my_show(struct device *dev, struct device_attribute *attr, char *buf) {
+    spin_lock(&dev_lock);
+    int val = global_val;
+    spin_unlock(&dev_lock);
+    return sprintf(buf, "%d\n", val);
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_sysfs_attr_locking_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/base/core.c"));
+        let cwe667: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-667")).collect();
+        assert!(cwe667.is_empty(), "spin_lock in show should suppress finding");
+    }
+
+    #[test]
+    fn test_non_sysfs_file_no_finding() {
+        let content = r#"
+int helper_show(int x) { return x; }
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_sysfs_attr_locking_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/fs/read_write.c"));
+        let cwe667: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-667")).collect();
+        assert!(cwe667.is_empty(), "Non-sysfs file with no sysfs API should not trigger");
+    }
+
+    // ================================================================
+    // CHECKER 13: null deref in ioctl paths (CWE-476)
+    // ================================================================
+
+    #[test]
+    fn test_ioctl_null_deref_detected() {
+        let content = r#"
+long my_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
+    struct config *cfg = (void *)arg;
+    int val = cfg->field;
+    return val;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_null_deref_ioctl_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/misc/my_ioctl.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-476")),
+            "Dereferencing cfg without null check in ioctl should be detected");
+    }
+
+    #[test]
+    fn test_ioctl_null_deref_with_check_suppressed() {
+        let content = r#"
+long my_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
+    struct config *cfg = (void *)arg;
+    if (!cfg) return -EINVAL;
+    int val = cfg->field;
+    return val;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_null_deref_ioctl_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/misc/my_ioctl.c"));
+        let cwe476: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(cwe476.is_empty(), "Null check before deref should suppress finding");
+    }
+
+    #[test]
+    fn test_ioctl_is_err_check_suppressed() {
+        let content = r#"
+long my_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
+    struct config *cfg = (void *)arg;
+    if (IS_ERR(cfg)) return PTR_ERR(cfg);
+    int val = cfg->field;
+    return val;
+}
+"#;
+        let findings =
+            KernelPatternAnalyzer::check_null_deref_ioctl_ast(content, KernelPatternAnalyzer::parse(content).unwrap().root_node(), &p("/kernel/drivers/misc/my_ioctl.c"));
+        let cwe476: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-476")).collect();
+        assert!(cwe476.is_empty(), "IS_ERR check should suppress finding");
+    }
+
+    // ================================================================
+    // CHECKER 14: unsigned int loop wrap-around (CWE-190)
+    // ================================================================
+
+    #[test]
+    fn test_unsigned_loop_ge_zero_detected() {
+        let content = r#"
+void handler(void) {
+    for (unsigned int i = count - 1; i >= 0; i--) {
+        process(i);
+    }
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")),
+            "unsigned int i >= 0 should be detected as always-true");
+    }
+
+    #[test]
+    fn test_size_t_loop_ge_zero_detected() {
+        let content = r#"
+void handler(void) {
+    for (size_t i = len - 1; i >= 0; i--) {
+        buf[i] = 0;
+    }
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        assert!(findings.iter().any(|f| f.cwe.as_deref() == Some("CWE-190")),
+            "size_t i >= 0 should be detected as always-true");
+    }
+
+    #[test]
+    fn test_signed_loop_lt_not_flagged() {
+        let content = r#"
+void handler(void) {
+    for (int i = count - 1; i >= 0; i--) {
+        process(i);
+    }
+}
+"#;
+        let findings = KernelPatternAnalyzer::analyze(content, &p("/kernel/drivers/test.c"));
+        let cwe190: Vec<_> = findings.iter().filter(|f| f.cwe.as_deref() == Some("CWE-190")).collect();
+        assert!(cwe190.is_empty(), "Signed int with i >= 0 should not flag");
     }
 }

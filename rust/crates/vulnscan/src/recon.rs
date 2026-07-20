@@ -55,6 +55,14 @@ pub enum EntryType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KernelSubsystem {
+    pub name: String,
+    pub path: PathBuf,
+    pub file_count: usize,
+    pub risk_level: Severity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttackSurface {
     pub technologies: Vec<Technology>,
     pub endpoints: Vec<Endpoint>,
@@ -62,6 +70,7 @@ pub struct AttackSurface {
     pub dependencies: Vec<String>,
     pub total_files: usize,
     pub total_lines: usize,
+    pub kernel_subsystems: Vec<KernelSubsystem>,
 }
 
 pub struct SurfaceRecon;
@@ -74,6 +83,8 @@ impl SurfaceRecon {
         let dependencies = Self::discover_dependencies(path);
         let (total_files, total_lines) = Self::count_files_and_lines(path);
 
+        let kernel_subsystems = Self::detect_kernel_subsystems(path);
+
         AttackSurface {
             technologies,
             endpoints,
@@ -81,6 +92,7 @@ impl SurfaceRecon {
             dependencies,
             total_files,
             total_lines,
+            kernel_subsystems,
         }
     }
 
@@ -344,6 +356,43 @@ impl SurfaceRecon {
         }
 
         findings
+    }
+
+    pub fn detect_kernel_subsystems(path: &Path) -> Vec<KernelSubsystem> {
+        let known_subsystems = [
+            ("net", Severity::High),
+            ("fs", Severity::High),
+            ("mm", Severity::Critical),
+            ("drivers", Severity::Medium),
+            ("security", Severity::Critical),
+            ("crypto", Severity::Medium),
+            ("block", Severity::Medium),
+            ("sound", Severity::Low),
+            ("arch", Severity::High),
+            ("kernel", Severity::Critical),
+        ];
+
+        let mut subsystems = Vec::new();
+
+        for (name, risk) in &known_subsystems {
+            let sub_path = path.join(name);
+            if sub_path.exists() && sub_path.is_dir() {
+                let file_count = walkdir::WalkDir::new(&sub_path)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.file_type().is_file())
+                    .count();
+
+                subsystems.push(KernelSubsystem {
+                    name: name.to_string(),
+                    path: sub_path,
+                    file_count,
+                    risk_level: *risk,
+                });
+            }
+        }
+
+        subsystems
     }
 
     fn count_files_and_lines(path: &Path) -> (usize, usize) {

@@ -36,6 +36,9 @@ pub struct HuntReport {
     pub deorphaned_findings: Vec<String>,
     pub phases_completed: Vec<ScanPhase>,
     pub llm_analysis: Option<LlmAnalysisReport>,
+    pub kernel_version: Option<String>,
+    pub kernel_mitigations: Vec<String>,
+    pub kernel_findings_count: usize,
 }
 
 pub struct HuntPipeline {
@@ -139,6 +142,33 @@ impl HuntPipeline {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
+        let kernel_findings_count = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("kernel")
+                    || f.description.to_lowercase().contains("cve")
+                    || f.file_path.as_ref().is_some_and(|p| {
+                        let s = p.to_string_lossy().to_lowercase();
+                        s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/fs/") || s.contains("/net/") || s.contains("/mm/")
+                    })
+            })
+            .count();
+        let kernel_version = findings.iter().find_map(|f| {
+            if f.description.starts_with("Kernel version detected:") {
+                Some(f.description.trim_start_matches("Kernel version detected: ").to_string())
+            } else {
+                None
+            }
+        });
+        let kernel_mitigations: Vec<String> = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("mitigation")
+                    || f.description.to_lowercase().contains("config_")
+            })
+            .map(|f| f.description.clone())
+            .collect();
+
         HuntReport {
             hunt_id,
             mode,
@@ -153,6 +183,9 @@ impl HuntPipeline {
             deorphaned_findings: deorphaned,
             phases_completed: phases,
             llm_analysis: None,
+            kernel_version,
+            kernel_mitigations,
+            kernel_findings_count,
         }
     }
 
@@ -285,6 +318,33 @@ impl HuntPipeline {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
+        let kernel_findings_count = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("kernel")
+                    || f.description.to_lowercase().contains("cve")
+                    || f.file_path.as_ref().is_some_and(|p| {
+                        let s = p.to_string_lossy().to_lowercase();
+                        s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/fs/") || s.contains("/net/") || s.contains("/mm/")
+                    })
+            })
+            .count();
+        let kernel_version = findings.iter().find_map(|f| {
+            if f.description.starts_with("Kernel version detected:") {
+                Some(f.description.trim_start_matches("Kernel version detected: ").to_string())
+            } else {
+                None
+            }
+        });
+        let kernel_mitigations: Vec<String> = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("mitigation")
+                    || f.description.to_lowercase().contains("config_")
+            })
+            .map(|f| f.description.clone())
+            .collect();
+
         HuntReport {
             hunt_id,
             mode: HuntMode::Deep,
@@ -299,6 +359,9 @@ impl HuntPipeline {
             deorphaned_findings: deorphaned,
             phases_completed: phases,
             llm_analysis,
+            kernel_version,
+            kernel_mitigations,
+            kernel_findings_count,
         }
     }
 
@@ -473,6 +536,33 @@ impl HuntPipeline {
 
         self.checkpointer.delete_checkpoint(&hunt_id);
 
+        let kernel_findings_count = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("kernel")
+                    || f.description.to_lowercase().contains("cve")
+                    || f.file_path.as_ref().is_some_and(|p| {
+                        let s = p.to_string_lossy().to_lowercase();
+                        s.contains("/kernel/") || s.contains("/drivers/") || s.contains("/fs/") || s.contains("/net/") || s.contains("/mm/")
+                    })
+            })
+            .count();
+        let kernel_version = findings.iter().find_map(|f| {
+            if f.description.starts_with("Kernel version detected:") {
+                Some(f.description.trim_start_matches("Kernel version detected: ").to_string())
+            } else {
+                None
+            }
+        });
+        let kernel_mitigations: Vec<String> = findings
+            .iter()
+            .filter(|f| {
+                f.description.to_lowercase().contains("mitigation")
+                    || f.description.to_lowercase().contains("config_")
+            })
+            .map(|f| f.description.clone())
+            .collect();
+
         HuntReport {
             hunt_id,
             mode: HuntMode::Overnight,
@@ -489,10 +579,14 @@ impl HuntPipeline {
                 ScanPhase::Reconnaissance,
                 ScanPhase::FileScanning,
                 ScanPhase::PatternAnalysis,
+                ScanPhase::KernelAnalysis,
                 ScanPhase::Chaining,
                 ScanPhase::Complete,
             ],
             llm_analysis,
+            kernel_version,
+            kernel_mitigations,
+            kernel_findings_count,
         }
     }
 

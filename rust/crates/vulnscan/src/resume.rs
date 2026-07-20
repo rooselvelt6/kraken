@@ -11,6 +11,7 @@ pub enum ScanPhase {
     Reconnaissance,
     FileScanning,
     PatternAnalysis,
+    KernelAnalysis,
     LlmAnalysis,
     Chaining,
     Fuzzing,

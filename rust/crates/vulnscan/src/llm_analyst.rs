@@ -131,6 +131,16 @@ pub struct LlmValidation {
     pub remediation: Option<String>,
 }
 
+/// Kernel build configuration context injected into LLM prompts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KernelBuildContext {
+    pub architecture: Option<String>,
+    pub version: Option<String>,
+    pub enabled_configs: Vec<String>,
+    pub disabled_configs: Vec<String>,
+    pub mitigations: Vec<String>,
+}
+
 /// Configuration for the LLM analyst.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LlmAnalystConfig {
@@ -138,6 +148,7 @@ pub struct LlmAnalystConfig {
     pub temperature: f32,
     pub max_tokens: u32,
     pub enabled_classes: Vec<String>,
+    pub kernel_context: Option<KernelBuildContext>,
 }
 
 impl Default for LlmAnalystConfig {
@@ -146,6 +157,7 @@ impl Default for LlmAnalystConfig {
             model: "deepseek/deepseek-chat".to_string(),
             temperature: 0.3,
             max_tokens: 4096,
+            kernel_context: None,
             enabled_classes: vec![
                 "sqli".into(),
                 "xss".into(),
@@ -420,10 +432,46 @@ Format as a concise report with: key risks, recommended fixes priority, attack c
 
         let truncated: String = content.chars().take(30_000).collect();
 
+        let kernel_section = if class.starts_with("kernel_") {
+            if let Some(ref ctx) = self.config.kernel_context {
+                let mut section = String::from("## Kernel Build Context\n");
+                if let Some(ref arch) = ctx.architecture {
+                    section.push_str(&format!("- Architecture: {arch}\n"));
+                }
+                if let Some(ref ver) = ctx.version {
+                    section.push_str(&format!("- Version: {ver}\n"));
+                }
+                if !ctx.mitigations.is_empty() {
+                    section.push_str(&format!(
+                        "- Enabled mitigations: {}\n",
+                        ctx.mitigations.join(", ")
+                    ));
+                }
+                if !ctx.disabled_configs.is_empty() {
+                    section.push_str(&format!(
+                        "- Disabled: {}\n",
+                        ctx.disabled_configs.join(", ")
+                    ));
+                }
+                if !ctx.enabled_configs.is_empty() {
+                    section.push_str(&format!(
+                        "- CONFIG_ flags: {}\n",
+                        ctx.enabled_configs.join(", ")
+                    ));
+                }
+                section.push('\n');
+                section
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
         format!(
             "{class_prompt}
 
-## Scanner Findings for Review
+{kernel_section}## Scanner Findings for Review
 {findings}
 
 ## Code
@@ -440,6 +488,7 @@ Review the scanner findings against the actual code. For each finding, respond w
 Mark a finding as INVALID if it is a false positive (wrong context, mitigated, not exploitable).
 Adjust confidence and CVSS based on actual code context.",
             class_prompt = class_prompt,
+            kernel_section = kernel_section,
             findings = findings_text.join("\n"),
             lang = format!("{:?}", language).to_lowercase(),
             code = truncated,
@@ -741,5 +790,23 @@ mod tests {
         };
         assert!(matches_class(&f, "command_injection"));
         assert!(!matches_class(&f, "xss"));
+    }
+
+    #[test]
+    fn test_kernel_build_context_serialization() {
+        let ctx = KernelBuildContext {
+            architecture: Some("x86_64".into()),
+            version: Some("6.8.12".into()),
+            enabled_configs: vec!["CONFIG_KASAN".into(), "CONFIG_KCSAN".into()],
+            disabled_configs: vec!["CONFIG_MODULE_SIG".into()],
+            mitigations: vec!["KASLR".into(), "SMAP".into(), "SMEP".into()],
+        };
+        let json = serde_json::to_string(&ctx).unwrap();
+        let deserialized: KernelBuildContext = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.architecture, Some("x86_64".into()));
+        assert_eq!(deserialized.version, Some("6.8.12".into()));
+        assert_eq!(deserialized.enabled_configs, vec!["CONFIG_KASAN", "CONFIG_KCSAN"]);
+        assert_eq!(deserialized.disabled_configs, vec!["CONFIG_MODULE_SIG"]);
+        assert_eq!(deserialized.mitigations, vec!["KASLR", "SMAP", "SMEP"]);
     }
 }
