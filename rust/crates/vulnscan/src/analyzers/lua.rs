@@ -219,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_lua_command_injection() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "local result = os.execute(\"rm -rf /\")\n",
             Path::new("test.lua"),
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_lua_code_injection() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "loadstring(user_input)()\n",
             Path::new("test.lua"),
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn test_lua_sql_injection() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "db:execute(\"SELECT * FROM users WHERE id = \" .. id)\n",
             Path::new("test.lua"),
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_lua_path_traversal() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "local f = io.open(\"/var/data/\" .. filename, \"r\")\n",
             Path::new("test.lua"),
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn test_lua_hardcoded_secret() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "local password = \"supersecret123\"\n",
             Path::new("test.lua"),
@@ -279,7 +279,7 @@ mod tests {
 
     #[test]
     fn test_lua_insecure_network() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "local sock = socket.connect(\"example.com\", 80)\n",
             Path::new("test.lua"),
@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn test_lua_weak_random() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "math.randomseed(os.time())\n",
             Path::new("test.lua"),
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_lua_clean_code_no_findings() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let code = r#"-- hello.lua
 local function greet(name)
     print("Hello, " .. name)
@@ -322,7 +322,7 @@ print(add(1, 2))
 
     #[test]
     fn test_lua_multiple_vulnerabilities() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let code = "os.execute(\"ls\")\nloadstring(code)\nlocal p = \"secret123\"\n";
         let findings = analyzer.analyze(code, Path::new("test.lua"), &ScanConfig::default());
         assert!(findings.len() >= 2, "should detect multiple issues");
@@ -330,7 +330,7 @@ print(add(1, 2))
 
     #[test]
     fn test_lua_dofile_inclusion() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "dofile(\"/etc/passwd\")\n",
             Path::new("test.lua"),
@@ -342,7 +342,7 @@ print(add(1, 2))
 
     #[test]
     fn test_lua_io_popen_injection() {
-        let analyzer = LuaAnalyzer::default();
+        let analyzer = LuaAnalyzer;
         let findings = analyzer.analyze(
             "local f = io.popen(\"ls -la \" .. dir)\n",
             Path::new("test.lua"),

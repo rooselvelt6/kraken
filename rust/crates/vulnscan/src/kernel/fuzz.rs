@@ -1295,7 +1295,7 @@ Call Trace:
     #[test]
     fn test_minimize_already_minimal() {
         let input = b"A";
-        let result = minimize_input(input, |data| data.len() >= 1, 100);
+        let result = minimize_input(input, |data| !data.is_empty(), 100);
         assert_eq!(result, b"A");
     }
 

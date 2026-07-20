@@ -798,9 +798,9 @@ Call Trace:
     #[test]
     fn test_parse_any_log_mixed() {
         let mut dmesg = String::from(KASAN_SAMPLE);
-        dmesg.push_str("\n");
+        dmesg.push('\n');
         dmesg.push_str(KCSAN_SAMPLE);
-        dmesg.push_str("\n");
+        dmesg.push('\n');
         dmesg.push_str(KMSAN_SAMPLE);
 
         let reports = SanitizerParser::parse_any_log(&dmesg);
@@ -1012,7 +1012,7 @@ Read of size 4 at addr ffff888000000001 by task t/1
         let reports = SanitizerParser::parse_kasan_log(uaf_dmesg);
         let finding = sanitizer_report_to_finding(&reports[0]);
         assert_eq!(finding.cvss_score, Some(9.5));
-        assert!(finding.poc_validated == false);
+        assert!(!finding.poc_validated);
         assert_eq!(finding.status, crate::FindingStatus::Open);
     }
 

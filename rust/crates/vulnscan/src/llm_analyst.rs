@@ -725,13 +725,11 @@ mod tests {
             return;
         }
         let analyst = LlmAnalyst::new(config).unwrap();
-        let findings = vec![
-            Finding {
-                id: "abc-123".into(),
-                description: "test finding".into(),
-                ..Default::default()
-            },
-        ];
+        let findings = [Finding {
+            id: "abc-123".into(),
+            description: "test finding".into(),
+            ..Default::default()
+        }];
         let response = r#"[
             {"index": 0, "valid": true, "confidence": 0.85, "cvss_score": 7.5,
              "explanation": "Valid SQL injection", "remediation": "Use parameterized queries"}
