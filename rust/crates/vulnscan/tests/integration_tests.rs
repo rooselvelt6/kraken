@@ -926,3 +926,133 @@ fn mitigation_checker_makefile() {
     );
     assert!(!findings.is_empty());
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// 25. Context Pipeline (1M context)
+// ═══════════════════════════════════════════════════════════════════
+
+#[test]
+fn context_pipeline_chunk_and_build() {
+    use vulnscan::context_pipeline::{build_selective_context, chunk_source, estimate_tokens};
+    let source = "fn main() {\n    unsafe { transmute(ptr) }\n    let x = malloc(100);\n}";
+    let mut chunks = chunk_source("main.rs", source, 2, 0);
+    assert!(!chunks.is_empty());
+    assert!(estimate_tokens("hello world") > 0);
+    let keywords = vec!["unsafe".to_string(), "malloc".to_string()];
+    let ctx = build_selective_context(&mut chunks, &keywords, 10_000);
+    assert!(!ctx.chunks.is_empty());
+    assert!(ctx.total_tokens > 0);
+    assert!(!ctx.truncated);
+}
+
+#[test]
+fn context_pipeline_budget_enforced() {
+    use vulnscan::context_pipeline::{build_selective_context, chunk_source};
+    let source = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10";
+    let mut chunks = chunk_source("test.rs", source, 2, 0);
+    let ctx = build_selective_context(&mut chunks, &[], 50);
+    assert!(ctx.total_tokens <= 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 26. Program-Slice Analysis
+// ═══════════════════════════════════════════════════════════════════
+
+#[test]
+fn program_slice_call_graph_and_extract() {
+    use vulnscan::program_slice::{extract_slice, CallEdge, CallGraph, FunctionNode};
+    let mut graph = CallGraph::new();
+    for name in &["main", "helper", "utils"] {
+        graph.add_function(FunctionNode {
+            name: name.to_string(),
+            path: "app.rs".into(),
+            start_line: 1,
+            end_line: 20,
+            is_pub: true,
+            risk_score: 0.5,
+        });
+    }
+    graph.add_edge(CallEdge {
+        caller: "main".into(),
+        callee: "helper".into(),
+        path: "app.rs".into(),
+        line: 5,
+    });
+    graph.add_edge(CallEdge {
+        caller: "helper".into(),
+        callee: "utils".into(),
+        path: "app.rs".into(),
+        line: 10,
+    });
+
+    let callees = graph.transitive_callees("main", 10);
+    assert!(callees.contains(&"helper".to_string()));
+    assert!(callees.contains(&"utils".to_string()));
+
+    let slice = extract_slice(&graph, "main", 10).unwrap();
+    assert_eq!(slice.target_function, "main");
+    assert!(slice.functions_included.len() >= 2);
+}
+
+#[test]
+fn program_slice_parse_rust_source() {
+    use vulnscan::program_slice::parse_functions_from_source;
+    let source = r#"
+pub fn handler() {
+    process();
+}
+fn process() {
+    validate();
+}
+"#;
+    let (funcs, _edges) = parse_functions_from_source("handler.rs", source);
+    assert!(funcs.len() >= 2);
+    assert!(funcs.iter().any(|f| f.name == "handler" && f.is_pub));
+    assert!(funcs.iter().any(|f| f.name == "process" && !f.is_pub));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 27. Context cache + risk ranking
+// ═══════════════════════════════════════════════════════════════════
+
+#[test]
+fn context_cache_roundtrip() {
+    use vulnscan::context_pipeline::{ContextCache, SelectiveContext};
+    let mut cache = ContextCache::new();
+    let ctx = SelectiveContext {
+        chunks: vec![],
+        total_tokens: 1234,
+        total_files: 5,
+        truncated: false,
+    };
+    cache.insert("scan-abc".into(), ctx);
+    assert!(cache.contains("scan-abc"));
+    let cached = cache.get("scan-abc").unwrap();
+    assert_eq!(cached.total_tokens, 1234);
+    assert_eq!(cached.total_files, 5);
+}
+
+#[test]
+fn program_slice_risk_rank() {
+    use vulnscan::program_slice::{risk_rank_slices, CodeSlice};
+    let mut slices = vec![
+        CodeSlice {
+            target_function: "low_risk".into(),
+            functions_included: vec![],
+            total_lines: 5,
+            total_tokens: 20,
+            risk_rank: 0,
+            depth: 1,
+        },
+        CodeSlice {
+            target_function: "high_risk".into(),
+            functions_included: vec![],
+            total_lines: 200,
+            total_tokens: 800,
+            risk_rank: 4,
+            depth: 3,
+        },
+    ];
+    risk_rank_slices(&mut slices);
+    assert_eq!(slices[0].target_function, "high_risk");
+}

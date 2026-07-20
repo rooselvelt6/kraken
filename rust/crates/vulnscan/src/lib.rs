@@ -15,6 +15,8 @@ pub mod memory;
 pub mod mitigation;
 pub mod patterns;
 pub mod pipeline;
+pub mod context_pipeline;
+pub mod program_slice;
 pub mod recon;
 pub mod report;
 pub mod resume;

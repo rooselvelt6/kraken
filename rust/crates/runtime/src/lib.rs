@@ -46,6 +46,7 @@ mod remote;
 pub mod sandbox;
 pub mod adaptive_engine;
 pub mod self_healing;
+pub mod meta_agent;
 mod session;
 pub mod session_control;
 pub mod siem_export;
