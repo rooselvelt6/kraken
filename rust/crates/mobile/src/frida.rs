@@ -279,10 +279,85 @@ if (ObjC.available) {
     fn universal_ssl_bypass() -> FridaScript {
         FridaScript {
             name: "universal-ssl-bypass".to_string(),
-            description: "Cross-platform SSL bypass".to_string(),
+            description: "Cross-platform SSL bypass — intercepts SSLContext and TrustManager".to_string(),
             platform: "universal".to_string(),
             category: "ssl-bypass".to_string(),
-            code: "// Universal SSL bypass placeholder\nconsole.log(\"Load platform-specific SSL bypass\");\n".to_string(),
+            code: r#"// Universal SSL bypass for Android and iOS
+// Hooks SSL context to bypass certificate pinning
+
+if (Java.available) {
+    Java.perform(function() {
+        // Android: Hook SSLContext.init to bypass TrustManager
+        var SSLContext = Java.use("javax.net.ssl.SSLContext");
+        SSLContext.init.overload(
+            "[Ljavax.net.ssl.KeyManager;",
+            "[Ljavax.net.ssl.TrustManager;",
+            "java.security.SecureRandom"
+        ).implementation = function(km, tm, sr) {
+            console.log("[+] SSLContext.init intercepted — bypassing trust manager");
+            // Use a custom TrustManager that accepts all certificates
+            var TrustManager = Java.registerClass({
+                name: "com.kraken.BypassTrustManager",
+                implements: [Java.use("javax.net.ssl.X509TrustManager")],
+                methods: {
+                    checkClientTrusted: function(chain, authType) {},
+                    checkServerTrusted: function(chain, authType) {},
+                    getAcceptedIssuers: function() { return []; }
+                }
+            });
+            var tmArray = [TrustManager.$new()];
+            this.init(km, tmArray, sr);
+        };
+
+        // Android: Hook OkHttp CertificatePinner
+        try {
+            var CertificatePinner = Java.use("okhttp3.CertificatePinner");
+            CertificatePinner.check.overload("java.lang.String", "java.util.List").implementation = function(hostname, peerCertificates) {
+                console.log("[+] OkHttp CertificatePinner bypassed for: " + hostname);
+            };
+        } catch(e) {
+            // OkHttp not present, skip
+        }
+
+        // Android: Hook HostnameVerifier
+        try {
+            var HostnameVerifier = Java.use("javax.net.ssl.HostnameVerifier");
+            var SSLSession = Java.use("javax.net.ssl.SSLSession");
+            Java.use("javax.net.ssl.HttpsURLConnection").setDefaultHostnameVerifier.implementation = function(verifier) {
+                console.log("[+] HostnameVerifier bypassed");
+                return;
+            };
+        } catch(e) {}
+
+        console.log("[+] SSL bypass hooks installed");
+    });
+} else if (ObjC.available) {
+    // iOS: Hook NSURLSession delegate for SSL pinning bypass
+    var resolver = new ApiResolver("objc");
+    var matches = resolver.enumerateMatches("-[* URLSession:didReceiveChallenge:completionHandler:]");
+    matches.forEach(function(match) {
+        Interceptor.attach(match.address, {
+            onEnter: function(args) {
+                var challenge = new ObjC.Object(args[2]);
+                var protectionSpace = challenge.protectionSpace();
+                var authMethod = protectionSpace.authenticationMethod().toString();
+                if (authMethod === "NSURLAuthenticationMethodServerTrust") {
+                    console.log("[+] iOS SSL challenge intercepted: " + protectionSpace.host().toString());
+                    // Call completionHandler with NSURLSessionAuthChallengeUseCredential
+                    var credential = ObjC.classes.NSURLCredential.credentialForTrust_(
+                        protectionSpace.serverTrust()
+                    );
+                    var handler = new ObjC.Block(args[3]);
+                    handler.implementation(0, credential);
+                }
+            }
+        });
+    });
+    console.log("[+] iOS SSL bypass hooks installed");
+} else {
+    console.log("[-] Neither Java nor ObjC runtime available");
+}
+"#.to_string(),
             usage: "frida -U -f com.target.app -l universal-ssl-bypass.js --no-pause".to_string(),
         }
     }
@@ -290,10 +365,108 @@ if (ObjC.available) {
     fn universal_root_bypass() -> FridaScript {
         FridaScript {
             name: "universal-root-bypass".to_string(),
-            description: "Cross-platform root/jailbreak bypass".to_string(),
+            description: "Cross-platform root/jailbreak detection bypass — hooks su detection, SafetyNet, and Keychain".to_string(),
             platform: "universal".to_string(),
             category: "root-bypass".to_string(),
-            code: "// Universal root bypass placeholder\nconsole.log(\"Load platform-specific root bypass\");\n".to_string(),
+            code: r#"// Universal root/jailbreak detection bypass
+// Hooks common detection methods on Android and iOS
+
+if (Java.available) {
+    Java.perform(function() {
+        // Android: Hook File.exists() to hide /system/bin/su, /system/xbin/su
+        var File = Java.use("java.io.File");
+        File.exists.implementation = function() {
+            var path = this.getAbsolutePath();
+            if (path.indexOf("su") !== -1 ||
+                path.indexOf("Superuser") !== -1 ||
+                path.indexOf("supersu") !== -1 ||
+                path.indexOf("SuperSU") !== -1 ||
+                path.indexOf("magisk") !== -1 ||
+                path.indexOf("/system/app/Superuser") !== -1) {
+                console.log("[+] Root detection bypassed: " + path + " -> false");
+                return false;
+            }
+            return this.exists();
+        };
+
+        // Android: Hook Runtime.exec() to block "su" execution
+        var Runtime = Java.use("java.lang.Runtime");
+        Runtime.exec.overload("java.lang.String").implementation = function(cmd) {
+            if (cmd.indexOf("su") !== -1) {
+                console.log("[+] Blocked su execution: " + cmd);
+                throw Java.use("java.io.IOException").$new("Permission denied");
+            }
+            return this.exec(cmd);
+        };
+
+        // Android: Hook Build tags to hide test-keys
+        var Build = Java.use("android.os.Build");
+        Build.TAGS.value = "release-keys";
+
+        // Android: Bypass SafetyNet/Play Integrity
+        try {
+            var PackageManager = Java.use("android.app.ApplicationPackageManager");
+            PackageManager.getPackageInfo.overload("java.lang.String", "int").implementation = function(name, flags) {
+                if (name === "com.topjohnwu.magisk" || name === "eu.chainfire.supersu") {
+                    console.log("[+] Magisk/SuperSU package hidden: " + name);
+                    throw Java.use("android.content.pm.PackageManager$NameNotFoundException").$new(name);
+                }
+                return this.getPackageInfo(name, flags);
+            };
+        } catch(e) {}
+
+        console.log("[+] Android root detection bypass installed");
+    });
+} else if (ObjC.available) {
+    // iOS: Hook common jailbreak detection methods
+    var resolver = new ApiResolver("objc");
+
+    // Hook NSFileManager fileExistsAtPath to hide jailbreak files
+    var NSFileManager = ObjC.classes.NSFileManager;
+    Interceptor.attach(NSFileManager["- fileExistsAtPath:"].implementation, {
+        onEnter: function(args) {
+            var path = ObjC.Object(args[2]).toString();
+            if (path.indexOf("/Applications/Cydia.app") !== -1 ||
+                path.indexOf("/Library/MobileSubstrate/MobileSubstrate.dylib") !== -1 ||
+                path.indexOf("/bin/bash") !== -1 ||
+                path.indexOf("/usr/sbin/sshd") !== -1 ||
+                path.indexOf("/etc/apt") !== -1 ||
+                path.indexOf("/private/var/lib/apt") !== -1) {
+                console.log("[+] Jailbreak detection bypassed: " + path);
+                this.shouldReturnTrue = true;
+            }
+        },
+        onLeave: function(retval) {
+            if (this.shouldReturnTrue) {
+                retval.replace(1);
+            }
+        }
+    });
+
+    // Hook system() to block jailbreak checks
+    var system = Module.findExportByName(null, "system");
+    if (system) {
+        Interceptor.attach(system, {
+            onEnter: function(args) {
+                var cmd = ObjC.Object(args[0]).toString();
+                if (cmd.indexOf("uname") !== -1 || cmd.indexOf("cydia") !== -1) {
+                    console.log("[+] Blocked jailbreak check: " + cmd);
+                    this.blocked = true;
+                }
+            },
+            onLeave: function(retval) {
+                if (this.blocked) {
+                    retval.replace(-1);
+                }
+            }
+        });
+    }
+
+    console.log("[+] iOS jailbreak detection bypass installed");
+} else {
+    console.log("[-] Neither Java nor ObjC runtime available");
+}
+"#.to_string(),
             usage: "frida -U -f com.target.app -l universal-root-bypass.js --no-pause".to_string(),
         }
     }

