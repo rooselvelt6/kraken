@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::config::RuntimePermissionRuleConfig;
+use kraken_config::config::RuntimePermissionRuleConfig;
 
 /// Permission level assigned to a tool invocation or runtime session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -20,7 +20,7 @@ impl PermissionMode {
     /// # Examples
     ///
     /// ```
-    /// use runtime::PermissionMode;
+    /// use kraken_policy::PermissionMode;
     ///
     /// assert_eq!(PermissionMode::ReadOnly.as_str(), "read-only");
     /// assert_eq!(PermissionMode::DangerFullAccess.as_str(), "danger-full-access");
@@ -498,7 +498,7 @@ mod tests {
         PermissionContext, PermissionMode, PermissionOutcome, PermissionOverride, PermissionPolicy,
         PermissionPromptDecision, PermissionPrompter, PermissionRequest,
     };
-    use crate::config::RuntimePermissionRuleConfig;
+    use kraken_config::config::RuntimePermissionRuleConfig;
 
     struct RecordingPrompter {
         seen: Vec<PermissionRequest>,

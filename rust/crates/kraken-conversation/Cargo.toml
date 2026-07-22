@@ -1,0 +1,21 @@
+[package]
+name = "kraken-conversation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+kraken-config = { path = "../kraken-config" }
+kraken-events = { path = "../kraken-events" }
+kraken-git = { path = "../kraken-git" }
+kraken-policy = { path = "../kraken-policy" }
+kraken-session = { path = "../kraken-session" }
+kraken-infra = { path = "../kraken-infra" }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+telemetry = { path = "../telemetry" }
+tokio = { version = "1", features = ["io-std", "io-util", "macros", "process", "rt", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true

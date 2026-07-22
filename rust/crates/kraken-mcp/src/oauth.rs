@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
-use crate::config::OAuthConfig;
+use kraken_config::config::OAuthConfig;
 
 use security::vault::{open_credential_vault, CredentialVault, MasterKey};
 
@@ -540,7 +540,11 @@ mod tests {
     }
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        crate::test_env_lock()
+        use std::sync::OnceLock;
+        static LOCK: OnceLock<std::sync::Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn temp_config_home() -> std::path::PathBuf {

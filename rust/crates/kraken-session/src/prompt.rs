@@ -3,8 +3,8 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::config::{ConfigError, ConfigLoader, RuntimeConfig};
-use crate::git_context::GitContext;
+use kraken_config::config::{ConfigError, ConfigLoader, RuntimeConfig};
+use kraken_git::git_context::GitContext;
 
 /// Errors raised while assembling the final system prompt.
 #[derive(Debug)]
@@ -672,7 +672,7 @@ mod tests {
         truncate_instruction_content, ContextFile, ProjectContext, SystemPromptBuilder,
         SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
     };
-    use crate::config::ConfigLoader;
+    use kraken_config::config::ConfigLoader;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -686,7 +686,11 @@ mod tests {
     }
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        crate::test_env_lock()
+        use std::sync::OnceLock;
+        static LOCK: OnceLock<std::sync::Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     fn ensure_valid_cwd() {

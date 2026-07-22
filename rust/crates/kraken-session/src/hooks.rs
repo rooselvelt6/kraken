@@ -11,8 +11,8 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::config::{RuntimeFeatureConfig, RuntimeHookConfig};
-use crate::permissions::PermissionOverride;
+use kraken_config::config::{RuntimeFeatureConfig, RuntimeHookConfig};
+use kraken_policy::permissions::PermissionOverride;
 
 const HOOK_PREVIEW_CHAR_LIMIT: usize = 160;
 
@@ -825,8 +825,8 @@ mod tests {
         HookAbortSignal, HookEvent, HookProgressEvent, HookProgressReporter, HookRunResult,
         HookRunner,
     };
-    use crate::config::{RuntimeFeatureConfig, RuntimeHookConfig};
-    use crate::permissions::PermissionOverride;
+    use kraken_config::config::{RuntimeFeatureConfig, RuntimeHookConfig};
+    use kraken_policy::permissions::PermissionOverride;
 
     struct RecordingReporter {
         events: Vec<HookProgressEvent>,

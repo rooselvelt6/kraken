@@ -11,7 +11,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::timeout;
 
-use crate::config::{McpTransport, RuntimeConfig, ScopedMcpServerConfig};
+use kraken_config::config::{McpTransport, RuntimeConfig, ScopedMcpServerConfig};
 use crate::mcp::mcp_tool_name;
 use crate::mcp_client::{McpClientBootstrap, McpClientTransport, McpStdioTransport};
 use crate::mcp_lifecycle_hardened::{
@@ -1418,7 +1418,7 @@ mod tests {
     use serde_json::json;
     use tokio::runtime::Builder;
 
-    use crate::config::{
+    use kraken_config::config::{
         ConfigSource, McpRemoteServerConfig, McpSdkServerConfig, McpServerConfig,
         McpStdioServerConfig, McpWebSocketServerConfig, ScopedMcpServerConfig,
     };
@@ -1431,7 +1431,7 @@ mod tests {
         McpInitializeServerInfo, McpListToolsResult, McpReadResourceParams, McpReadResourceResult,
         McpServerManager, McpServerManagerError, McpStdioProcess, McpTool, McpToolCallParams,
     };
-    use crate::McpLifecyclePhase;
+    use crate::mcp_lifecycle_hardened::McpLifecyclePhase;
 
     fn temp_dir() -> PathBuf {
         static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(0);
@@ -1875,7 +1875,7 @@ mod tests {
     fn rejects_non_stdio_bootstrap() {
         let config = ScopedMcpServerConfig {
             scope: ConfigSource::Local,
-            config: McpServerConfig::Sdk(crate::config::McpSdkServerConfig {
+            config: McpServerConfig::Sdk(kraken_config::config::McpSdkServerConfig {
                 name: "sdk-server".to_string(),
             }),
         };

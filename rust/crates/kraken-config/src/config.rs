@@ -4,7 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::json::JsonValue;
-use crate::sandbox::{FilesystemIsolationMode, SandboxConfig};
+use kraken_infra::sandbox::{FilesystemIsolationMode, SandboxConfig};
 
 /// Schema name advertised by generated settings files.
 pub const KRAKEN_SETTINGS_SCHEMA_NAME: &str = "SettingsSchema";
@@ -1249,7 +1249,7 @@ mod tests {
         RuntimePluginConfig, KRAKEN_SETTINGS_SCHEMA_NAME,
     };
     use crate::json::JsonValue;
-    use crate::sandbox::FilesystemIsolationMode;
+    use kraken_infra::sandbox::FilesystemIsolationMode;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 

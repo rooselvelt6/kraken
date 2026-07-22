@@ -288,7 +288,6 @@ checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 name = "c2"
 version = "0.1.0"
 dependencies = [
- "aes-gcm",
  "base64 0.22.1",
  "chrono",
  "futures-util",
@@ -297,10 +296,12 @@ dependencies = [
  "log",
  "rand 0.8.6",
  "reqwest 0.12.28",
+ "security",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-tungstenite",
  "uuid",
@@ -945,7 +946,6 @@ dependencies = [
  "rand 0.8.6",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
  "tokio",
  "tokio-test",
  "tracing",
@@ -1998,6 +1998,95 @@ dependencies = [
 ]
 
 [[package]]
+name = "kraken-config"
+version = "0.1.0"
+dependencies = [
+ "glob",
+ "kraken-infra",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kraken-conversation"
+version = "0.1.0"
+dependencies = [
+ "kraken-config",
+ "kraken-events",
+ "kraken-git",
+ "kraken-infra",
+ "kraken-policy",
+ "kraken-session",
+ "serde",
+ "serde_json",
+ "telemetry",
+ "tokio",
+]
+
+[[package]]
+name = "kraken-events"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kraken-git"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kraken-infra"
+version = "0.1.0"
+dependencies = [
+ "glob",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
+name = "kraken-mcp"
+version = "0.1.0"
+dependencies = [
+ "kraken-config",
+ "security",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "kraken-policy"
+version = "0.1.0"
+dependencies = [
+ "kraken-config",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kraken-session"
+version = "0.1.0"
+dependencies = [
+ "kraken-config",
+ "kraken-git",
+ "kraken-policy",
+ "security",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2121,7 +2210,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2520,7 +2608,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
- "thiserror 1.0.69",
  "tokio",
  "url",
 ]
@@ -3146,6 +3233,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tokio",
 ]
 
 [[package]]
@@ -3272,6 +3360,14 @@ version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
  "glob",
+ "kraken-config",
+ "kraken-conversation",
+ "kraken-events",
+ "kraken-git",
+ "kraken-infra",
+ "kraken-mcp",
+ "kraken-policy",
+ "kraken-session",
  "log",
  "plugins",
  "proptest",
@@ -3936,6 +4032,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "uuid",
 ]
 
 [[package]]
@@ -4683,7 +4780,7 @@ dependencies = [
  "sha3",
  "tempfile",
  "termcolor",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tree-sitter",
  "tree-sitter-c",

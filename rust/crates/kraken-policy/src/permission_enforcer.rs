@@ -34,8 +34,8 @@ impl PermissionEnforcer {
     /// # Examples
     ///
     /// ```
-    /// use runtime::permission_enforcer::PermissionEnforcer;
-    /// use runtime::{PermissionPolicy, PermissionMode};
+    /// use kraken_policy::permission_enforcer::PermissionEnforcer;
+    /// use kraken_policy::{PermissionPolicy, PermissionMode};
     ///
     /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::Allow));
     /// assert!(enforcer.is_allowed("bash", "rm -rf /"));
@@ -51,8 +51,8 @@ impl PermissionEnforcer {
     /// # Examples
     ///
     /// ```
-    /// use runtime::permission_enforcer::{PermissionEnforcer, EnforcementResult};
-    /// use runtime::{PermissionPolicy, PermissionMode};
+    /// use kraken_policy::permission_enforcer::{PermissionEnforcer, EnforcementResult};
+    /// use kraken_policy::{PermissionPolicy, PermissionMode};
     ///
     /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::ReadOnly));
     /// assert!(matches!(enforcer.check("write_file", "data.txt"), EnforcementResult::Denied { .. }));
@@ -167,8 +167,8 @@ impl PermissionEnforcer {
     /// # Examples
     ///
     /// ```
-    /// use runtime::permission_enforcer::{PermissionEnforcer, EnforcementResult};
-    /// use runtime::{PermissionPolicy, PermissionMode};
+    /// use kraken_policy::permission_enforcer::{PermissionEnforcer, EnforcementResult};
+    /// use kraken_policy::{PermissionPolicy, PermissionMode};
     ///
     /// let enforcer = PermissionEnforcer::new(PermissionPolicy::new(PermissionMode::ReadOnly));
     /// assert_eq!(enforcer.check_bash("cat src/main.rs"), EnforcementResult::Allowed);

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::json::{JsonError, JsonValue};
+use kraken_config::json::{JsonError, JsonValue};
 use crate::usage::TokenUsage;
 use security::redact_secrets;
 
@@ -1250,7 +1250,7 @@ mod tests {
         cleanup_rotated_logs, current_time_millis, rotate_session_file_if_needed, ContentBlock,
         ConversationMessage, MessageRole, Session, SessionFork,
     };
-    use crate::json::JsonValue;
+    use kraken_config::json::JsonValue;
     use crate::usage::TokenUsage;
     use std::fs;
     use std::path::{Path, PathBuf};
