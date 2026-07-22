@@ -19,6 +19,9 @@
 | 7 | `rand` 0.8 en 17 crates | MEDIA | 12 hardcodean `rand = "0.8"` en vez de usar workspace ref. 3 versiones en Cargo.lock (0.8, 0.9, 0.10). |
 | 8 | 6 `OnceLock` globals en tools | MEDIA | Todos confinados a `tools/src/lib.rs`. Solo se usan internamente. Menos grave de lo pensado. |
 | 9 | `sha2` legacy en C2Crypto | Baja | Solo caller de producción es `C2Crypto::derive_key()` que a su vez no tiene callers de producción. Dead code. |
+| 10 | `from_password_sha256()` viva en security | Baja | Función deprecated que queda expuesta después de eliminar c2crypto. Debe marcarse `#[deprecated]`. |
+| 11 | Sandbox real (seccomp/landlock) sin integrar | MEDIA | El crate huerfano tenía lógica genuina de aislamiento. Decisión: integrar a kraken-infra o eliminar. |
+| 12 | Sin tests para cambios de refactoring | MEDIA | Ninguna fase incluye tests. Riesgo de regresiones silenciosas. |
 
 ---
 
@@ -34,8 +37,13 @@ Fase 6 (rand)        ─┘
 Fase 5 (decompose main.rs) ──→ Fase 7 (clippy suppressions)
                               ──→ Fase 8 (OnceLock globals)
 
+Fase 10 (sandbox integration) ── depende de Fase 1
+Fase 11 (deprecate SHA-256)   ── depende de Fase 2
+
 Fase 9 (verificación) ── depende de todo lo anterior
 ```
+
+**Regla global:** Cada fase incluye `cargo test --workspace` como paso de verificación para catchar regresiones temprano.
 
 ---
 
@@ -49,6 +57,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 1.2 | Eliminar `sandbox` de `Cargo.toml` workspace members | [ ] |
 | 1.3 | `runtime/src/sandbox.rs` → eliminar, re-exportar todo de `kraken_infra::sandbox` | [ ] |
 | 1.4 | Verificar: `cargo check --workspace` | [ ] |
+| 1.5 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -63,6 +72,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 2.3 | Re-exportar `security::crypto::*` desde `c2::c2crypto` (o eliminar el módulo y actualizar imports) | [ ] |
 | 2.4 | Migrar cualquier uso de `C2Crypto` en otros crates de c2 a `security::crypto` directamente | [ ] |
 | 2.5 | Verificar: `cargo check -p c2` | [ ] |
+| 2.6 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -77,6 +87,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 3.3 | Adaptar código si hay breaking changes (blocking client API) | [ ] |
 | 3.4 | Verificar: `cargo check -p password` | [ ] |
 | 3.5 | Verificar: `cargo tree -p password` ya no tiene reqwest 0.11 | [ ] |
+| 3.6 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -99,6 +110,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 4.9 | `commands` | 9 | Crear `CommandError` | [ ] |
 | 4.10 | Resto (18 crates, ≤8 c/u) | 66 | Tipos locales o reutilizar existentes | [ ] |
 | 4.11 | Verificar: `cargo check --workspace` | - | - | [ ] |
+| 4.12 | Verificar: `cargo test --workspace` | - | - | [ ] |
 
 ---
 
@@ -128,6 +140,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 5.6 | Actualizar `rusty-claude-cli/Cargo.toml` con nuevos deps | [ ] |
 | 5.7 | Eliminar `#![allow(clippy::all)]` y corregir warnings | [ ] |
 | 5.8 | Verificar: `cargo check -p rusty-claude-cli` | [ ] |
+| 5.9 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -142,6 +155,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 6.3 | Adaptar código: `thread_rng()` → `rng()`, `gen_range` API changes | [ ] |
 | 6.4 | Verificar: `cargo check --workspace` | [ ] |
 | 6.5 | Verificar: `cargo tree` muestra una sola versión de rand | [ ] |
+| 6.6 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -155,6 +169,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 7.2 | `cargo clippy -p rusty-claude-cli --lib -- -D warnings` | [ ] |
 | 7.3 | Corregir cada warning individualmente | [ ] |
 | 7.4 | Verificar: 0 warnings | [ ] |
+| 7.5 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -167,6 +182,44 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 8.1 | Convertir `global_*_registry()` a `OnceLock` con inicialización en `GlobalToolRegistry::new()` | [ ] |
 | 8.2 | Inyectar registries como campos de `GlobalToolRegistry` en vez de globals | [ ] |
 | 8.3 | Verificar: `cargo check -p tools` | [ ] |
+| 8.4 | Verificar: `cargo test --workspace` | [ ] |
+
+---
+
+## Fase 10: Integrar sandbox real (seccomp/landlock) a kraken-infra
+
+**Riesgo:** Medio — El crate huerfano tenía lógica genuina de aislamiento (seccomp BPF, landlock, namespaces). Se elimina el crate pero se integra la lógica valiosa a `kraken-infra`.
+
+**Decisión:** Integrar, no eliminar. El aislamiento de syscall filtering es core para la seguridad de ejecución de tools.
+
+| Paso | Acción | Estado |
+|------|--------|--------|
+| 10.1 | Auditar `sandbox/src/seccomp.rs` — identificar funciones de valor (BPF filter setup, syscall whitelist) | [ ] |
+| 10.2 | Auditar `sandbox/src/landlock.rs` — identificar funciones de valor (ruleset creation, file access control) | [ ] |
+| 10.3 | Auditar `sandbox/src/namespace.rs` — identificar funciones de valor (unshare, mount namespace) | [ ] |
+| 10.4 | Migrar seccomp BPF a `kraken-infra/src/sandbox_seccomp.rs` | [ ] |
+| 10.5 | Migrar landlock a `kraken-infra/src/sandbox_landlock.rs` | [ ] |
+| 10.6 | Migrar namespace a `kraken-infra/src/sandbox_namespace.rs` | [ ] |
+| 10.7 | Actualizar `kraken-infra/src/sandbox.rs` para orquestar seccomp+landlock+namespace | [ ] |
+| 10.8 | Integrar `ToolSandbox::can_execute()` con lógica real (syscall whitelist check) | [ ] |
+| 10.9 | Integrar `ToolSandbox::verify_config()` con validación real | [ ] |
+| 10.10 | Agregar tests para seccomp BPF filter, landlock ruleset, namespace isolation | [ ] |
+| 10.11 | Verificar: `cargo check --workspace` | [ ] |
+| 10.12 | Verificar: `cargo test --workspace` | [ ] |
+
+---
+
+## Fase 11: Deprecar SHA-256 KDF legacy en security
+
+**Riesgo:** Bajo — La función queda expuesta después de eliminar c2crypto. Debe marcarse deprecated para evitar uso futuro.
+
+| Paso | Acción | Estado |
+|------|--------|--------|
+| 11.1 | Agregar `#[deprecated(note = "Use from_password_argon2id instead")]` a `Key::from_password_sha256()` | [ ] |
+| 11.2 | Agregar `#[deprecated]` a `KdfAlgorithm::Sha256` | [ ] |
+| 11.3 | Verificar que no hay callers de producción (solo tests) | [ ] |
+| 11.4 | Verificar: `cargo check --workspace` | [ ] |
+| 11.5 | Verificar: `cargo test --workspace` | [ ] |
 
 ---
 
@@ -197,4 +250,6 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 7. clippy suppressions | 30 min |
 | 8. OnceLock globals | 20 min |
 | 9. Verificación final | 15 min |
-| **Total** | **~6-8 horas** |
+| 10. Sandbox integration | 1-2 horas |
+| 11. Deprecate SHA-256 KDF | 10 min |
+| **Total** | **~7-10 horas** |
