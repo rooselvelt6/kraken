@@ -11,16 +11,17 @@ serde_json.workspace = true
 rand.workspace = true
 tokio = { version = "1", features = ["rt", "macros", "time", "net", "sync", "io-util"] }
 reqwest = { version = "0.12", features = ["json"] }
-sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
 log = "0.4"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 hickory-resolver = { version = "0.26", features = ["tokio", "system-config"] }
-aes-gcm = "0.10"
+security = { path = "../security" }
+sha2 = "0.10"
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

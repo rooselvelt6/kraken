@@ -252,8 +252,7 @@ pub fn resolve_model_alias(model: &str) -> String {
                 },
                 ProviderKind::OpenAi => match *alias {
                     "kimi" => "kimi-k2.5",
-                    "big-pickle" => "big-pickle",
-                    "opencode/big-pickle" => "big-pickle",
+                    "big-pickle" | "opencode/big-pickle" => "big-pickle",
                     _ => trimmed,
                 },
                 ProviderKind::DeepSeek => match *alias {
@@ -445,11 +444,7 @@ pub fn model_token_limit(model: &str) -> Option<ModelTokenLimit> {
         }),
         // DeepSeek models - $0.14/M input, $0.28/M output
         // 5M free tokens for new users, 128K context window
-        "deepseek-chat" | "deepseek-v3" | "deepseek-v4-flash" => Some(ModelTokenLimit {
-            max_output_tokens: 64_000,
-            context_window_tokens: 128_000,
-        }),
-        "deepseek-reasoner" | "deepseek-r1" => Some(ModelTokenLimit {
+        "deepseek-chat" | "deepseek-v3" | "deepseek-v4-flash" | "deepseek-reasoner" | "deepseek-r1" => Some(ModelTokenLimit {
             max_output_tokens: 64_000,
             context_window_tokens: 128_000,
         }),

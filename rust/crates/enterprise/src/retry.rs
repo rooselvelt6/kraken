@@ -1,4 +1,3 @@
-#[allow(clippy::all)]
 /// Retry logic with exponential backoff and jitter
 use rand::Rng;
 use serde::{Deserialize, Serialize};

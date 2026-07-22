@@ -272,7 +272,8 @@ fn try_init_vault() -> Result<Option<CredentialVault>, String> {
     let Some(master_key) = MasterKey::from_env() else {
         return Ok(None);
     };
-    let vault = open_credential_vault(&master_key)?;
+    let vault = open_credential_vault(&master_key)
+        .map_err(|e| format!("failed to open vault: {e}"))?;
     Ok(Some(vault))
 }
 

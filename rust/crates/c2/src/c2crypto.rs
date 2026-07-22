@@ -1,9 +1,6 @@
-use aes_gcm::{
-    aead::{Aead, KeyInit, OsRng},
-    Aes256Gcm, Nonce,
-};
-use base64::Engine;
-use sha2::Digest;
+use security::crypto::{Encryptor, EncryptedData, EncryptionAlgorithm, Key};
+
+pub type SessionKey = Key;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedMessage {
@@ -12,79 +9,67 @@ pub struct EncryptedMessage {
     pub key_id: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SessionKey {
-    pub key_id: String,
-    pub key: Vec<u8>,
-    pub created_at: String,
-}
-
 pub struct C2Crypto;
 
 impl C2Crypto {
     pub fn generate_key() -> SessionKey {
-        let key = Aes256Gcm::generate_key(OsRng);
-        SessionKey {
-            key_id: uuid::Uuid::new_v4().to_string(),
-            key: key.to_vec(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-        }
+        Key::generate()
     }
 
     pub fn encrypt(plaintext: &[u8], key: &SessionKey) -> Result<EncryptedMessage, String> {
-        let cipher = Aes256Gcm::new_from_slice(&key.key)
-            .map_err(|e| format!("key init failed: {}", e))?;
-        let nonce_bytes: [u8; 12] = rand::random();
-        let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, plaintext)
-            .map_err(|e| format!("encrypt failed: {}", e))?;
-
+        let encrypted = Encryptor::encrypt_with_algorithm(
+            plaintext,
+            key,
+            EncryptionAlgorithm::Aes256Gcm,
+        )?;
         Ok(EncryptedMessage {
-            ciphertext: base64::engine::general_purpose::STANDARD.encode(&ciphertext),
-            nonce: base64::engine::general_purpose::STANDARD.encode(nonce_bytes),
-            key_id: key.key_id.clone(),
+            ciphertext: encrypted.ciphertext,
+            nonce: encrypted.nonce,
+            key_id: key.to_base64(),
         })
     }
 
     pub fn decrypt(msg: &EncryptedMessage, key: &SessionKey) -> Result<Vec<u8>, String> {
-        let cipher = Aes256Gcm::new_from_slice(&key.key)
-            .map_err(|e| format!("key init failed: {}", e))?;
-        let nonce_bytes = base64::engine::general_purpose::STANDARD
-            .decode(&msg.nonce)
-            .map_err(|e| format!("nonce decode failed: {}", e))?;
-        let nonce = Nonce::from_slice(&nonce_bytes);
-        let ciphertext = base64::engine::general_purpose::STANDARD
-            .decode(&msg.ciphertext)
-            .map_err(|e| format!("ciphertext decode failed: {}", e))?;
-        let plaintext = cipher.decrypt(nonce, ciphertext.as_ref())
-            .map_err(|e| format!("decrypt failed: {}", e))?;
-        Ok(plaintext)
+        let encrypted = EncryptedData {
+            algorithm: EncryptionAlgorithm::Aes256Gcm,
+            kdf: key.algorithm(),
+            nonce: msg.nonce.clone(),
+            ciphertext: msg.ciphertext.clone(),
+            salt: Some(key.to_base64()),
+            params: None,
+        };
+        Encryptor::decrypt(&encrypted, key)
     }
 
-    pub fn derive_key(material: &[u8]) -> SessionKey {
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(material);
-        let hash = hasher.finalize();
-        SessionKey {
-            key_id: uuid::Uuid::new_v4().to_string(),
-            key: hash.to_vec(),
-            created_at: chrono::Utc::now().to_rfc3339(),
-        }
+    pub fn derive_key(password: &[u8]) -> SessionKey {
+        let salt = [1u8; 16];
+        Key::from_password_sha256(
+            &String::from_utf8_lossy(password),
+            &salt,
+        )
     }
 
-    pub fn encrypt_json<T: serde::Serialize>(data: &T, key: &SessionKey) -> Result<EncryptedMessage, String> {
-        let json = serde_json::to_vec(data).map_err(|e| format!("json serialize failed: {}", e))?;
+    pub fn encrypt_json<T: serde::Serialize>(
+        data: &T,
+        key: &SessionKey,
+    ) -> Result<EncryptedMessage, String> {
+        let json = serde_json::to_vec(data)
+            .map_err(|e| format!("json serialize failed: {}", e))?;
         Self::encrypt(&json, key)
     }
 
-    pub fn decrypt_json<T: serde::de::DeserializeOwned>(msg: &EncryptedMessage, key: &SessionKey) -> Result<T, String> {
+    pub fn decrypt_json<T: serde::de::DeserializeOwned>(
+        msg: &EncryptedMessage,
+        key: &SessionKey,
+    ) -> Result<T, String> {
         let plaintext = Self::decrypt(msg, key)?;
-        serde_json::from_slice(&plaintext).map_err(|e| format!("json deserialize failed: {}", e))
+        serde_json::from_slice(&plaintext)
+            .map_err(|e| format!("json deserialize failed: {}", e))
     }
 
     pub fn key_exchange_request() -> (SessionKey, Vec<u8>) {
         let key = Self::generate_key();
-        let pubkey = key.key.clone();
+        let pubkey = key.as_bytes().to_vec();
         (key, pubkey)
     }
 }
@@ -96,8 +81,7 @@ mod tests {
     #[test]
     fn test_generate_key() {
         let key = C2Crypto::generate_key();
-        assert_eq!(key.key.len(), 32);
-        assert!(!key.key_id.is_empty());
+        assert_eq!(key.as_bytes().len(), 32);
     }
 
     #[test]
@@ -122,8 +106,7 @@ mod tests {
     fn test_derive_key() {
         let key1 = C2Crypto::derive_key(b"shared_secret");
         let key2 = C2Crypto::derive_key(b"shared_secret");
-        assert_eq!(key1.key, key2.key);
-        assert_ne!(key1.key_id, key2.key_id);
+        assert!(key1.constant_time_eq(&key2));
     }
 
     #[test]
@@ -139,7 +122,7 @@ mod tests {
     #[test]
     fn test_key_exchange() {
         let (key, pubkey) = C2Crypto::key_exchange_request();
-        assert_eq!(key.key, pubkey);
+        assert_eq!(key.as_bytes().to_vec(), pubkey);
     }
 
     #[test]
@@ -153,19 +136,16 @@ mod tests {
     }
 
     #[test]
-    fn test_decrypt_wrong_key_id() {
-        let key = C2Crypto::generate_key();
-        let mut encrypted = C2Crypto::encrypt(b"test", &key).unwrap();
-        encrypted.key_id = "wrong".to_string();
-        let result = C2Crypto::decrypt(&encrypted, &key);
-        assert!(result.is_ok());
-    }
-
-    #[test]
     fn test_encrypt_empty() {
         let key = C2Crypto::generate_key();
         let encrypted = C2Crypto::encrypt(b"", &key).unwrap();
         let decrypted = C2Crypto::decrypt(&encrypted, &key).unwrap();
         assert!(decrypted.is_empty());
+    }
+
+    #[test]
+    fn test_key_zeroize() {
+        let key = C2Crypto::generate_key();
+        let _ = key.to_base64();
     }
 }

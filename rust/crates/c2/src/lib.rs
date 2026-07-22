@@ -10,6 +10,8 @@ pub mod session;
 pub mod c2crypto;
 pub mod kill;
 pub mod proxy;
+pub mod malleable;
+pub mod error;
 
 pub use beacon_http::HttpBeacon;
 pub use beacon_dns::DnsBeacon;
@@ -21,3 +23,5 @@ pub use session::SessionManager;
 pub use c2crypto::C2Crypto;
 pub use kill::KillSwitch;
 pub use proxy::ProxyConfig;
+pub use malleable::MalleableEngine;
+pub use error::C2Error;

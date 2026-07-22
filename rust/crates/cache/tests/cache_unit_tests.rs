@@ -11,18 +11,18 @@ fn create_test_cache() -> (CacheManager, TempDir) {
 
 #[test]
 fn cache_error_not_found_display() {
-    assert_eq!(format!("{}", CacheError::NotFound), "No encontrado");
+    assert_eq!(format!("{}", CacheError::NotFound), "Not found");
 }
 
 #[test]
 fn cache_error_expired_display() {
-    assert_eq!(format!("{}", CacheError::Expired), "Expirado");
+    assert_eq!(format!("{}", CacheError::Expired), "Expired");
 }
 
 #[test]
 fn cache_error_compression_display() {
     let e = CacheError::Compression("test".to_string());
-    assert!(format!("{}", e).contains("compresión"));
+    assert!(format!("{}", e).contains("Compression error"));
 }
 
 #[test]

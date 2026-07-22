@@ -9,7 +9,7 @@ publish = false
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tokio = { version = "1", features = ["full"] }
-thiserror = "1.0"
+thiserror = { workspace = true }
 walkdir = "2"
 regex = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }

@@ -212,15 +212,25 @@ cargo build --release
 
 ---
 
-## Roadmap
+## Roadmap v2.0 (Completado)
 
 | Fase | Estado | Detalle |
 |------|--------|---------|
 | **F1: Foundation** | ✅ | Shellcode multi-arch (6 archs), kernel PoC generator, fuzz target generator, Frida scripts, 74 integration tests |
 | **F2: Intelligence** | ✅ | Kimi K3 (1M context), program-slice analysis, call graph builder, multi-agent coordinator, cross-validation |
-| **F3: Supply Chain** | ⏳ | SBOM (CycloneDX/SPDX), dependency graph, risk scoring, compliance (CIS benchmarks), MCP trust scoring |
-| **F4: Offensive** | ⏳ | C2 server (HTTP/WebSocket/DNS), malleable profiles, WiFi real (aircrack-ng), firmware analysis con LLM |
-| **F5: Enterprise** | ⏳ | Dashboard en vivo, reportes PDF, MCP tool server, CLI polish |
+| **F3: Supply Chain** | ✅ | SBOM (CycloneDX/SPDX), dependency graph, risk scoring, compliance (CIS benchmarks), MCP trust scoring |
+| **F4: Offensive** | ✅ | C2 server (HTTP/WebSocket/DNS), malleable profiles, WiFi real (aircrack-ng), firmware analysis con LLM |
+| **F5: Enterprise** | ✅ | Dashboard en vivo, reportes PDF, MCP tool server, CLI polish |
+
+## Roadmap v3.0 (En Progreso — Deuda Técnica)
+
+| Fase | Estado | Detalle |
+|------|--------|---------|
+| **1. Higiene** | ✅ | Eliminar dependencias muertas, unificar thiserror, limpiar clippy suppressions |
+| **2. C2+Security** | ✅ | Integrar crypto de c2 con security crate, eliminar duplicación |
+| **3. Runtime decomposition** | ⏳ | Dividir runtime (48K LOC) en ~8 crates enfocados |
+| **4. Error handling** | ⏳ | Eliminar `Result<T, String>`, crear tipos de error estructurados |
+| **5. Verificación** | ⏳ | Compilación, tests, clippy, zero unsafe |
 
 ---
 

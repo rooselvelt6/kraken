@@ -1,17 +1,17 @@
-//! Errores del sistema offline
+//! Offline system errors
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum OfflineError {
-    #[error("Error de base de datos: {0}")]
+    #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
-    #[error("Error de red: {0}")]
+    #[error("Network error: {0}")]
     Network(String),
-    #[error("Error de serialización: {0}")]
+    #[error("Serialization error: {0}")]
     Serialize(#[from] serde_json::Error),
-    #[error("No hay conexión")]
+    #[error("No connection")]
     NoConnection,
-    #[error("Cola llena")]
+    #[error("Queue full")]
     QueueFull,
 }
 
@@ -22,19 +22,19 @@ mod tests {
     #[test]
     fn test_error_display_database() {
         let err = OfflineError::Network("timeout".into());
-        assert_eq!(err.to_string(), "Error de red: timeout");
+        assert_eq!(err.to_string(), "Network error: timeout");
     }
 
     #[test]
     fn test_error_display_no_connection() {
         let err = OfflineError::NoConnection;
-        assert_eq!(err.to_string(), "No hay conexión");
+        assert_eq!(err.to_string(), "No connection");
     }
 
     #[test]
     fn test_error_display_queue_full() {
         let err = OfflineError::QueueFull;
-        assert_eq!(err.to_string(), "Cola llena");
+        assert_eq!(err.to_string(), "Queue full");
     }
 
     #[test]
@@ -84,6 +84,6 @@ mod tests {
         let json_err = serde_json::from_str::<serde_json::Value>("[").unwrap_err();
         let offline_err: OfflineError = json_err.into();
         let display = offline_err.to_string();
-        assert!(display.contains("Error de serialización"));
+        assert!(display.contains("Serialization error"));
     }
 }

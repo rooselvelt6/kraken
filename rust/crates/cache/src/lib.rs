@@ -1,5 +1,5 @@
-//! Cache multi-nivel para Venezuela
-//! Reduce uso de API tokens mediante caching inteligente
+//! Multi-level cache for Venezuela
+//! Reduces API token usage through intelligent caching
 
 use chrono::Utc;
 use lru::LruCache;
@@ -12,18 +12,18 @@ use std::sync::atomic::AtomicU64;
 use std::sync::Mutex;
 use thiserror::Error;
 
-/// Errores del cache
+/// Cache errors
 #[derive(Error, Debug)]
 pub enum CacheError {
-    #[error("Error de base de datos: {0}")]
+    #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
-    #[error("No encontrado")]
+    #[error("Not found")]
     NotFound,
-    #[error("Expirado")]
+    #[error("Expired")]
     Expired,
-    #[error("Serialización: {0}")]
+    #[error("Serialization: {0}")]
     Serialize(#[from] serde_json::Error),
-    #[error("Error de compresión: {0}")]
+    #[error("Compression error: {0}")]
     Compression(String),
 }
 

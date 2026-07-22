@@ -11,6 +11,74 @@ pub struct Sbom {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneDx {
+    pub bom_format: String,
+    pub spec_version: String,
+    pub serial_number: String,
+    pub version: u32,
+    pub components: Vec<CycloneComponent>,
+    pub dependencies: Vec<CycloneDependency>,
+    pub metadata: CycloneMetadata,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneComponent {
+    pub r#type: String,
+    pub bom_ref: String,
+    pub name: String,
+    pub version: String,
+    pub description: Option<String>,
+    pub scopes: Vec<String>,
+    pub hashes: Vec<CycloneHash>,
+    pub licenses: Vec<CycloneLicense>,
+    pub purl: Option<String>,
+    pub external_references: Vec<CycloneExternalRef>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneHash {
+    pub alg: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneLicense {
+    pub license: CycloneLicenseChoice,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneLicenseChoice {
+    pub id: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneExternalRef {
+    pub r#type: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneDependency {
+    pub ref_: String,
+    pub depends_on: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneMetadata {
+    pub timestamp: String,
+    pub tools: Vec<CycloneTool>,
+    pub component: Option<CycloneComponent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CycloneTool {
+    pub vendor: String,
+    pub name: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SbomPackage {
     pub name: String,
     pub version: String,
@@ -175,6 +243,62 @@ impl SbomDiffer {
             packages: sbom_packages,
             relationships,
             created: "now".to_string(),
+        }
+    }
+
+    pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
+        let components: Vec<CycloneComponent> = sbom.packages.iter().enumerate().map(|(i, pkg)| {
+            CycloneComponent {
+                r#type: "library".to_string(),
+                bom_ref: format!("component-{}", i),
+                name: pkg.name.clone(),
+                version: pkg.version.clone(),
+                description: None,
+                scopes: vec!["required".to_string()],
+                hashes: pkg.checksum.as_ref().map(|c| {
+                    vec![CycloneHash {
+                        alg: "SHA-256".to_string(),
+                        content: c.clone(),
+                    }]
+                }).unwrap_or_default(),
+                licenses: pkg.licenses.iter().map(|l| {
+                    CycloneLicense {
+                        license: CycloneLicenseChoice {
+                            id: None,
+                            name: Some(l.clone()),
+                        },
+                    }
+                }).collect(),
+                purl: pkg.purl.clone(),
+                external_references: vec![],
+            }
+        }).collect();
+
+        let dependencies: Vec<CycloneDependency> = sbom.relationships.iter().map(|r| {
+            CycloneDependency {
+                ref_: r.source.clone(),
+                depends_on: vec![r.target.clone()],
+            }
+        }).collect();
+
+        let metadata = CycloneMetadata {
+            timestamp: sbom.created.clone(),
+            tools: vec![CycloneTool {
+                vendor: "Kraken".to_string(),
+                name: "kraken-supplychain".to_string(),
+                version: "2.0.0".to_string(),
+            }],
+            component: components.first().cloned(),
+        };
+
+        CycloneDx {
+            bom_format: "CycloneDX".to_string(),
+            spec_version: "1.5".to_string(),
+            serial_number: format!("urn:uuid:{}", uuid::Uuid::new_v4()),
+            version: 1,
+            components,
+            dependencies,
+            metadata,
         }
     }
 }
@@ -358,5 +482,70 @@ mod tests {
         let sbom = SbomDiffer::generate_sbom(&[]);
         let result = SbomDiffer::diff(&sbom, &sbom);
         assert_eq!(result.added_packages.len(), 0);
+    }
+
+    #[test]
+    fn test_cyclonedx_conversion() {
+        let sbom = sample_sbom();
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        assert_eq!(cyclonedx.bom_format, "CycloneDX");
+        assert_eq!(cyclonedx.spec_version, "1.5");
+        assert_eq!(cyclonedx.components.len(), 3);
+        assert_eq!(cyclonedx.dependencies.len(), 2);
+    }
+
+    #[test]
+    fn test_cyclonedx_component_structure() {
+        let sbom = SbomDiffer::generate_sbom(&[("test-pkg", "1.0.0", "MIT")]);
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        let component = &cyclonedx.components[0];
+        assert_eq!(component.r#type, "library");
+        assert_eq!(component.name, "test-pkg");
+        assert_eq!(component.version, "1.0.0");
+        assert_eq!(component.purl, Some("pkg:cargo/test-pkg@1.0.0".to_string()));
+        assert!(!component.licenses.is_empty());
+    }
+
+    #[test]
+    fn test_cyclonedx_metadata() {
+        let sbom = sample_sbom();
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        assert_eq!(cyclonedx.metadata.tools.len(), 1);
+        assert_eq!(cyclonedx.metadata.tools[0].vendor, "Kraken");
+        assert!(cyclonedx.metadata.timestamp.is_empty() || cyclonedx.metadata.timestamp == "now");
+    }
+
+    #[test]
+    fn test_cyclonedx_serial_number_format() {
+        let sbom = sample_sbom();
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        assert!(cyclonedx.serial_number.starts_with("urn:uuid:"));
+    }
+
+    #[test]
+    fn test_cyclonedx_hashes() {
+        let sbom = SbomDiffer::generate_sbom(&[("pkg", "1.0", "MIT")]);
+        let mut sbom_with_hash = sbom;
+        sbom_with_hash.packages[0].checksum = Some("abc123".to_string());
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom_with_hash);
+        assert!(!cyclonedx.components[0].hashes.is_empty());
+        assert_eq!(cyclonedx.components[0].hashes[0].alg, "SHA-256");
+    }
+
+    #[test]
+    fn test_cyclonedx_empty_sbom() {
+        let sbom = SbomDiffer::generate_sbom(&[]);
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        assert!(cyclonedx.components.is_empty());
+        assert!(cyclonedx.dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_cyclonedx_dependencies() {
+        let sbom = SbomDiffer::generate_sbom(&[("app", "1.0", "MIT"), ("lib", "2.0", "MIT")]);
+        let cyclonedx = SbomDiffer::to_cyclonedx(&sbom);
+        assert_eq!(cyclonedx.dependencies.len(), 1);
+        assert_eq!(cyclonedx.dependencies[0].ref_, "app");
+        assert_eq!(cyclonedx.dependencies[0].depends_on, vec!["lib"]);
     }
 }

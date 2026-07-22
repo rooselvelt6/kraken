@@ -1086,6 +1086,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "hex",
+ "kraken-errors",
  "log",
  "nom 7.1.3",
  "regex",
@@ -2024,6 +2025,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kraken-errors"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "kraken-events"
 version = "0.1.0"
 dependencies = [
@@ -2391,6 +2400,7 @@ dependencies = [
  "chrono",
  "hickory-proto",
  "hickory-resolver",
+ "kraken-errors",
  "log",
  "rand 0.8.6",
  "regex",
@@ -3562,6 +3572,7 @@ dependencies = [
 name = "sandbox"
 version = "0.1.0"
 dependencies = [
+ "kraken-errors",
  "libc",
  "log",
  "nix 0.28.0",
@@ -3632,6 +3643,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "hkdf",
+ "kraken-errors",
  "libc",
  "password-hash",
  "proptest",
@@ -3905,6 +3917,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "hex",
+ "kraken-errors",
  "pcap",
  "rand 0.8.6",
  "regex",
@@ -4431,6 +4444,7 @@ dependencies = [
  "api",
  "commands",
  "flate2",
+ "kraken-errors",
  "osint",
  "plugins",
  "reqwest 0.12.28",

@@ -92,9 +92,9 @@ impl OpenAiCompatConfig {
         }
     }
 
-    /// DeepSeek API (deepseek-chat, deepseek-reasoner, deepseek-coder).
+    /// `DeepSeek` API (deepseek-chat, deepseek-reasoner, deepseek-coder).
     /// Pricing: $0.14/M input, $0.28/M output - 5M free tokens for new users.
-    /// API docs: https://api-docs.deepseek.com
+    /// API docs: <https://api-docs.deepseek.com>
     #[must_use]
     pub const fn deepseek() -> Self {
         Self {
@@ -106,7 +106,7 @@ impl OpenAiCompatConfig {
         }
     }
 
-    /// OpenCode Zen API (Big Pickle and other free models).
+    /// `OpenCode` Zen API (Big Pickle and other free models).
     /// Free models with rate limits.
     #[must_use]
     pub const fn opencode() -> Self {
@@ -369,8 +369,7 @@ fn jitter_for_base(base: Duration) -> Duration {
     }
     let raw_nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|elapsed| u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX))
-        .unwrap_or(0);
+        .map_or(0, |elapsed| u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX));
     let tick = JITTER_COUNTER.fetch_add(1, Ordering::Relaxed);
     let mut mixed = raw_nanos
         .wrapping_add(tick)
