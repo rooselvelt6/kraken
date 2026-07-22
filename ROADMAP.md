@@ -1,277 +1,254 @@
-# Kraken v2.0 — Roadmap Consolidado
+# Kraken v3.0 — Roadmap: Resolución de Deuda Técnica
 
-> **Visión:** Plataforma de ciberseguridad ofensiva todo-en-uno en Rust, con análisis de kernel Mythos-level, 8 LLMs frontier (incluye Kimi K3 1M context), y agente autónomo.
+> **Objetivo:** Resolver los problemas arquitectónicos críticos identificados en la auditoría del sistema.
 >
-> **Stack:** 35 crates · ~210K líneas · 378+ tests unitarios + 74 doc-tests · 0 unsafe · 0 clippy warnings
+> **Estado actual:** 35 crates · ~210K LOC · 417+ tests · 0 unsafe · Roadmap v2.0 completado
 
 ---
 
-## Estado Actual
+## Auditoría: Problemas Identificados
 
-| Módulo | Líneas | Estado | Notas |
-|--------|--------|--------|-------|
-| Runtime + Tools | 1295+ | ✅ Producción | CLI completo, 82 slash commands del CLI |
-| API/LLM (7 providers) | 1318+ | ✅ Producción | Anthropic, OpenAI, DeepSeek, Groq, Mistral, Google, Ollama |
-| Seguridad (crypto/vault/audit) | 1400+ | ✅ Producción | AES-256-GCM, key rotation, memory locking |
-| Forensics (10 módulos) | 3300+ | ✅ Sólido | PCAP, memory, disk, browser, email, registry, timeline, YARA |
-| VulnScan core + pipeline | 4000+ | ✅ Sólido | 3 modos: Fast/Deep/Overnight |
-| Kernel analysis (6 fases) | 6000+ | ✅ Completo | 14 AST checkers, 4 LLM classes, 4 chain types |
-| Exploit engine | 1810 | ⚠️ Parcial | Linux x64 real, ARM/ARM64/Win/Mac placeholders |
-| Local ML | 1300+ | ⚠️ Parcial | Pesos hand-tuned, no entrenado |
-| C2 | 500+ | ⚠️ Parcial | HTTP beacon funcional, SMB/DNS stubs |
-| Wireless | 1000+ | ⚠️ Parcial | WiFi scan real, deauth/beacon fire-and-forget |
-| Hardware/IoT | 800+ | ⚠️ Parcial | Firmware analysis real, GPIO/JTAG stubs |
-| Supply chain | 600+ | ⚠️ Parcial | Typosquat + OSV, sin SBOM/graph/trust |
+| # | Problema | Severidad | Crates afectados |
+|---|----------|-----------|------------------|
+| 1 | God Crate `runtime` (48K LOC, 64 módulos) | ALTA | runtime |
+| 2 | C2 aislado — duplicación de crypto | ALTA | c2, security |
+| 3 | Error handling inconsistente (20+ crates con `Result<T, String>`) | ALTA | tools, c2, sandbox, wireless, forensics, security, etc. |
+| 4 | `#![allow(clippy::all)]` en api (suprime todos los warnings) | MEDIA | api |
+| 5 | thiserror versiones mixtas (v1 y v2) + 3 dependencias muertas | MEDIA | workspace |
+| 6 | Mensajes de error en español (cache, offline) | BAJA | cache, offline |
+| 7 | 108/144 slash commands sin implementar | BAJA | rusty-claude-cli |
+| 8 | Shellcode ARM/ARM64/Windows con placeholder bytes | BAJA | vulnscan |
+| 9 | ~25 instancias de `let _ =` descartando errores importantes | MEDIA | vulnscan, c2, wireless |
 
 ---
 
-## Lo Completado
+## Fase 1: Higiene Inmediata ✅ COMPLETADA
 
-### Roadmap-100 (Fases A-E)
-| Fase | Estado | Detalle |
-|------|--------|---------|
-| A. Quality Purge | ✅ | 0 clippy warnings, 164 archivos |
-| B. Testing Deepening | ⏳ | Pendiente (5000+ tests) |
-| C. AST Profundo | ✅ | 11 checkers AST tree-sitter |
-| D. Fuzzing & Sanitizers | ✅ | syzkaller, KASAN/KCSAN/KMSAN, crash triage |
-| E. Madurez Comercial | ✅ | CI/CD, releases, Cosign, Docker, Homebrew |
+**Objetivo:** Limpiar dependencias muertas, unificar versiones, eliminar supresiones blanket.
+**Riesgo:** Bajo | **Esfuerzo:** 30 min
 
-### Roadmap-2079 (Fases 21-26)
-| Fase | Estado | Detalle |
-|------|--------|---------|
-| 21. Kernel Foundations | ✅ | Language enum, kconfig, mitigations |
-| 22. Kernel Static Patterns | ✅ | 14 checkers AST, 103 tests |
-| 23. LLM Kernel Classes | ✅ | 4 clases kernel, KernelBuildContext |
-| 24. Kernel Pipeline & Agent | ✅ | ScanPhase::KernelAnalysis, kernel-aware agent |
-| 25. Kernel Exploitation | ✅ | PhysmapSpray, DirtyPipe, BPF, modprobe_path |
-| 26. Fuzzing & Sanitizers | ✅ | syzkaller wrapper, 3 sanitizer parsers |
+### 1.1 Eliminar dependencias muertas de thiserror
+- [x] `localmodels/Cargo.toml` — quitar `thiserror` (nunca se usa)
+- [x] `enterprise/Cargo.toml` — quitar `thiserror` (nunca se usa)
+- [x] `osint/Cargo.toml` — quitar `thiserror` (nunca se usa)
 
-**Total features completadas: ~53**
+### 1.2 Unificar versión de thiserror
+- [x] `rust/Cargo.toml` — agregar `thiserror = "2"` a `[workspace.dependencies]`
+- [x] Migrar `cache`, `offline` a `thiserror = { workspace = true }`
+- [x] Verificar que `enterprise`, `osint`, `vulnscan` no necesitan thiserror
 
----
+### 1.3 Eliminar supresiones blanket de clippy
+- [x] `api/src/lib.rs` — quitar `#![allow(clippy::all, ...)]`
+- [x] `enterprise/src/retry.rs` — quitar `#[allow(clippy::all)]`
+- [x] Compilar, fixear o suprimir individualmente los warnings resultantes
 
-## Stubs/TODOs Identificados (24 reales)
+### 1.4 Traducir mensajes de error en español
+- [x] `cache/src/error.rs` — traducir a inglés
+- [x] `offline/src/error.rs` — traducir a inglés
 
-| # | Crate | Archivo | Problema |
-|---|-------|---------|----------|
-| 1 | `vulnscan` | `exploit.rs:122` | WIN_X64_WINEXEC = padding placeholder |
-| 2 | `vulnscan` | `exploit.rs:184,189,190` | ARM/ARM64 gadgets = texto descriptivo |
-| 3 | `vulnscan` | `exploit.rs:294-308` | Reverse/bind shells x64 = ASCII placeholder |
-| 4 | `vulnscan` | `exploit.rs:500,583` | Shell fallbacks para OS/arch no soportados = TODO |
-| 5 | `vulnscan` | `exploit.rs:680-683` | XOR decoder non-x64 = ASCII placeholder |
-| 6 | `vulnscan` | `exploit.rs:1096,1104` | Metasploit template con TODO markers |
-| 7 | `vulnscan` | `fuzz.rs:68-69` | Fuzz target generator = `let _ = data` |
-| 8 | `vulnscan` | `kernel/fuzz.rs:582-585` | Kernel PoC body vacío |
-| 9 | `mobile` | `frida.rs:285,296` | Frida scripts = placeholder log |
-| 10 | `sandbox` | `platform_windows.rs:70-71` | AppContainer = warn + return Ok |
-| 11 | `runtime` | `lsp_client.rs:285-296` | LSP dispatch = JSON placeholder |
-| 12 | `c2` | `beacon_smb.rs:82-84` | SMB beacon = error en non-Windows |
-| 13 | `c2` | `proxy.rs:127-131` | DNS proxy test = error |
-| 14 | `network` | `web.rs:841-853` | detect_wp_plugins/detect_cms_themes = vec vacío |
-| 15 | `network` | `web.rs:833-839` | detect_cms_plugins ignora URL |
-| 16 | `forensics` | `network.rs:187` | Byte-swap flag computado pero no usado |
-| 17 | `rusty-claude-cli` | `main.rs:8430-8541` | 82 slash commands registrados sin implementar |
-| 18 | `rusty-claude-cli` | `main.rs:1330` | OMC/plugin loading no implementado |
-| 19 | `rusty-claude-cli` | `main.rs:6362` | ACP/Zed integration = no-op |
+### 1.5 Verificación
+- [x] `cargo check --workspace` — sin errores
+- [x] `cargo clippy --workspace` — warnings minimizados
 
 ---
 
-## Fase 1: Foundation — Cerrar Deuda Técnica
+## Fase 2: Integrar C2 con Security ✅ COMPLETADA
 
-**Objetivo:** Eliminar todos los stubs reales, implementar shellcode multi-arch, generar fuzz targets funcionales, y agregar tests de integración.
+**Objetivo:** Eliminar duplicación de crypto, mejorar seguridad de keys, unificar error handling.
+**Riesgo:** Bajo | **Esfuerzo:** 1 hora
 
-**Esfuerzo:** 1-2 semanas
+### 2.1 Agregar `security` como dependencia de `c2`
+- [x] `c2/Cargo.toml` — agregar `security = { path = "../security" }`
+- [x] Verificar que no hay dependencia circular (DAG: c2 → security, runtime → security)
 
-### 1.1 Shellcode Multi-Arch (exploit.rs)
-- [ ] Linux ARM reverse shell real (syscall-based)
-- [ ] Linux ARM64 reverse shell real
-- [ ] Windows x64 WinExec real (PE header + shellcode)
-- [ ] macOS x64/ARM64 reverse shell real
-- [ ] Reverse shell genérico x64 Linux real (syscall `connect+dup2+execve`)
-- [ ] Bind shell genérico x64 Linux real
-- [ ] XOR decoder para ARM/ARM64
-- [ ] ROP gadgets reales para ARM/ARM64
+### 2.2 Reemplazar `c2crypto.rs`
+- [x] `c2/src/c2crypto.rs` — delegar a `Encryptor` y `Key` de security
+- [x] Ganancias: zeroize automático, constant-time comparison, algorithm agility
+- [x] Mantener `encrypt_json`/`decrypt_json` como wrappers específicos de c2
 
-### 1.2 Fuzz Target Generator (fuzz.rs)
-- [ ] Generar fuzz target C real con `LLVMFuzzerTestOneInput`
-- [ ] Parsear función objetivo del source code
-- [ ] Generar harness que llama a la función con datos fuzzed
-- [ ] Soporte para structs de entrada
+### 2.3 Limpiar dependencias de `c2/Cargo.toml`
+- [x] Eliminar `aes-gcm` (ya viene via security)
+- [x] Eliminar `sha2` directo (usar via security o mantener solo para payload checksum)
+- [x] Mantener `hex`, `base64`, `rand` (necesarios para malleable profiles)
 
-### 1.3 Kernel PoC Generator (kernel/fuzz.rs)
-- [ ] Generar PoC C que mapea kernel symbols de `/proc/kallsyms`
-- [ ] Trigger real basado en crash type (UAF/OOB/overflow)
-- [ ] Incluir setup de /dev/ para kernel exploits
+### 2.4 Crear tipo `C2Error` estructurado
+- [x] `c2/src/error.rs` (nuevo) — enum con variantes: `Crypto`, `Transport`, `Protocol`, `Io`
+- [x] Reemplazar los 16 `Result<T, String>` del crate c2
 
-### 1.4 Frida Scripts (mobile/frida.rs)
-- [ ] SSL bypass real para Android (SSLContext bypass)
-- [ ] Root bypass real para Android (SU detection bypass)
-- [ ] Pinning bypass para iOS
-
-### 1.5 Metasploit Templates (exploit.rs)
-- [ ] Template sin TODO markers
-- [ ] Auto-fill de target info
-
-### 1.6 Tests de Integración (50+)
-- [ ] Pipeline completo: recon → scan → exploit → report (10 tests)
-- [ ] VulnScan → Chaining → Exploit generation (10 tests)
-- [ ] API providers round-trip mock (10 tests)
-- [ ] Kernel analysis end-to-end (10 tests)
-- [ ] C2 beacon → command → response (5 tests)
-- [ ] Supply chain scan → finding (5 tests)
+### 2.5 Verificación
+- [x] `cargo check -p c2` — sin errores
+- [x] `cargo test -p c2` — todos pasan
+- [x] `cargo clippy -p c2` — limpio
 
 ---
 
-## Fase 2: Intelligence — Kimi K3 + Innovación
+## Fase 3: Descomponer el God Crate `runtime` ✅ COMPLETADA
 
-**Objetivo:** Integrar Kimi K3 como 8vo provider, pipeline de 1M context, program-slice analysis, multi-agent.
+**Objetivo:** Dividir `runtime` (48K LOC) en ~8 crates enfocados.
+**Riesgo:** Medio | **Esfuerzo:** 3-4 horas
+**Resultado:** 8 crates creados, 49 módulos extraídos, 704 tests, 0 clippy warnings.
 
-**Esfuerzo:** 1-2 semanas
+Estrategia: Extraer en orden de dependencia (hojas primero).
 
-### 2.1 Kimi K3 Integration (api/)
-- [ ] Provider `Kimi` en enum (OpenAI-compatible)
-- [ ] Client con 1M context window
-- [ ] Pricing: $0.30/MTok cached, $0.60/MTok input
-- [ ] Benchmark vs DeepSeek en cyber tasks
+### 3.1 `kraken-infra` — Infraestructura utilitaria (13 módulos hoja) ✅
+- [x] Crear `crates/kraken-infra/` con Cargo.toml
+- [x] Mover: `circuit_breaker`, `health_probe`, `rate_limiter`, `concurrency`, `file_ops`, `path_traversal`, `sanitizer`, `sandbox`, `forensic`, `fingerprint`, `size_budget`, `summary_compression`, `bootstrap`
+- [x] Dependencias externas: `serde`, `tokio`, `glob`, `regex`, `walkdir`, `sha2`
+- [x] Tests: 147 unit + 7 doc tests
 
-### 2.2 1M Context Pipeline
-- [ ] Chunker de codebase completo por relevancia
-- [ ] Program-slice analysis: call graph → focused prompts
-- [ ] Selective context: enviar solo lo relevante al LLM
-- [ ] Cache de contexto para re-análisis
+### 3.2 `kraken-git` — Contexto de source control (4 módulos hoja) ✅
+- [x] Crear `crates/kraken-git/`
+- [x] Mover: `git_context`, `stale_base`, `stale_branch`, `branch_lock`
+- [x] Dependencias: `serde`, `std`
+- [x] Tests: 34
 
-### 2.3 Program-Slice Analysis
-- [ ] Call graph builder con tree-sitter
-- [ ] Slice extractor: dada una función, extraer todo lo necesario
-- [ ] Risk-ranked slices: primero los más peligrosos
-- [ ] Integration con kernel patterns
+### 3.3 `kraken-events` — Eventos y tareas (4 módulos) ✅
+- [x] Crear `crates/kraken-events/`
+- [x] Mover: `lane_events`, `task_packet`, `task_registry`, `team_cron_registry`
+- [x] `task_registry` depende de `task_packet`, los demás son hojas
+- [x] Tests: 54 unit + 6 doc tests
 
-### 2.4 Multi-Agent Research
-- [ ] Meta-agente que coordina sub-agentes
-- [ ] Sub-agente 1: Static analysis
-- [ ] Sub-agente 2: LLM semantic analysis
-- [ ] Sub-agente 3: Exploit generation
-- [ ] Cross-validation entre agentes
+### 3.4 `kraken-config` — Configuración (3 módulos) ✅
+- [x] Crear `crates/kraken-config/`
+- [x] Mover: `config`, `config_validate`, `json`
+- [x] `config` depende de `json` + `sandbox` (sandbox viene de kraken-infra)
+- [x] Tests: 45
 
----
+### 3.5 `kraken-policy` — Políticas y permisos (5 módulos) ✅
+- [x] Crear `crates/kraken-policy/`
+- [x] Mover: `policy_engine`, `green_contract`, `trust_resolver`, `permissions`, `permission_enforcer`
+- [x] `permission_enforcer` depende de `permissions`; `permissions` depende de `kraken-config`
+- [x] Tests: 50 unit + 4 doc tests
 
-## Fase 3: Supply Chain + Compliance
+### 3.6 `kraken-mcp` — Subsistema MCP (7 módulos) ✅
+- [x] Crear `crates/kraken-mcp/`
+- [x] Mover: `mcp`, `mcp_client`, `mcp_stdio`, `mcp_server`, `mcp_tool_bridge`, `mcp_lifecycle_hardened`, `oauth`
+- [x] Cadena lineal limpia
+- [x] Tests: 70
 
-**Objetivo:** SBOM, dependency graph, compliance, MCP trust.
+### 3.7 `kraken-session` — Sesiones (6 módulos) ✅
+- [x] Crear `crates/kraken-session/`
+- [x] Mover: `session`, `session_control`, `compact`, `usage`, `prompt`, `hooks`
+- [x] `session` ↔ `usage` circular (mismo crate); `prompt` depende de `kraken-config` + `kraken-git`
+- [x] Tests: 62
 
-**Esfuerzo:** 1 semana
+### 3.8 `kraken-conversation` — Loop de conversación (1 módulo) ✅
+- [x] Crear `crates/kraken-conversation/`
+- [x] Mover: `conversation` (depende de 6 módulos → importa de kraken-* crates)
 
-### 3.1 SBOM Generation
-- [ ] CycloneDX format
-- [ ] SPDX format
-- [ ] Dependency tree completo
-- [ ] License compliance check
+### 3.9 Módulos restantes en `runtime` ✅
+- [x] Quedan en runtime (~15 módulos): `bash`, `bash_validation`, `heuristic_engine`, `adaptive_engine`, `audit_integration`, `siem_export`, `self_healing`, `recovery_recipes`, `provider_chain`, `meta_agent`, `remote`, `sse`, `lsp_client`, `plugin_lifecycle`, `worker_boot`
+- [x] Runtime funciona como fachada delgada re-exportando desde los nuevos crates
 
-### 3.2 Dependency Risk Scoring
-- [ ] Graph de dependencias
-- [ ] Risk score por dependencia (edad, mantenimiento, CVEs)
-- [ ] Transitive dependency analysis
-- [ ] Visualización del grafo
+### 3.10 Actualizar workspace ✅
+- [x] `rust/Cargo.toml` — workspace `crates/*` detecta automáticamente
+- [x] Re-exports en `runtime/lib.rs` mantienen backward compatibility con `crate::`
+- [x] 20 archivos .rs eliminados de runtime (movidos a nuevos crates)
 
-### 3.3 MCP Trust Scoring
-- [ ] Evaluar seguridad de MCP servers
-- [ ] Permissions audit
-- [ ] Data flow analysis
-- [ ] Trust score generation
-
-### 3.4 Compliance
-- [ ] CIS benchmarks para Linux
-- [ ] CIS benchmarks para Docker
-- [ ] Dockerfile best practices
-- [ ] Kubernetes security baselines
-
----
-
-## Fase 4: Offensive Depth — C2, Wireless, Firmware
-
-**Objetivo:** C2 funcional, malleable profiles, WiFi real, firmware analysis con LLM.
-
-**Esfuerzo:** 2 semanas
-
-### 4.1 C2 Server
-- [ ] HTTP beacon funcional (ya existe parcialmente)
-- [ ] WebSocket beacon
-- [ ] DNS beacon
-- [ ] Malleable C2 profiles (tipo Cobalt Strike)
-- [ ] Encrypted comms (AES-256-GCM)
-
-### 4.2 Wireless
-- [ ] WiFi handshake capture real (aircrack-ng integration)
-- [ ] Bluetooth LE enumeration
-- [ ] Deauthentication real (aireplay-ng)
-- [ ] Evil twin AP
-
-### 4.3 Firmware Analysis
-- [ ] Firmware extraction (binwalk integration)
-- [ ] Filesystem analysis
-- [ ] Hardcoded credentials detection
-- [ ] LLM-powered firmware audit
-
-### 4.4 Metasploit Integration
-- [ ] Generar módulos Metasploit funcionales
-- [ ] Auto-configurar target
-- [ ] Session management
+### 3.11 Verificación ✅
+- [x] `cargo check --workspace` — sin errores (excepto pre-existing openssl)
+- [x] `cargo test` — 704 tests (479 nuevos crates + 225 runtime)
+- [x] `cargo clippy` — 0 warnings
 
 ---
 
-## Fase 5: Enterprise — Dashboard, MCP Server, Reporting
+## Fase 4: Error Handling Estandarizado
 
-**Objetivo:** Dashboard en vivo, reportes PDF, MCP tool server, CLI polish.
+**Objetivo:** Eliminar `Result<T, String>` de los crates más críticos, crear tipos de error estructurados.
+**Riesgo:** Medio | **Esfuerzo:** 2-3 horas
 
-**Esfuerzo:** 1 semana
+### 4.1 Crear `kraken-errors` crate
+- [ ] Crear `crates/kraken-errors/` con enum `KrakenError`
+- [ ] Variantes por dominio: `Api`, `Config`, `Session`, `Plugin`, `Tool`, `Io`, `Json`
+- [ ] Usar `thiserror = { workspace = true }` y `#[from]` para conversión ergonómica
 
-### 5.1 Dashboard en Vivo
-- [ ] WebSocket streaming de findings en tiempo real
-- [ ] Gráfico de progreso de scan
-- [ ] Mapa de calor de vulnerabilidades
-- [ ] Historial de scans
+### 4.2 Migrar crates críticos (prioridad ALTA)
+- [ ] `tools/src/lib.rs` — crear `ToolError` (80+ funciones `Result<T, String>`)
+- [ ] `sandbox/` — crear `SandboxError` (22 funciones)
+- [ ] `security/` — crear `SecurityError` (18 funciones, crypto/vault/config)
 
-### 5.2 Reportes PDF
-- [ ] Template profesional
-- [ ] Executive summary
-- [ ] Technical details
-- [ ] Remediation steps
-- [ ] Charts y graphs
+### 4.3 Migrar crates medios (prioridad MEDIA)
+- [ ] `wireless/` — crear `WirelessError` (23 funciones)
+- [ ] `forensics/` — crear `ForensicsError` (20 funciones)
+- [ ] `sniffer/` — crear `SnifferError` (14 funciones)
+- [ ] `network/` — crear `NetworkError` (7 funciones)
 
-### 5.3 MCP Tool Server
-- [ ] Kraken como herramienta MCP para otros agents
-- [ ] Exponer: scan, analyze, exploit, report
-- [ ] Authentication y rate limiting
+### 4.4 Migrar binario
+- [ ] `rusty-claude-cli/src/main.rs` — reemplazar `Box<dyn Error>` (~90 funciones) con `KrakenError`
 
-### 5.4 CLI Polish
-- [ ] Colores consistentes
-- [ ] Progress bars reales
-- [ ] Output formatting
-- [ ] Error messages helpful
+### 4.5 Corregir `let _ =` críticos
+- [ ] `vulnscan/src/db.rs` — loguear errores de DB en vez de descartar
+- [ ] `c2/src/beacon_ws.rs` — loguear fallos de WebSocket send
+- [ ] `wireless/src/bluetooth.rs` — loguear resultados de comandos
+- [ ] `vulnscan/src/fuzz.rs` — propagar panics de fuzz en vez de descartar
+
+### 4.6 Verificación
+- [ ] `cargo check --workspace` — sin errores
+- [ ] `cargo test --workspace` — todos pasan
+- [ ] `cargo clippy --workspace` — limpio
+
+---
+
+## Fase 5: Verificación Final
+
+**Objetivo:** Confirmar que todo compila, pasa tests, y cumple estándares.
+**Riesgo:** Ninguno | **Esfuergo:** 30 min
+
+### 5.1 Compilación completa
+- [ ] `cargo build --release` — sin errores
+
+### 5.2 Tests completos
+- [ ] `cargo test --workspace` — todos pasan
+
+### 5.3 Clippy limpio
+- [ ] `cargo clippy --workspace -- -D warnings` — sin warnings
+
+### 5.4 Verificar zero unsafe
+- [ ] `grep -r "unsafe {" crates/ --include="*.rs" | grep -v "sandbox\|seccomp\|landlock"` — solo en módulos de OS
+
+### 5.5 Actualizar documentación
+- [ ] `progress.txt` — documentar cada fase completada
+- [ ] `README.md` — actualizar métricas y tabla de estados
+- [ ] `ROADMAP.md` — marcar todas las tareas completadas
 
 ---
 
 ## Métricas de Éxito
 
-| Métrica | Actual | v2.0 Target |
-|---------|--------|-------------|
-| LLM providers | 7 | 8 (+Kimi K3) |
-| Shellcode architectures | 1 (Linux x64) | 6 |
-| Tests de integración | 0 | 50+ |
-| Stubs/TODOs reales | ~24 | 0 |
-| Supply chain features | 2 | 8 |
-| C2 transports | 1 (HTTP) | 4 |
-| Compliance frameworks | 0 | 3 |
-| Slash commands implemented | 0/82 | 10+ |
+| Métrica | Antes | Después |
+|---------|-------|---------|
+| God crates (>30K LOC) | 1 (`runtime` 48K) | 0 (`runtime` ~15K, 8 sub-crates) |
+| Crates con `Result<T, String>` | 20+ | Pendiente (Fase 4) |
+| Dead thiserror dependencies | 3 | 0 |
+| Blanket clippy suppressions | 2 | 0 |
+| Error messages en español | 2 crates | 0 |
+| `let _ =` descartando errores críticos | ~25 | Pendiente (Fase 4) |
+| C2 duplica crypto de security | Sí | No |
+| Tests totales | 417+ | 704+ |
+| Sub-crates de runtime | 0 | 8 |
 
 ---
 
 ## Timeline
 
-| Semana | Fase | Entregable |
-|--------|------|------------|
-| 1-2 | F1: Foundation | Shellcode multi-arch, fuzz generator, kernel PoC, 50+ tests |
-| 3-4 | F2: Intelligence | Kimi K3, 1M context, program-slice, multi-agent |
-| 5 | F3: Supply Chain | SBOM, dependency graph, compliance, MCP trust |
-| 6-7 | F4: Offensive | C2 server, malleable profiles, WiFi real, firmware LLM |
-| 8 | F5: Enterprise | Dashboard, PDF reports, MCP server, CLI polish |
+| Fase | Duración | Dependencia |
+|------|----------|-------------|
+| 1. Higiene | 30 min | Ninguna |
+| 2. C2+Security | 1 hora | Fase 1 |
+| 3. Runtime decomposition | 3-4 horas | Fase 1 |
+| 4. Error handling | 2-3 horas | Fases 2, 3 |
+| 5. Verificación | 30 min | Fases 1-4 |
+| **Total** | **~7-9 horas** | |
+
+---
+
+## Dependencias entre Fases
+
+```
+Fase 1 (Higiene)
+  ├──→ Fase 2 (C2+Security)
+  │      └──→ Fase 4 (Error handling)
+  └──→ Fase 3 (Runtime decomposition)
+         └──→ Fase 4 (Error handling)
+                └──→ Fase 5 (Verificación)
+```
