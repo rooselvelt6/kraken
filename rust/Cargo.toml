@@ -2,7 +2,6 @@
 members = [
   "crates/*",
   "crates/security",
-  "crates/sandbox",
   "crates/enterprise",
   "crates/localmodels",
   "crates/offline",
