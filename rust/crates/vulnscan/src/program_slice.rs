@@ -56,6 +56,12 @@ pub struct SliceFile {
     pub content: String,
 }
 
+impl Default for CallGraph {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CallGraph {
     pub fn new() -> Self {
         Self {
@@ -314,14 +320,13 @@ fn extract_rust_func_name(line: &str) -> Option<String> {
 
 fn extract_c_func_name(line: &str) -> Option<String> {
     let line = line.trim();
-    let line = if let Some(pos) = line.rfind('(') {
+    let line = {
+        let pos = line.rfind('(')?;
         &line[..pos]
-    } else {
-        return None;
     };
     let name = line.split_whitespace().last()?;
     let name = name.trim_start_matches('*');
-    if name.is_empty() || name.chars().next().map_or(false, |c| c.is_numeric()) {
+    if name.is_empty() || name.chars().next().is_some_and(|c| c.is_numeric()) {
         None
     } else {
         Some(name.to_string())

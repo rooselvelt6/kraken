@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use commands::{CommandManifestEntry, CommandRegistry, CommandSource};
-use runtime::{BootstrapPhase, BootstrapPlan};
+use runtime::bootstrap::{BootstrapPhase, BootstrapPlan};
 use tools::{ToolManifestEntry, ToolRegistry, ToolSource};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

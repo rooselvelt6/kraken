@@ -6710,6 +6710,7 @@ mod tests {
         ProviderRuntimeClient, SubagentToolExecutor,
     };
     use api::OutputContentBlock;
+    use kraken_errors::ToolError;
     use runtime::ProviderFallbackConfig;
     use runtime::{
         permission_enforcer::PermissionEnforcer, ApiRequest, AssistantEvent, ConversationRuntime,
@@ -6817,7 +6818,7 @@ mod tests {
     #[test]
     fn rejects_unknown_tool_names() {
         let error = execute_tool("nope", &json!({})).expect_err("tool should be rejected");
-        assert!(error.contains("unsupported tool"));
+        assert!(error.to_string().contains("unsupported tool"));
     }
 
     #[test]
@@ -6846,7 +6847,7 @@ mod tests {
             }),
         )
         .expect_err("prompt delivery before ready should fail");
-        assert!(gated.contains("not ready for prompt delivery"));
+        assert!(gated.to_string().contains("not ready for prompt delivery"));
 
         let observed = execute_tool(
             "WorkerObserve",
@@ -7027,7 +7028,7 @@ mod tests {
             "WorkerGet on unknown id should return error"
         );
         assert!(
-            result.unwrap_err().contains("worker not found"),
+            result.unwrap_err().to_string().contains("worker not found"),
             "error should mention worker not found"
         );
     }
@@ -7259,7 +7260,7 @@ mod tests {
         );
         assert!(result.is_err(), "terminating unknown worker should fail");
         assert!(
-            result.unwrap_err().contains("worker not found"),
+            result.unwrap_err().to_string().contains("worker not found"),
             "error should mention worker not found"
         );
     }
@@ -7272,7 +7273,7 @@ mod tests {
         );
         assert!(result.is_err(), "restarting unknown worker should fail");
         assert!(
-            result.unwrap_err().contains("worker not found"),
+            result.unwrap_err().to_string().contains("worker not found"),
             "error should mention worker not found"
         );
     }
@@ -7419,7 +7420,7 @@ mod tests {
             .expect_err("write tool should be denied before dispatch");
 
         // then
-        assert!(error.contains("requires workspace-write permission"));
+        assert!(error.to_string().contains("requires workspace-write permission"));
     }
 
     #[test]
@@ -7451,11 +7452,11 @@ mod tests {
     fn permission_mode_from_plugin_rejects_invalid_inputs() {
         let unknown_permission = permission_mode_from_plugin("admin")
             .expect_err("unknown plugin permission should fail");
-        assert!(unknown_permission.contains("unsupported plugin permission: admin"));
+        assert!(unknown_permission.to_string().contains("unsupported plugin permission: admin"));
 
         let empty_permission =
             permission_mode_from_plugin("").expect_err("empty plugin permission should fail");
-        assert!(empty_permission.contains("unsupported plugin permission: "));
+        assert!(empty_permission.to_string().contains("unsupported plugin permission: "));
     }
 
     #[test]
@@ -7595,7 +7596,7 @@ mod tests {
             }),
         )
         .expect_err("invalid URL should fail");
-        assert!(error.contains("relative URL without a base") || error.contains("invalid"));
+        assert!(error.to_string().contains("relative URL without a base") || error.to_string().contains("invalid"));
     }
 
     #[test]
@@ -7698,7 +7699,7 @@ mod tests {
         let error = execute_tool("WebSearch", &json!({ "query": "generic links" }))
             .expect_err("invalid base URL should fail");
         std::env::remove_var("KRAKEND_WEB_SEARCH_BASE_URL");
-        assert!(error.contains("relative URL without a base") || error.contains("empty host"));
+        assert!(error.to_string().contains("relative URL without a base") || error.to_string().contains("empty host"));
     }
 
     #[test]
@@ -7815,7 +7816,7 @@ mod tests {
 
         let empty = execute_tool("TodoWrite", &json!({ "todos": [] }))
             .expect_err("empty todos should fail");
-        assert!(empty.contains("todos must not be empty"));
+        assert!(empty.to_string().contains("todos must not be empty"));
 
         // Multiple in_progress items are now allowed for parallel workflows
         let _multi_active = execute_tool(
@@ -7838,7 +7839,7 @@ mod tests {
             }),
         )
         .expect_err("blank content should fail");
-        assert!(blank_content.contains("todo content must not be empty"));
+        assert!(blank_content.to_string().contains("todo content must not be empty"));
 
         let nudge = execute_tool(
             "TodoWrite",
@@ -8794,10 +8795,10 @@ mod tests {
                 model: None,
                 context: None,
             },
-            |_| Err(String::from("thread creation failed")),
+            |_| Err(ToolError::Other(String::from("thread creation failed"))),
         )
         .expect_err("spawn errors should surface");
-        assert!(spawn_error.contains("failed to spawn sub-agent"));
+        assert!(spawn_error.to_string().contains("failed to spawn sub-agent"));
         let spawn_error_manifest = std::fs::read_dir(&dir)
             .expect("agent dir should exist")
             .filter_map(Result::ok)
@@ -9056,7 +9057,7 @@ mod tests {
             }),
         )
         .expect_err("blank description should fail");
-        assert!(missing_description.contains("description must not be empty"));
+        assert!(missing_description.to_string().contains("description must not be empty"));
 
         let missing_prompt = execute_tool(
             "Agent",
@@ -9066,7 +9067,7 @@ mod tests {
             }),
         )
         .expect_err("blank prompt should fail");
-        assert!(missing_prompt.contains("prompt must not be empty"));
+        assert!(missing_prompt.to_string().contains("prompt must not be empty"));
     }
 
     #[test]
@@ -9161,7 +9162,7 @@ mod tests {
             }),
         )
         .expect_err("non-ipynb file should fail");
-        assert!(wrong_extension.contains("Jupyter notebook"));
+        assert!(wrong_extension.to_string().contains("Jupyter notebook"));
         let _ = fs::remove_file(&text_path);
 
         let empty_notebook = temp_path("empty.ipynb");
@@ -9179,7 +9180,7 @@ mod tests {
             }),
         )
         .expect_err("insert without source should fail");
-        assert!(missing_source.contains("new_source is required"));
+        assert!(missing_source.to_string().contains("new_source is required"));
 
         let missing_cell = execute_tool(
             "NotebookEdit",
@@ -9189,7 +9190,7 @@ mod tests {
             }),
         )
         .expect_err("delete on empty notebook should fail");
-        assert!(missing_cell.contains("Notebook has no cells to edit"));
+        assert!(missing_cell.to_string().contains("Notebook has no cells to edit"));
         let _ = fs::remove_file(empty_notebook);
     }
 
@@ -9371,7 +9372,7 @@ mod tests {
 
         let read_error = execute_tool("read_file", &json!({ "path": "missing.txt" }))
             .expect_err("missing file should fail");
-        assert!(!read_error.is_empty());
+        assert!(!read_error.to_string().is_empty());
 
         let edit_once = execute_tool(
             "edit_file",
@@ -9412,14 +9413,14 @@ mod tests {
             &json!({ "path": "nested/demo.txt", "old_string": "omega", "new_string": "omega" }),
         )
         .expect_err("identical old/new should fail");
-        assert!(edit_same.contains("must differ"));
+        assert!(edit_same.to_string().contains("must differ"));
 
         let edit_missing = execute_tool(
             "edit_file",
             &json!({ "path": "nested/demo.txt", "old_string": "missing", "new_string": "omega" }),
         )
         .expect_err("missing substring should fail");
-        assert!(edit_missing.contains("old_string not found"));
+        assert!(edit_missing.to_string().contains("old_string not found"));
 
         std::env::set_current_dir(&original_dir).expect("restore cwd");
         let _ = fs::remove_dir_all(root);
@@ -9453,7 +9454,7 @@ mod tests {
 
         let glob_error = execute_tool("glob_search", &json!({ "pattern": "[" }))
             .expect_err("invalid glob should fail");
-        assert!(!glob_error.is_empty());
+        assert!(!glob_error.to_string().is_empty());
 
         let grep_content = execute_tool(
             "grep_search",
@@ -9491,7 +9492,7 @@ mod tests {
             &json!({ "pattern": "(alpha", "path": "nested" }),
         )
         .expect_err("invalid regex should fail");
-        assert!(!grep_error.is_empty());
+        assert!(!grep_error.to_string().is_empty());
 
         std::env::set_current_dir(&original_dir).expect("restore cwd");
         let _ = fs::remove_dir_all(root);
@@ -9516,7 +9517,7 @@ mod tests {
     fn given_excessive_duration_when_sleep_then_rejects_with_error() {
         let result = execute_tool("Sleep", &json!({"duration_ms": 999_999_999_u64}));
         let error = result.expect_err("excessive sleep should fail");
-        assert!(error.contains("exceeds maximum allowed sleep"));
+        assert!(error.to_string().contains("exceeds maximum allowed sleep"));
     }
 
     #[test]
@@ -9602,7 +9603,7 @@ mod tests {
             &json!({"setting": "permissions.defaultMode", "value": "bogus"}),
         )
         .expect_err("invalid config value should error");
-        assert!(invalid.contains("Invalid value"));
+        assert!(invalid.to_string().contains("Invalid value"));
 
         let unknown =
             execute_tool("Config", &json!({"setting": "nope"})).expect("unknown setting result");
@@ -9775,7 +9776,7 @@ mod tests {
     fn given_empty_payload_when_structured_output_then_rejects_with_error() {
         let result = execute_tool("StructuredOutput", &json!({}));
         let error = result.expect_err("empty payload should fail");
-        assert!(error.contains("must not be empty"));
+        assert!(error.to_string().contains("must not be empty"));
     }
 
     #[test]
@@ -9796,7 +9797,7 @@ mod tests {
         let result = execute_tool("REPL", &json!({"language": "python", "code": "   "}));
 
         let error = result.expect_err("empty REPL code should fail");
-        assert!(error.contains("code must not be empty"));
+        assert!(error.to_string().contains("code must not be empty"));
     }
 
     #[test]
@@ -9804,7 +9805,7 @@ mod tests {
         let result = execute_tool("REPL", &json!({"language": "ruby", "code": "puts 1"}));
 
         let error = result.expect_err("unsupported REPL language should fail");
-        assert!(error.contains("unsupported REPL language: ruby"));
+        assert!(error.to_string().contains("unsupported REPL language: ruby"));
     }
 
     #[test]
@@ -9819,7 +9820,7 @@ mod tests {
         );
 
         let error = result.expect_err("timed out REPL execution should fail");
-        assert!(error.contains("REPL execution exceeded timeout of 10 ms"));
+        assert!(error.to_string().contains("REPL execution exceeded timeout of 10 ms"));
     }
 
     #[test]
@@ -9900,7 +9901,7 @@ printf 'pwsh:%s' "$1"
         std::env::set_var("PATH", original_path);
         let _ = std::fs::remove_dir_all(empty_dir);
 
-        assert!(err.contains("PowerShell executable not found"));
+        assert!(err.to_string().contains("PowerShell executable not found"));
     }
 
     fn read_only_registry() -> super::GlobalToolRegistry {
@@ -9924,7 +9925,7 @@ printf 'pwsh:%s' "$1"
             .execute("bash", &json!({ "command": "rm -rf /" }))
             .expect_err("bash should be denied in read-only mode");
         assert!(
-            err.contains("current mode is 'read-only'"),
+            err.to_string().contains("current mode is 'read-only'"),
             "should cite active mode: {err}"
         );
     }
@@ -9939,7 +9940,7 @@ printf 'pwsh:%s' "$1"
             )
             .expect_err("write_file should be denied in read-only mode");
         assert!(
-            err.contains("current mode is read-only"),
+            err.to_string().contains("current mode is read-only"),
             "should cite active mode: {err}"
         );
     }
@@ -9954,7 +9955,7 @@ printf 'pwsh:%s' "$1"
             )
             .expect_err("edit_file should be denied in read-only mode");
         assert!(
-            err.contains("current mode is read-only"),
+            err.to_string().contains("current mode is read-only"),
             "should cite active mode: {err}"
         );
     }

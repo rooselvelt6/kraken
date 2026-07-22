@@ -66,7 +66,7 @@ fn build_resolver(opts: ResolverOpts) -> Result<TokioResolver, NetworkError> {
 }
 
 pub fn enumerate(domain: &str) -> Result<DnsRecords, NetworkError> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::other(e)))?;
 
     rt.block_on(async {
         let mut opts = ResolverOpts::default();
@@ -99,7 +99,7 @@ pub fn enumerate(domain: &str) -> Result<DnsRecords, NetworkError> {
 }
 
 pub fn brute_force(domain: &str, wordlist: &[String]) -> Result<Vec<SubdomainResult>, NetworkError> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::other(e)))?;
 
     rt.block_on(async {
         let mut opts = ResolverOpts::default();
@@ -159,7 +159,7 @@ pub fn brute_force(domain: &str, wordlist: &[String]) -> Result<Vec<SubdomainRes
 }
 
 pub fn reverse_lookup(ip: IpAddr) -> Result<Vec<String>, NetworkError> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::other(e)))?;
 
     rt.block_on(async {
         let opts = ResolverOpts::default();

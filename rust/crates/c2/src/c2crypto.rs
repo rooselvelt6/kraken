@@ -21,7 +21,8 @@ impl C2Crypto {
             plaintext,
             key,
             EncryptionAlgorithm::Aes256Gcm,
-        )?;
+        )
+        .map_err(|e| e.to_string())?;
         Ok(EncryptedMessage {
             ciphertext: encrypted.ciphertext,
             nonce: encrypted.nonce,
@@ -38,7 +39,7 @@ impl C2Crypto {
             salt: Some(key.to_base64()),
             params: None,
         };
-        Encryptor::decrypt(&encrypted, key)
+        Encryptor::decrypt(&encrypted, key).map_err(|e| e.to_string())
     }
 
     pub fn derive_key(password: &[u8]) -> SessionKey {

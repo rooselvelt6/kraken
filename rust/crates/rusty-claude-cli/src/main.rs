@@ -76,8 +76,8 @@ use plugins::{PluginHooks, PluginManager, PluginManagerConfig, PluginRegistry};
 use render::{MarkdownStreamState, Spinner, TerminalRenderer};
 use runtime::{
     adaptive_engine::{init_adaptive_engine, with_adaptive},
-    check_base_commit, format_stale_base_warning, format_usd, load_oauth_credentials,
-    load_system_prompt, load_system_prompt_with_effort, pricing_for_model, resolve_expected_base,
+    format_usd, load_oauth_credentials,
+    load_system_prompt, load_system_prompt_with_effort, pricing_for_model,
     resolve_sandbox_status,
     self_healing::{global_heartbeat, global_shutdown, init_global_self_healing},
     ApiClient, ApiRequest, AssistantEvent, CompactionConfig, ConfigLoader, ConfigSource,
@@ -86,6 +86,7 @@ use runtime::{
     ProjectContext, PromptCacheEvent, ResolvedPermissionMode, RuntimeError, Session, TokenUsage,
     ToolError, ToolExecutor, UsageTracker,
 };
+use runtime::stale_base::{check_base_commit, format_stale_base_warning, resolve_expected_base};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tools::{
@@ -1543,7 +1544,7 @@ fn normalize_allowed_tools(values: &[String]) -> Result<Option<AllowedToolSet>, 
     if values.is_empty() {
         return Ok(None);
     }
-    current_tool_registry()?.normalize_allowed_tools(values)
+    current_tool_registry()?.normalize_allowed_tools(values).map_err(|e| e.to_string())
 }
 
 fn current_tool_registry() -> Result<GlobalToolRegistry, String> {
@@ -2091,7 +2092,7 @@ fn run_mcp_serve() -> Result<(), Box<dyn std::error::Error>> {
         server_name: "kraken".to_string(),
         server_version: VERSION.to_string(),
         tools,
-        tool_handler: Box::new(execute_tool),
+        tool_handler: Box::new(|name, args| execute_tool(name, args).map_err(|e| e.to_string())),
     };
 
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -2606,7 +2607,7 @@ fn dump_manifests_at_path(
 }
 
 fn print_bootstrap_plan(output_format: CliOutputFormat) -> Result<(), Box<dyn std::error::Error>> {
-    let phases = runtime::BootstrapPlan::claude_code_default()
+    let phases = runtime::bootstrap::BootstrapPlan::claude_code_default()
         .phases()
         .iter()
         .map(|phase| format!("{phase:?}"))
@@ -9275,7 +9276,7 @@ impl ToolExecutor for CliToolExecutor {
         } else {
             self.tool_registry
                 .execute(tool_name, &value)
-                .map_err(ToolError::new)
+                .map_err(|e| ToolError::new(e.to_string()))
         };
         match result {
             Ok(output) => {
@@ -9305,7 +9306,7 @@ fn permission_policy(
     feature_config: &runtime::RuntimeFeatureConfig,
     tool_registry: &GlobalToolRegistry,
 ) -> Result<PermissionPolicy, String> {
-    Ok(tool_registry.permission_specs(None)?.into_iter().fold(
+    Ok(tool_registry.permission_specs(None).map_err(|e| e.to_string())?.into_iter().fold(
         PermissionPolicy::new(mode).with_permission_rules(feature_config.permission_rules()),
         |policy, (name, required_permission)| {
             policy.with_tool_requirement(name, required_permission)

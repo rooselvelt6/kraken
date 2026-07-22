@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use runtime::green_contract::{GreenContract, GreenContractOutcome, GreenLevel};
 use runtime::{
-    apply_policy, BranchFreshness, DiffScope, LaneBlocker, LaneContext, PolicyAction,
-    PolicyCondition, PolicyEngine, PolicyRule, ReconcileReason, ReviewStatus, StaleBranchAction,
-    StaleBranchPolicy,
+    DiffScope, LaneBlocker, LaneContext, PolicyAction, PolicyCondition, PolicyEngine, PolicyRule,
+    ReconcileReason, ReviewStatus,
 };
+use runtime::stale_branch::{apply_policy, BranchFreshness, StaleBranchAction, StaleBranchPolicy};
 
 /// stale_branch + policy_engine integration:
 /// When a branch is detected stale, does it correctly flow through

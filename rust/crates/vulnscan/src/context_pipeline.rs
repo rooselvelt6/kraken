@@ -72,7 +72,7 @@ impl ContextCache {
 
 /// Estimates token count for a code string.
 pub fn estimate_tokens(code: &str) -> usize {
-    (code.len() + BYTES_PER_TOKEN - 1) / BYTES_PER_TOKEN
+    code.len().div_ceil(BYTES_PER_TOKEN)
 }
 
 /// Splits source code into line-based chunks with overlap.
