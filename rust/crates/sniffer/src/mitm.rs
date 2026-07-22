@@ -4,6 +4,7 @@ use crate::creds::{CapturedCredential, CredSniffer};
 use crate::dns_spoof::{DnsSpoofer, DnsSpooferConfig};
 use crate::session::{HttpSession, SessionHunter};
 use crate::sslstrip::{SslStripConfig, SslStripProxy};
+use kraken_errors::NetworkError;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -73,7 +74,7 @@ impl MitmFramework {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self) -> Result<(), NetworkError> {
         self.running.store(true, Ordering::SeqCst);
         let running_main = self.running.clone();
         let config = self.config.clone();

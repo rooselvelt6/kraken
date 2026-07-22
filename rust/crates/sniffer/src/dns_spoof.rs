@@ -1,4 +1,5 @@
 use crate::packet::DnsHeader;
+use kraken_errors::NetworkError;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -48,14 +49,14 @@ impl DnsSpoofer {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self) -> Result<(), NetworkError> {
         let cap = pcap::Capture::from_device(self.config.interface.as_str())
-            .map_err(|e| format!("Device error: {}", e))?
+            .map_err(|e| NetworkError::Other(format!("Device error: {}", e)))?
             .promisc(true)
             .snaplen(65535)
             .timeout(1000)
             .open()
-            .map_err(|e| format!("Capture error: {}", e))?;
+            .map_err(|e| NetworkError::Other(format!("Capture error: {}", e)))?;
 
         let mut sender = cap;
         sender.filter("udp port 53", true).ok();

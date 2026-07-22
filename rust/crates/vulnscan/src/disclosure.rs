@@ -10,7 +10,12 @@ pub struct DisclosurePipeline {
 impl DisclosurePipeline {
     pub fn new(base_dir: &Path) -> Self {
         let dir = base_dir.join("disclosures");
-        let _ = fs::create_dir_all(&dir);
+        if let Err(e) = fs::create_dir_all(&dir) {
+            eprintln!(
+                "[disclosure] Failed to create disclosures dir {}: {e}",
+                dir.display()
+            );
+        }
         Self {
             disclosures_dir: dir,
         }

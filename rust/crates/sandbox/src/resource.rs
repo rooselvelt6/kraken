@@ -3,6 +3,7 @@
 //! Applies POSIX resource limits via `setrlimit` to sandboxed processes:
 //! CPU time, address space, file size, open file count, number of processes.
 
+use kraken_errors::SandboxError;
 use nix::sys::resource::{setrlimit, Resource};
 
 #[derive(Debug, Clone, Copy)]
@@ -37,41 +38,41 @@ impl ResourceLimits {
         }
     }
 
-    pub fn apply(&self) -> Result<(), String> {
+    pub fn apply(&self) -> Result<(), SandboxError> {
         setrlimit(
             Resource::RLIMIT_CPU,
             self.cpu_time_secs,
             self.cpu_time_secs.saturating_add(30),
         )
-        .map_err(|e| format!("RLIMIT_CPU: {e}"))?;
+        .map_err(|e| SandboxError::Rlimit(format!("RLIMIT_CPU: {e}")))?;
 
         setrlimit(
             Resource::RLIMIT_AS,
             self.address_space_bytes,
             self.address_space_bytes,
         )
-        .map_err(|e| format!("RLIMIT_AS: {e}"))?;
+        .map_err(|e| SandboxError::Rlimit(format!("RLIMIT_AS: {e}")))?;
 
         setrlimit(
             Resource::RLIMIT_FSIZE,
             self.file_size_bytes,
             self.file_size_bytes,
         )
-        .map_err(|e| format!("RLIMIT_FSIZE: {e}"))?;
+        .map_err(|e| SandboxError::Rlimit(format!("RLIMIT_FSIZE: {e}")))?;
 
         setrlimit(
             Resource::RLIMIT_NOFILE,
             self.open_files,
             self.open_files,
         )
-        .map_err(|e| format!("RLIMIT_NOFILE: {e}"))?;
+        .map_err(|e| SandboxError::Rlimit(format!("RLIMIT_NOFILE: {e}")))?;
 
         setrlimit(
             Resource::RLIMIT_NPROC,
             self.processes,
             self.processes,
         )
-        .map_err(|e| format!("RLIMIT_NPROC: {e}"))?;
+        .map_err(|e| SandboxError::Rlimit(format!("RLIMIT_NPROC: {e}")))?;
 
         Ok(())
     }

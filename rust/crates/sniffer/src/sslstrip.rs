@@ -1,3 +1,4 @@
+use kraken_errors::NetworkError;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -50,7 +51,7 @@ impl SslStripProxy {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self) -> Result<(), NetworkError> {
         self.running.store(true, Ordering::SeqCst);
         let running = self.running.clone();
         let config = self.config.clone();

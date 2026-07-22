@@ -10,6 +10,7 @@
 //!
 //! Using nix::sched for safe syscall wrappers.
 
+use kraken_errors::SandboxError;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,7 +111,7 @@ impl NamespaceConfig {
     /// Must be called BEFORE spawning the sandboxed process.
     /// Requires CAP_SYS_ADMIN in the user namespace, or unprivileged user
     /// namespaces (available on most Linux distributions).
-    pub fn apply(&self) -> Result<(), String> {
+    pub fn apply(&self) -> Result<(), SandboxError> {
         let flags = self.unshare_flags();
         if flags == 0 {
             return Ok(());
@@ -118,7 +119,7 @@ impl NamespaceConfig {
 
         let clone_flags = nix::sched::CloneFlags::from_bits_truncate(flags);
         nix::sched::unshare(clone_flags)
-            .map_err(|e| format!("unshare({flags:#x}): {e}"))?;
+            .map_err(|e| SandboxError::Namespace(format!("unshare({flags:#x}): {e}")))?;
 
         // Map root user if requested and user namespace is isolated
         if self.isolate_user && self.map_root_user {
@@ -129,23 +130,23 @@ impl NamespaceConfig {
     }
 
     /// Map UID 0 and GID 0 inside the new user namespace to the outside UID/GID.
-    fn map_root_uid_gid() -> Result<(), String> {
+    fn map_root_uid_gid() -> Result<(), SandboxError> {
         let uid = unsafe { libc::getuid() };
         let gid = unsafe { libc::getgid() };
 
         // Write UID mapping: inside 0 -> outside $uid
         let uid_map = format!("0 {uid} 1\n");
         std::fs::write("/proc/self/uid_map", uid_map.as_bytes())
-            .map_err(|e| format!("uid_map write: {e}"))?;
+            .map_err(|e| SandboxError::Namespace(format!("uid_map write: {e}")))?;
 
         // Write GID mapping: inside 0 -> outside $gid
         // Need to deny setgroups first
         std::fs::write("/proc/self/setgroups", b"deny")
-            .map_err(|e| format!("setgroups write: {e}"))?;
+            .map_err(|e| SandboxError::Namespace(format!("setgroups write: {e}")))?;
 
         let gid_map = format!("0 {gid} 1\n");
         std::fs::write("/proc/self/gid_map", gid_map.as_bytes())
-            .map_err(|e| format!("gid_map write: {e}"))?;
+            .map_err(|e| SandboxError::Namespace(format!("gid_map write: {e}")))?;
 
         Ok(())
     }

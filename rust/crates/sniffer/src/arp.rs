@@ -1,4 +1,5 @@
 use crate::packet::ArpPacket;
+use kraken_errors::NetworkError;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,14 +53,14 @@ impl ArpSpoofer {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self) -> Result<(), NetworkError> {
         let cap = pcap::Capture::from_device(self.config.interface.as_str())
-            .map_err(|e| format!("Device error: {}", e))?
+            .map_err(|e| NetworkError::Other(format!("Device error: {}", e)))?
             .promisc(true)
             .snaplen(65535)
             .timeout(1000)
             .open()
-            .map_err(|e| format!("Capture error: {}", e))?;
+            .map_err(|e| NetworkError::Other(format!("Capture error: {}", e)))?;
 
         let mut sender = cap;
         let running = self.running.clone();
@@ -118,11 +119,11 @@ impl ArpSpoofer {
         self.running.store(false, Ordering::SeqCst);
     }
 
-    pub fn restore(&mut self) -> Result<(), String> {
+    pub fn restore(&mut self) -> Result<(), NetworkError> {
         let cap = pcap::Capture::from_device(self.config.interface.as_str())
-            .map_err(|e| format!("Device error: {}", e))?
+            .map_err(|e| NetworkError::Other(format!("Device error: {}", e)))?
             .open()
-            .map_err(|e| format!("Capture error: {}", e))?;
+            .map_err(|e| NetworkError::Other(format!("Capture error: {}", e)))?;
 
         let mut sender = cap;
 
@@ -168,27 +169,27 @@ fn build_arp_reply(sender_mac: [u8; 6], sender_ip: [u8; 4], target_ip: [u8; 4]) 
     packet
 }
 
-fn send_raw_packet(cap: &mut pcap::Capture<pcap::Active>, data: &[u8]) -> Result<(), String> {
-    cap.sendpacket(data.to_vec()).map_err(|e| format!("Send error: {}", e))
+fn send_raw_packet(cap: &mut pcap::Capture<pcap::Active>, data: &[u8]) -> Result<(), NetworkError> {
+    cap.sendpacket(data.to_vec()).map_err(|e| NetworkError::Other(format!("Send error: {}", e)))
 }
 
-fn resolve_mac(_cap: &mut pcap::Capture<pcap::Active>, _ip: Ipv4Addr) -> Result<[u8; 6], String> {
+fn resolve_mac(_cap: &mut pcap::Capture<pcap::Active>, _ip: Ipv4Addr) -> Result<[u8; 6], NetworkError> {
     Ok([0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
 }
 
-pub fn arp_scan(interface: &str, subnet: &str, timeout_secs: u64) -> Result<HashMap<String, String>, String> {
+pub fn arp_scan(interface: &str, subnet: &str, timeout_secs: u64) -> Result<HashMap<String, String>, NetworkError> {
     let mut cap = pcap::Capture::from_device(interface)
-        .map_err(|e| format!("Device error: {}", e))?
+        .map_err(|e| NetworkError::Other(format!("Device error: {}", e)))?
         .promisc(true)
         .snaplen(65535)
         .timeout(1000)
         .open()
-        .map_err(|e| format!("Capture error: {}", e))?;
+        .map_err(|e| NetworkError::Other(format!("Capture error: {}", e)))?;
 
-    cap.filter("arp", true).map_err(|e| format!("BPF error: {}", e))?;
+    cap.filter("arp", true).map_err(|e| NetworkError::Protocol(format!("BPF error: {}", e)))?;
 
     let base_parts: Vec<&str> = subnet.split('.').collect();
-    if base_parts.len() != 4 { return Err("Invalid subnet".to_string()); }
+    if base_parts.len() != 4 { return Err(NetworkError::Other("Invalid subnet".to_string())); }
     let base = format!("{}.{}.{}", base_parts[0], base_parts[1], base_parts[2]);
 
     let mut hosts: HashMap<String, String> = HashMap::new();

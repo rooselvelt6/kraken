@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MetadataResult {
     pub file_path: String,
@@ -31,16 +33,16 @@ impl MetadataExtractor {
         MetadataExtractor
     }
 
-    pub fn extract(path: &str) -> Result<MetadataResult, String> {
+    pub fn extract(path: &str) -> Result<MetadataResult, ForensicsError> {
         let file_path = Path::new(path);
         if !file_path.exists() {
-            return Err("File not found".to_string());
+            return Err(ForensicsError::NotFound(path.to_string()));
         }
 
-        let meta = std::fs::metadata(path).map_err(|e| format!("metadata failed: {}", e))?;
+        let meta = std::fs::metadata(path)?;
         let file_size = meta.len();
 
-        let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+        let data = std::fs::read(path)?;
 
         let mime_type = Self::detect_mime(&data);
         let exif = Self::extract_exif(&data);

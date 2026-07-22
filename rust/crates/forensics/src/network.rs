@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NetworkLogEntry {
     pub timestamp: String,
@@ -61,8 +63,8 @@ impl NetworkForensics {
         NetworkForensics
     }
 
-    pub fn analyze_capture(path: &str) -> Result<NetworkCaptureInfo, String> {
-        let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+    pub fn analyze_capture(path: &str) -> Result<NetworkCaptureInfo, ForensicsError> {
+        let data = std::fs::read(path)?;
         let format = Self::detect_format(&data, path);
 
         let (entries, packet_count) = match format.as_str() {

@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Kraken Contributors"]
 
 [dependencies]
+kraken-errors = { path = "../kraken-errors" }
 log = "0.4"
 libc = "0.2"
 nix = { version = "0.28", features = ["resource", "sched", "fs"] }

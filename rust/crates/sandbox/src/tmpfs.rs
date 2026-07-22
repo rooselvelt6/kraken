@@ -5,6 +5,7 @@
 //! - Ephemeral working directories that are cleaned up after execution
 //! - Memory-backed storage for fast read/write operations
 
+use kraken_errors::SandboxError;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -42,12 +43,12 @@ impl EphemeralTmpfs {
     /// - A mount namespace with CAP_SYS_ADMIN
     /// - Running as root
     /// - User namespace with mount capabilities
-    pub fn new(config: &TmpfsConfig) -> Result<Self, String> {
+    pub fn new(config: &TmpfsConfig) -> Result<Self, SandboxError> {
         let path = config.working_directory.clone();
 
         // Create the directory
         std::fs::create_dir_all(&path)
-            .map_err(|e| format!("cannot create tmpfs dir '{}': {e}", path.display()))?;
+            .map_err(|e| SandboxError::Tmpfs(format!("cannot create tmpfs dir '{}': {e}", path.display())))?;
 
         // Try to mount tmpfs if a mount point is configured
         if let Some(ref mount_point) = config.mount_point {
@@ -63,10 +64,10 @@ impl EphemeralTmpfs {
     }
 
     /// Create an ephemeral working directory in a parent workspace.
-    pub fn in_workspace(workspace: &Path) -> Result<Self, String> {
+    pub fn in_workspace(workspace: &Path) -> Result<Self, SandboxError> {
         let path = workspace.join(format!(".sandbox-tmp-{}", std::process::id()));
         std::fs::create_dir_all(&path)
-            .map_err(|e| format!("cannot create workspace tmp '{}': {e}", path.display()))?;
+            .map_err(|e| SandboxError::Tmpfs(format!("cannot create workspace tmp '{}': {e}", path.display())))?;
         Ok(Self {
             path,
             cleanup_on_drop: true,
@@ -75,24 +76,24 @@ impl EphemeralTmpfs {
 
     /// Try to mount a tmpfs at the given path.
     /// Requires CAP_SYS_ADMIN or a user namespace with mount capabilities.
-    fn try_mount_tmpfs(mount_point: &Path, size_mb: u64) -> Result<(), String> {
+    fn try_mount_tmpfs(mount_point: &Path, size_mb: u64) -> Result<(), SandboxError> {
         #[cfg(target_os = "linux")]
         {
             std::fs::create_dir_all(mount_point)
-                .map_err(|e| format!("cannot create mount point '{}': {e}", mount_point.display()))?;
+                .map_err(|e| SandboxError::Tmpfs(format!("cannot create mount point '{}': {e}", mount_point.display())))?;
 
             let source = std::ffi::CString::new("tmpfs")
-                .map_err(|_| "invalid source".to_string())?;
+                .map_err(|_| SandboxError::Tmpfs("invalid source".to_string()))?;
             let target = std::ffi::CString::new(
                 mount_point
                     .to_str()
-                    .ok_or_else(|| "invalid mount point path".to_string())?,
+                    .ok_or_else(|| SandboxError::Tmpfs("invalid mount point path".to_string()))?,
             )
-            .map_err(|_| "invalid target".to_string())?;
+            .map_err(|_| SandboxError::Tmpfs("invalid target".to_string()))?;
             let fstype = std::ffi::CString::new("tmpfs")
-                .map_err(|_| "invalid fstype".to_string())?;
+                .map_err(|_| SandboxError::Tmpfs("invalid fstype".to_string()))?;
             let options = std::ffi::CString::new(format!("size={}m", size_mb))
-                .map_err(|_| "invalid options".to_string())?;
+                .map_err(|_| SandboxError::Tmpfs("invalid options".to_string()))?;
 
             let ret = unsafe {
                 libc::mount(
@@ -106,14 +107,14 @@ impl EphemeralTmpfs {
 
             if ret != 0 {
                 let err = std::io::Error::last_os_error();
-                return Err(format!("mount tmpfs: {err}"));
+                return Err(SandboxError::Mount(format!("mount tmpfs: {err}")));
             }
             Ok(())
         }
         #[cfg(not(target_os = "linux"))]
         {
             let _ = (mount_point, size_mb);
-            Err("tmpfs mounts are only supported on Linux".to_string())
+            Err(SandboxError::Tmpfs("tmpfs mounts are only supported on Linux".to_string()))
         }
     }
 
@@ -123,28 +124,28 @@ impl EphemeralTmpfs {
     }
 
     /// Write a file inside the tmpfs.
-    pub fn write_file(&self, rel_path: &str, contents: &[u8]) -> Result<PathBuf, String> {
+    pub fn write_file(&self, rel_path: &str, contents: &[u8]) -> Result<PathBuf, SandboxError> {
         let full = self.path.join(rel_path);
         if let Some(parent) = full.parent() {
             std::fs::create_dir_all(parent)
-                .map_err(|e| format!("cannot create parent '{}': {e}", parent.display()))?;
+                .map_err(|e| SandboxError::Tmpfs(format!("cannot create parent '{}': {e}", parent.display())))?;
         }
         std::fs::write(&full, contents)
-            .map_err(|e| format!("cannot write '{}': {e}", full.display()))?;
+            .map_err(|e| SandboxError::Tmpfs(format!("cannot write '{}': {e}", full.display())))?;
         Ok(full)
     }
 
     /// Read a file from inside the tmpfs.
-    pub fn read_file(&self, rel_path: &str) -> Result<Vec<u8>, String> {
+    pub fn read_file(&self, rel_path: &str) -> Result<Vec<u8>, SandboxError> {
         let full = self.path.join(rel_path);
-        std::fs::read(&full).map_err(|e| format!("cannot read '{}': {e}", full.display()))
+        std::fs::read(&full).map_err(|e| SandboxError::Tmpfs(format!("cannot read '{}': {e}", full.display())))
     }
 
     /// Clean up the tmpfs directory.
-    pub fn cleanup(&self) -> Result<(), String> {
+    pub fn cleanup(&self) -> Result<(), SandboxError> {
         if self.path.exists() {
             std::fs::remove_dir_all(&self.path)
-                .map_err(|e| format!("cannot cleanup tmpfs '{}': {e}", self.path.display()))?;
+                .map_err(|e| SandboxError::Tmpfs(format!("cannot cleanup tmpfs '{}': {e}", self.path.display())))?;
         }
         Ok(())
     }

@@ -143,7 +143,7 @@ impl VulnDB {
 
     pub fn store_finding(&self, finding: &Finding) {
         if let Some(ref conn) = self.connection {
-            let _ = conn.execute(
+            if let Err(e) = conn.execute(
                 "INSERT OR REPLACE INTO findings (
                     id, severity, cwe, cve, description, file_path, line_number,
                     vulnerable_code_snippet, remediation, confidence, discovery_method,
@@ -174,7 +174,9 @@ impl VulnDB {
                     finding.disclosed as i32,
                     finding.disclosure_hash,
                 ],
-            );
+            ) {
+                eprintln!("[db] Failed to store finding {}: {e}", finding.id);
+            }
         }
     }
 
@@ -331,19 +333,23 @@ impl VulnDB {
 
     pub fn update_status(&self, id: &str, status: FindingStatus) {
         if let Some(ref conn) = self.connection {
-            let _ = conn.execute(
+            if let Err(e) = conn.execute(
                 "UPDATE findings SET status = ?1 WHERE id = ?2",
                 params![format!("{:?}", status), id],
-            );
+            ) {
+                eprintln!("[db] Failed to update status for finding {id}: {e}");
+            }
         }
     }
 
     pub fn update_disclosure(&self, id: &str, hash: &str) {
         if let Some(ref conn) = self.connection {
-            let _ = conn.execute(
+            if let Err(e) = conn.execute(
                 "UPDATE findings SET disclosed = 1, disclosure_hash = ?1 WHERE id = ?2",
                 params![hash, id],
-            );
+            ) {
+                eprintln!("[db] Failed to update disclosure for finding {id}: {e}");
+            }
         }
     }
 
@@ -503,24 +509,33 @@ impl VulnDB {
     }
 
     fn scan_python_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
-        let _ = std::process::Command::new("pip-audit")
+        if let Err(e) = std::process::Command::new("pip-audit")
             .args(["--format", "json"])
             .current_dir(dir)
-            .output();
+            .output()
+        {
+            eprintln!("[db] Failed to run pip-audit in {}: {e}", dir.display());
+        }
     }
 
     fn scan_node_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
-        let _ = std::process::Command::new("npm")
+        if let Err(e) = std::process::Command::new("npm")
             .args(["audit", "--json"])
             .current_dir(dir)
-            .output();
+            .output()
+        {
+            eprintln!("[db] Failed to run npm audit in {}: {e}", dir.display());
+        }
     }
 
     fn scan_ruby_deps(&self, dir: &Path, _findings: &mut Vec<Finding>) {
-        let _ = std::process::Command::new("bundle-audit")
+        if let Err(e) = std::process::Command::new("bundle-audit")
             .args(["check", "--format", "json"])
             .current_dir(dir)
-            .output();
+            .output()
+        {
+            eprintln!("[db] Failed to run bundle-audit in {}: {e}", dir.display());
+        }
     }
 }
 

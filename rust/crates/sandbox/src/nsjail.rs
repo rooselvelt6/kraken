@@ -6,6 +6,7 @@
 //!
 //! Falls back to native Landlock + Seccomp if NSJail is not installed.
 
+use kraken_errors::SandboxError;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -139,13 +140,13 @@ pub fn execute_nsjail(
     program: &str,
     args: &[&str],
     env: &HashMap<String, String>,
-) -> Result<NsJailResult, String> {
-    let nsjail_path = which_nsjail().ok_or_else(|| "NSJail not found in PATH".to_string())?;
+) -> Result<NsJailResult, SandboxError> {
+    let nsjail_path = which_nsjail().ok_or_else(|| SandboxError::NsJail("NSJail not found in PATH".to_string()))?;
 
     let config = profile.to_config_lines().join("\n");
     let config_path = std::env::temp_dir().join(format!("nsjail_{}.cfg", std::process::id()));
     std::fs::write(&config_path, &config)
-        .map_err(|e| format!("cannot write nsjail config: {e}"))?;
+        .map_err(|e| SandboxError::NsJail(format!("cannot write nsjail config: {e}")))?;
 
     let mut cmd = Command::new(&nsjail_path);
     cmd.args([
@@ -166,7 +167,7 @@ pub fn execute_nsjail(
     let start = std::time::Instant::now();
     let output = cmd
         .output()
-        .map_err(|e| format!("nsjail execute: {e}"))?;
+        .map_err(SandboxError::Io)?;
     let elapsed = start.elapsed();
 
     let _ = std::fs::remove_file(&config_path);
@@ -240,7 +241,7 @@ mod tests {
         let result = execute_nsjail(&profile, "echo", &["hello"], &env);
         // May fail if nsjail not installed — that's expected
         if let Err(ref e) = result {
-            assert!(e.contains("not found"));
+            assert!(e.to_string().contains("not found"));
         }
     }
 }

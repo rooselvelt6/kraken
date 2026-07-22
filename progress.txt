@@ -659,3 +659,57 @@ Archivos de runtime eliminados (movidos a nuevos crates): 20 archivos .rs
   oauth.rs, session.rs, session_control.rs, usage.rs, compact.rs, prompt.rs, hooks.rs
 
 Estado: Fase 3 completada. Runtime reducido de 64 modulos a ~15 modulos propios.
+
+========================================================================
+Fase 4: Error Handling Estandarizado
+========================================================================
+
+Objetivo: Eliminar Result<T, String> de los crates criticos, crear tipos de error estructurados con thiserror.
+
+Fase 4.1 COMPLETED - kraken-errors crate
+- 7 dominios: ToolError, SandboxError, SecurityError, WirelessError, ForensicsError, NetworkError, KrakenError
+- Uso de thiserror con `#[error("{}", .0)]` para campos String (evitar auto-source de thiserror 2.x)
+- From<String> impls para compatibilidad backward
+- 7 tests unitarios
+- Verificacion: cargo test -p kraken-errors: PASSED
+
+Fase 4.2 COMPLETED - sandbox migration
+- 18 funciones migradas de Result<T, String> a Result<T, SandboxError>
+- 9 archivos: lib.rs, seccomp.rs, landlock.rs, namespace.rs, nsjail.rs, tmpfs.rs, resource.rs, platform_macos.rs, platform_windows.rs
+- 51 tests pasan
+
+Fase 4.3 COMPLETED - security migration
+- 18 funciones migradas a Result<T, SecurityError>
+- 3 archivos: crypto.rs (CipherInit/Encrypt/Decrypt/Decode), vault.rs (Vault/Io), config.rs (Config/Io)
+- 46 tests pasan
+
+Fase 4.4 COMPLETED - tools migration
+- 119 funciones migradas a Result<T, ToolError>
+- 1 archivo: lib.rs (~4500 lineas)
+- Tipos: Validation, NotFound, PermissionDenied, InvalidInput, Io, Json, Network, Plugin, Task, Worker, Agent, Other
+- cargo check -p tools: PASSED
+
+Fase 4.5 COMPLETED - wireless migration
+- Funciones migradas a Result<T, WirelessError>
+- 111 tests pasan
+
+Fase 4.6 COMPLETED - forensics migration
+- 8 archivos migrados a Result<T, ForensicsError>
+- 80 tests pasan
+
+Fase 4.7 COMPLETED - sniffer + network migration
+- Ambos migrados a Result<T, NetworkError>
+- cargo check -p sniffer -p network: PASSED
+
+Fase 4.8 COMPLETED - rusty-claude-cli
+- Ya estaba limpio (0 Box<dyn Error>)
+
+Fase 4.9 COMPLETED - let _ = fixes
+- 12 instancias criticas en vulnscan (db.rs, disclosure.rs, resume.rs, memory.rs) corregidas
+- Cambiadas a `if let Err(e) = expr { eprintln!(...) }` (patron existente del crate)
+
+Fase 4.10 COMPLETED - Verificacion
+- cargo test (kraken-errors, sandbox, security, wireless, forensics): 295 PASSED
+- cargo clippy: 0 warnings
+
+Estado: Fase 4 completada. ~200 Result<T, String> migrados a tipos estructurados.

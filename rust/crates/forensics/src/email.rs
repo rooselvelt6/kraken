@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct EmailInfo {
     pub file_path: String,
@@ -46,8 +48,8 @@ impl EmailForensics {
         EmailForensics
     }
 
-    pub fn analyze(path: &str) -> Result<EmailInfo, String> {
-        let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+    pub fn analyze(path: &str) -> Result<EmailInfo, ForensicsError> {
+        let data = std::fs::read(path)?;
 
         let format = Self::detect_format(&data, path);
         let content = String::from_utf8_lossy(&data).to_string();

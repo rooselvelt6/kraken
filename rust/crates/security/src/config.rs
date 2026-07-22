@@ -1,6 +1,7 @@
 //! Secure configuration storage with encryption - God Level Implementation
 
 use crate::crypto::{EncryptedData, EncryptionAlgorithm, Encryptor, Key};
+use kraken_errors::SecurityError;
 use std::fs;
 use std::path::Path;
 use zeroize::Zeroize;
@@ -31,11 +32,11 @@ impl SecureConfig {
         }
     }
 
-    pub fn load(path: &Path, key: &Key) -> Result<Self, String> {
-        let content = fs::read_to_string(path).map_err(|e| format!("read config failed: {}", e))?;
+    pub fn load(path: &Path, key: &Key) -> Result<Self, SecurityError> {
+        let content = fs::read_to_string(path)?;
 
         let encrypted: EncryptedData =
-            toml::from_str(&content).map_err(|e| format!("parse config failed: {}", e))?;
+            toml::from_str(&content).map_err(|e| SecurityError::Config(format!("parse config failed: {}", e)))?;
 
         let data = Encryptor::decrypt(&encrypted, key)?;
 
@@ -45,13 +46,13 @@ impl SecureConfig {
         })
     }
 
-    pub fn save(&self, path: &Path, key: &Key) -> Result<(), String> {
+    pub fn save(&self, path: &Path, key: &Key) -> Result<(), SecurityError> {
         let encrypted = Encryptor::encrypt_with_algorithm(&self.data, key, self.algorithm)?;
 
         let content =
-            toml::to_string(&encrypted).map_err(|e| format!("serialize failed: {}", e))?;
+            toml::to_string(&encrypted).map_err(|e| SecurityError::Config(format!("serialize failed: {}", e)))?;
 
-        fs::write(path, content).map_err(|e| format!("write config failed: {}", e))?;
+        fs::write(path, content)?;
 
         Ok(())
     }
@@ -81,7 +82,7 @@ impl SecureConfig {
         &mut self,
         key: &Key,
         new_algorithm: EncryptionAlgorithm,
-    ) -> Result<(), String> {
+    ) -> Result<(), SecurityError> {
         if self.algorithm == new_algorithm {
             return Ok(());
         }

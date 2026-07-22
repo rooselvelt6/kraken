@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PdfInfo {
     pub file_path: String,
@@ -42,10 +44,10 @@ impl PdfForensics {
         PdfForensics
     }
 
-    pub fn analyze(path: &str) -> Result<PdfInfo, String> {
-        let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+    pub fn analyze(path: &str) -> Result<PdfInfo, ForensicsError> {
+        let data = std::fs::read(path)?;
         if !data.starts_with(b"%PDF-") {
-            return Err("Not a valid PDF file".to_string());
+            return Err(ForensicsError::Parse("Not a valid PDF file".to_string()));
         }
 
         let version = Self::extract_version(&data);

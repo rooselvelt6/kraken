@@ -7,6 +7,7 @@ use aes_gcm::{
 use argon2::{Argon2, PasswordHasher};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chacha20poly1305::{aead::Aead, XChaCha20Poly1305, XNonce};
+use kraken_errors::SecurityError;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -203,7 +204,7 @@ impl Key {
 pub struct Encryptor;
 
 impl Encryptor {
-    pub fn encrypt(data: &[u8], key: &Key) -> Result<EncryptedData, String> {
+    pub fn encrypt(data: &[u8], key: &Key) -> Result<EncryptedData, SecurityError> {
         Self::encrypt_with_algorithm(data, key, EncryptionAlgorithm::default())
     }
 
@@ -211,16 +212,16 @@ impl Encryptor {
         data: &[u8],
         key: &Key,
         algorithm: EncryptionAlgorithm,
-    ) -> Result<EncryptedData, String> {
+    ) -> Result<EncryptedData, SecurityError> {
         match algorithm {
             EncryptionAlgorithm::Aes256Gcm => Self::encrypt_aes(data, key),
             EncryptionAlgorithm::XChaCha20Poly1305 => Self::encrypt_chacha(data, key),
         }
     }
 
-    fn encrypt_aes(data: &[u8], key: &Key) -> Result<EncryptedData, String> {
+    fn encrypt_aes(data: &[u8], key: &Key) -> Result<EncryptedData, SecurityError> {
         let cipher = Aes256Gcm::new_from_slice(&key.inner)
-            .map_err(|e| format!("AES cipher init failed: {}", e))?;
+            .map_err(|e| SecurityError::CipherInit(format!("AES cipher init failed: {}", e)))?;
 
         let mut nonce_bytes = [0u8; NONCE_SIZE_AES];
         OsRng.fill_bytes(&mut nonce_bytes);
@@ -228,7 +229,7 @@ impl Encryptor {
 
         let ciphertext = cipher
             .encrypt(nonce, data)
-            .map_err(|e| format!("AES encryption failed: {}", e))?;
+            .map_err(|e| SecurityError::Encrypt(format!("AES encryption failed: {}", e)))?;
 
         Ok(EncryptedData {
             algorithm: EncryptionAlgorithm::Aes256Gcm,
@@ -240,9 +241,9 @@ impl Encryptor {
         })
     }
 
-    fn encrypt_chacha(data: &[u8], key: &Key) -> Result<EncryptedData, String> {
+    fn encrypt_chacha(data: &[u8], key: &Key) -> Result<EncryptedData, SecurityError> {
         let cipher = XChaCha20Poly1305::new_from_slice(&key.inner)
-            .map_err(|e| format!("XChaCha cipher init failed: {}", e))?;
+            .map_err(|e| SecurityError::CipherInit(format!("XChaCha cipher init failed: {}", e)))?;
 
         let mut nonce_bytes = [0u8; NONCE_SIZE_XCHACHA];
         OsRng.fill_bytes(&mut nonce_bytes);
@@ -250,7 +251,7 @@ impl Encryptor {
 
         let ciphertext = cipher
             .encrypt(nonce, data)
-            .map_err(|e| format!("XChaCha encryption failed: {}", e))?;
+            .map_err(|e| SecurityError::Encrypt(format!("XChaCha encryption failed: {}", e)))?;
 
         Ok(EncryptedData {
             algorithm: EncryptionAlgorithm::XChaCha20Poly1305,
@@ -262,47 +263,47 @@ impl Encryptor {
         })
     }
 
-    pub fn decrypt(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, String> {
+    pub fn decrypt(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, SecurityError> {
         match encrypted.algorithm {
             EncryptionAlgorithm::Aes256Gcm => Self::decrypt_aes(encrypted, key),
             EncryptionAlgorithm::XChaCha20Poly1305 => Self::decrypt_chacha(encrypted, key),
         }
     }
 
-    fn decrypt_aes(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, String> {
+    fn decrypt_aes(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, SecurityError> {
         let cipher = Aes256Gcm::new_from_slice(&key.inner)
-            .map_err(|e| format!("AES cipher init failed: {}", e))?;
+            .map_err(|e| SecurityError::CipherInit(format!("AES cipher init failed: {}", e)))?;
 
         let nonce_bytes = BASE64
             .decode(&encrypted.nonce)
-            .map_err(|e| format!("AES nonce decode failed: {}", e))?;
+            .map_err(|e| SecurityError::Decode(format!("AES nonce decode failed: {}", e)))?;
         let ciphertext = BASE64
             .decode(&encrypted.ciphertext)
-            .map_err(|e| format!("AES ciphertext decode failed: {}", e))?;
+            .map_err(|e| SecurityError::Decode(format!("AES ciphertext decode failed: {}", e)))?;
 
         let nonce = AesNonce::from_slice(&nonce_bytes);
 
         cipher
             .decrypt(nonce, ciphertext.as_ref())
-            .map_err(|e| format!("AES decryption failed: {}", e))
+            .map_err(|e| SecurityError::Decrypt(format!("AES decryption failed: {}", e)))
     }
 
-    fn decrypt_chacha(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, String> {
+    fn decrypt_chacha(encrypted: &EncryptedData, key: &Key) -> Result<Vec<u8>, SecurityError> {
         let cipher = XChaCha20Poly1305::new_from_slice(&key.inner)
-            .map_err(|e| format!("XChaCha cipher init failed: {}", e))?;
+            .map_err(|e| SecurityError::CipherInit(format!("XChaCha cipher init failed: {}", e)))?;
 
         let nonce_bytes = BASE64
             .decode(&encrypted.nonce)
-            .map_err(|e| format!("XChaCha nonce decode failed: {}", e))?;
+            .map_err(|e| SecurityError::Decode(format!("XChaCha nonce decode failed: {}", e)))?;
         let ciphertext = BASE64
             .decode(&encrypted.ciphertext)
-            .map_err(|e| format!("XChaCha ciphertext decode failed: {}", e))?;
+            .map_err(|e| SecurityError::Decode(format!("XChaCha ciphertext decode failed: {}", e)))?;
 
         let nonce = XNonce::from_slice(&nonce_bytes);
 
         cipher
             .decrypt(nonce, ciphertext.as_ref())
-            .map_err(|e| format!("XChaCha decryption failed: {}", e))
+            .map_err(|e| SecurityError::Decrypt(format!("XChaCha decryption failed: {}", e)))
     }
 }
 

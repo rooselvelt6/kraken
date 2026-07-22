@@ -1,5 +1,6 @@
 use crate::dissectors::{self, DnsMessage, HttpRequest, HttpResponse};
 use crate::packet::{parse_packet, PacketInfo};
+use kraken_errors::NetworkError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -56,12 +57,12 @@ impl PcapAnalyzer {
         }
     }
 
-    pub fn analyze_file<P: AsRef<Path>>(&mut self, path: P) -> Result<&PcapAnalysis, String> {
+    pub fn analyze_file<P: AsRef<Path>>(&mut self, path: P) -> Result<&PcapAnalysis, NetworkError> {
         let path_str = path.as_ref().to_string_lossy().to_string();
         self.analysis.file_path = path_str.clone();
 
         let cap = pcap::Capture::from_file(path)
-            .map_err(|e| format!("Cannot open pcap: {}", e))?;
+            .map_err(|e| NetworkError::Other(format!("Cannot open pcap: {}", e)))?;
 
         let mut cap = cap;
         let mut first_ts = None;

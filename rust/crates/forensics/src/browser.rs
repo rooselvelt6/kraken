@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BrowserArtifact {
     pub browser_type: String,
@@ -53,10 +55,10 @@ impl BrowserForensics {
         BrowserForensics
     }
 
-    pub fn analyze_history(browser_path: &str) -> Result<BrowserArtifact, String> {
+    pub fn analyze_history(browser_path: &str) -> Result<BrowserArtifact, ForensicsError> {
         let path = Path::new(browser_path);
         if !path.exists() {
-            return Err("Browser data path not found".to_string());
+            return Err(ForensicsError::NotFound(browser_path.to_string()));
         }
         let browser_type = Self::detect_browser(browser_path);
 
@@ -83,10 +85,10 @@ impl BrowserForensics {
         })
     }
 
-    pub fn analyze_cookies(browser_path: &str) -> Result<BrowserArtifact, String> {
+    pub fn analyze_cookies(browser_path: &str) -> Result<BrowserArtifact, ForensicsError> {
         let path = Path::new(browser_path);
         if !path.exists() {
-            return Err("Browser data path not found".to_string());
+            return Err(ForensicsError::NotFound(browser_path.to_string()));
         }
         let browser_type = Self::detect_browser(browser_path);
 
@@ -109,10 +111,10 @@ impl BrowserForensics {
         })
     }
 
-    pub fn analyze_downloads(browser_path: &str) -> Result<BrowserArtifact, String> {
+    pub fn analyze_downloads(browser_path: &str) -> Result<BrowserArtifact, ForensicsError> {
         let path = Path::new(browser_path);
         if !path.exists() {
-            return Err("Browser data path not found".to_string());
+            return Err(ForensicsError::NotFound(browser_path.to_string()));
         }
         let browser_type = Self::detect_browser(browser_path);
 
@@ -135,7 +137,7 @@ impl BrowserForensics {
         })
     }
 
-    pub fn analyze_credentials(browser_path: &str) -> Result<Vec<BrowserCredential>, String> {
+    pub fn analyze_credentials(browser_path: &str) -> Result<Vec<BrowserCredential>, ForensicsError> {
         let mut credentials = Vec::new();
         let login_paths = Self::find_sqlite_files(browser_path, &[
             "Login Data", "logins", "key4.db", "signons.sqlite"
@@ -182,7 +184,7 @@ impl BrowserForensics {
         results
     }
 
-    fn parse_sqlite_history(db_path: &str) -> Result<Vec<BrowserEntry>, String> {
+    fn parse_sqlite_history(db_path: &str) -> Result<Vec<BrowserEntry>, ForensicsError> {
         let mut entries = Vec::new();
         if let Ok(conn) = rusqlite::Connection::open(db_path) {
             let tables: Vec<String> = conn
@@ -241,7 +243,7 @@ impl BrowserForensics {
         Ok(entries)
     }
 
-    fn parse_sqlite_cookies(db_path: &str) -> Result<Vec<BrowserEntry>, String> {
+    fn parse_sqlite_cookies(db_path: &str) -> Result<Vec<BrowserEntry>, ForensicsError> {
         let mut entries = Vec::new();
         if let Ok(conn) = rusqlite::Connection::open(db_path) {
             let query = "SELECT name, value, host_key, expires_utc FROM cookies LIMIT 100";
@@ -285,7 +287,7 @@ impl BrowserForensics {
         Ok(entries)
     }
 
-    fn parse_sqlite_downloads(db_path: &str) -> Result<Vec<BrowserEntry>, String> {
+    fn parse_sqlite_downloads(db_path: &str) -> Result<Vec<BrowserEntry>, ForensicsError> {
         let mut entries = Vec::new();
         if let Ok(conn) = rusqlite::Connection::open(db_path) {
             let query = "SELECT target_path, source_url, total_bytes, mime_type FROM downloads LIMIT 100";
@@ -324,7 +326,7 @@ impl BrowserForensics {
         Ok(entries)
     }
 
-    fn parse_login_data(db_path: &str) -> Result<Vec<BrowserCredential>, String> {
+    fn parse_login_data(db_path: &str) -> Result<Vec<BrowserCredential>, ForensicsError> {
         let mut credentials = Vec::new();
         if let Ok(conn) = rusqlite::Connection::open(db_path) {
             let tables: Vec<String> = conn

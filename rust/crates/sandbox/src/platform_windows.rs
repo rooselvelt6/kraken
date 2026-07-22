@@ -10,6 +10,8 @@
 
 #![allow(non_snake_case)]
 
+use kraken_errors::SandboxError;
+
 #[cfg(windows)]
 use windows::Win32::Foundation::HANDLE;
 #[cfg(windows)]
@@ -45,7 +47,7 @@ pub struct WindowsSandbox;
 impl WindowsSandbox {
     /// Apply Windows sandbox restrictions to the current process.
     /// This should be called before spawning child processes.
-    pub fn apply(config: &WindowsSandboxConfig) -> Result<(), String> {
+    pub fn apply(config: &WindowsSandboxConfig) -> Result<(), SandboxError> {
         if !config.enabled {
             return Ok(());
         }
@@ -60,12 +62,12 @@ impl WindowsSandbox {
         #[cfg(not(windows))]
         {
             let _ = config;
-            Err("Windows sandbox is only available on Windows".to_string())
+            Err(SandboxError::PlatformUnsupported("Windows sandbox is only available on Windows".to_string()))
         }
     }
 
     #[cfg(windows)]
-    fn apply_appcontainer() -> Result<(), String> {
+    fn apply_appcontainer() -> Result<(), SandboxError> {
         // AppContainer creation requires Windows 8+
         // This is a placeholder for the full implementation
         log::warn!("AppContainer sandbox not fully implemented");
@@ -73,11 +75,11 @@ impl WindowsSandbox {
     }
 
     #[cfg(windows)]
-    fn apply_jobobject(config: &WindowsSandboxConfig) -> Result<(), String> {
+    fn apply_jobobject(config: &WindowsSandboxConfig) -> Result<(), SandboxError> {
         // Create a JobObject with resource limits
         let job = unsafe {
             JobObjects::CreateJobObjectW(None, None)
-                .map_err(|e| format!("CreateJobObject: {e}"))?
+                .map_err(SandboxError::Io)?
         };
 
         // Set memory limit
@@ -99,7 +101,7 @@ impl WindowsSandbox {
                 &mem_limit as *const _ as *const std::ffi::c_void,
                 std::mem::size_of::<JobObjects::JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
             )
-            .map_err(|e| format!("SetInformationJobObject: {e}"))?;
+            .map_err(|e| SandboxError::Other(format!("SetInformationJobObject: {e}")))?;
         }
 
         // Set active process limit
@@ -116,14 +118,14 @@ impl WindowsSandbox {
                 &proc_limit as *const _ as *const std::ffi::c_void,
                 std::mem::size_of::<JobObjects::JOBOBJECT_BASIC_LIMIT_INFORMATION>() as u32,
             )
-            .map_err(|e| format!("SetInformationJobObject (proc limit): {e}"))?;
+            .map_err(|e| SandboxError::Other(format!("SetInformationJobObject (proc limit): {e}")))?;
         }
 
         // Assign current process to the job
         let current_process = unsafe { Threading::GetCurrentProcess() };
         unsafe {
             JobObjects::AssignProcessToJobObject(job, current_process)
-                .map_err(|e| format!("AssignProcessToJobObject: {e}"))?;
+                .map_err(|e| SandboxError::Other(format!("AssignProcessToJobObject: {e}")))?;
         }
 
         Ok(())

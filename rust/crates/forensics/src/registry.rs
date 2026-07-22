@@ -1,4 +1,4 @@
-
+use kraken_errors::ForensicsError;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RegistryEntry {
@@ -53,11 +53,11 @@ impl RegistryParser {
         RegistryParser
     }
 
-    pub fn parse_hive(path: &str) -> Result<RegistryHiveInfo, String> {
-        let content = std::fs::read(path).map_err(|e| format!("read hive failed: {}", e))?;
+    pub fn parse_hive(path: &str) -> Result<RegistryHiveInfo, ForensicsError> {
+        let content = std::fs::read(path)?;
 
         if !content.starts_with(b"regf") {
-            return Err("Not a valid registry hive file".to_string());
+            return Err(ForensicsError::Parse("Not a valid registry hive file".to_string()));
         }
 
         let entries = Self::extract_strings(&content);
@@ -72,10 +72,10 @@ impl RegistryParser {
         })
     }
 
-    pub fn parse_sam(hive_path: &str) -> Result<Vec<SamEntry>, String> {
-        let content = std::fs::read(hive_path).map_err(|e| format!("read SAM failed: {}", e))?;
+    pub fn parse_sam(hive_path: &str) -> Result<Vec<SamEntry>, ForensicsError> {
+        let content = std::fs::read(hive_path)?;
         if !content.starts_with(b"regf") {
-            return Err("Not a valid SAM hive".to_string());
+            return Err(ForensicsError::Parse("Not a valid SAM hive".to_string()));
         }
 
         let mut users = Vec::new();
@@ -106,10 +106,10 @@ impl RegistryParser {
         Ok(users)
     }
 
-    pub fn parse_system(hive_path: &str) -> Result<SystemInfo, String> {
-        let content = std::fs::read(hive_path).map_err(|e| format!("read SYSTEM failed: {}", e))?;
+    pub fn parse_system(hive_path: &str) -> Result<SystemInfo, ForensicsError> {
+        let content = std::fs::read(hive_path)?;
         if !content.starts_with(b"regf") {
-            return Err("Not a valid SYSTEM hive".to_string());
+            return Err(ForensicsError::Parse("Not a valid SYSTEM hive".to_string()));
         }
 
         let strings = Self::extract_strings(&content);

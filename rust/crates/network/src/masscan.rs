@@ -1,6 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::time::{Duration, Instant};
 
+use kraken_errors::NetworkError;
 use crate::{PortResult, PortState, ScanTarget};
 
 #[derive(Debug, Clone)]
@@ -54,7 +55,7 @@ impl MasscanConfig {
     /// assert_eq!(config.total_ports(), 2);
     /// assert_eq!(config.total_probes(), 4);
     /// ```
-    pub fn add_cidr(&mut self, cidr: &str) -> Result<(), String> {
+    pub fn add_cidr(&mut self, cidr: &str) -> Result<(), NetworkError> {
         let range = parse_cidr(cidr)?;
         self.targets.push(range);
         Ok(())
@@ -148,17 +149,17 @@ fn probe_port(addr: IpAddr, port: u16, timeout: Duration) -> PortState {
     }
 }
 
-fn parse_cidr(cidr: &str) -> Result<IpRange, String> {
+fn parse_cidr(cidr: &str) -> Result<IpRange, NetworkError> {
     let parts: Vec<&str> = cidr.split('/').collect();
     if parts.len() != 2 {
-        return Err(format!("Invalid CIDR: {}", cidr));
+        return Err(NetworkError::Other(format!("Invalid CIDR: {}", cidr)));
     }
 
-    let ip: Ipv4Addr = parts[0].parse().map_err(|e| format!("Invalid IP: {}", e))?;
-    let prefix: u8 = parts[1].parse().map_err(|_| "Invalid prefix".to_string())?;
+    let ip: Ipv4Addr = parts[0].parse().map_err(|e| NetworkError::Other(format!("Invalid IP: {}", e)))?;
+    let prefix: u8 = parts[1].parse().map_err(|_| NetworkError::Other("Invalid prefix".to_string()))?;
 
     if prefix > 32 {
-        return Err(format!("Invalid prefix length: {}", prefix));
+        return Err(NetworkError::Other(format!("Invalid prefix length: {}", prefix)));
     }
 
     let ip_u32 = u32::from(ip);
@@ -173,7 +174,7 @@ fn parse_cidr(cidr: &str) -> Result<IpRange, String> {
     };
 
     if start > end {
-        return Err(format!("No usable hosts in CIDR: {}", cidr));
+        return Err(NetworkError::Other(format!("No usable hosts in CIDR: {}", cidr)));
     }
 
     Ok(IpRange {
@@ -214,7 +215,7 @@ fn expand_port_ranges(ranges: &[PortRange]) -> Vec<u16> {
     ports
 }
 
-pub fn scan_range(cidr: &str, ports: &[u16]) -> Result<Vec<MasscanResult>, String> {
+pub fn scan_range(cidr: &str, ports: &[u16]) -> Result<Vec<MasscanResult>, NetworkError> {
     let mut config = MasscanConfig::default();
     config.add_cidr(cidr)?;
     for &port in ports {

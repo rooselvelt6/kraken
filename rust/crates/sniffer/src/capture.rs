@@ -1,4 +1,5 @@
 use crate::packet::{parse_packet, PacketInfo};
+use kraken_errors::NetworkError;
 use pcap::{Capture, Device};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -53,23 +54,23 @@ impl Sniffer {
             .map(|d| d.name)
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self) -> Result<(), NetworkError> {
         let dev_name = self.config.interface.clone()
             .or_else(Self::default_interface)
-            .ok_or_else(|| "No interface found".to_string())?;
+            .ok_or_else(|| NetworkError::Other("No interface found".to_string()))?;
 
         let mut cap = Capture::from_device(dev_name.as_str())
-            .map_err(|e| format!("Device error: {}", e))?
+            .map_err(|e| NetworkError::Other(format!("Device error: {}", e)))?
             .promisc(self.config.promisc)
             .snaplen(self.config.snaplen)
             .timeout(self.config.timeout_ms)
             .buffer_size(self.config.buffer_size)
             .open()
-            .map_err(|e| format!("Capture open error: {}", e))?;
+            .map_err(|e| NetworkError::Other(format!("Capture open error: {}", e)))?;
 
         if !self.config.bpf_filter.is_empty() {
             cap.filter(&self.config.bpf_filter, true)
-                .map_err(|e| format!("BPF error: {}", e))?;
+                .map_err(|e| NetworkError::Protocol(format!("BPF error: {}", e)))?;
         }
 
         self.running.store(true, Ordering::SeqCst);
@@ -99,7 +100,7 @@ impl Sniffer {
         Ok(())
     }
 
-    pub fn start_async(&'static mut self) -> Result<(), String> {
+    pub fn start_async(&'static mut self) -> Result<(), NetworkError> {
         self.running.store(true, Ordering::SeqCst);
         thread::spawn(move || {
             let _ = self.start();

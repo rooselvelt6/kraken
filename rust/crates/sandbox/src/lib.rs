@@ -18,6 +18,7 @@ pub mod resource;
 pub mod seccomp;
 pub mod tmpfs;
 
+use kraken_errors::SandboxError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -76,7 +77,7 @@ impl ToolSandbox {
         Self::new(SandboxConfig::default())
     }
 
-    pub fn execute(&self, program: &str, args: &[&str]) -> Result<String, String> {
+    pub fn execute(&self, program: &str, args: &[&str]) -> Result<String, SandboxError> {
         let mut cmd = Command::new(program);
         cmd.args(args);
         cmd.stdout(Stdio::piped());
@@ -86,12 +87,12 @@ impl ToolSandbox {
             cmd.current_dir(dir);
         }
 
-        let output = cmd.output().map_err(|e| format!("execute failed: {e}"))?;
+        let output = cmd.output().map_err(SandboxError::Io)?;
 
         if output.status.success() {
             Ok(String::from_utf8_lossy(&output.stdout).to_string())
         } else {
-            Err(String::from_utf8_lossy(&output.stderr).to_string())
+            Err(SandboxError::Other(String::from_utf8_lossy(&output.stderr).to_string()))
         }
     }
 
@@ -103,7 +104,7 @@ impl ToolSandbox {
         true
     }
 
-    pub fn apply_rlimits(&self) -> Result<(), String> {
+    pub fn apply_rlimits(&self) -> Result<(), SandboxError> {
         if !self.config.enable_rlimits {
             return Ok(());
         }
@@ -115,7 +116,7 @@ impl ToolSandbox {
         limits.apply()
     }
 
-    pub fn install_seccomp(&self) -> Result<(), String> {
+    pub fn install_seccomp(&self) -> Result<(), SandboxError> {
         if !self.config.enable_seccomp {
             return Ok(());
         }

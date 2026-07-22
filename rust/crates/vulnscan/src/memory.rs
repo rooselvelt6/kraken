@@ -50,7 +50,12 @@ impl HuntMemory {
             }
         }
 
-        let _ = fs::create_dir_all(&memory_dir);
+        if let Err(e) = fs::create_dir_all(&memory_dir) {
+            eprintln!(
+                "[memory] Failed to create memory dir {}: {e}",
+                memory_dir.display()
+            );
+        }
         HuntMemory {
             sessions: Vec::new(),
             cross_session_notes: HashMap::new(),
@@ -62,7 +67,9 @@ impl HuntMemory {
     pub fn save(&self) {
         let path = self.memory_dir.join("memory.json");
         if let Ok(content) = serde_json::to_string_pretty(self) {
-            let _ = fs::write(&path, &content);
+            if let Err(e) = fs::write(&path, &content) {
+                eprintln!("[memory] Failed to save hunt memory: {e}");
+            }
         }
     }
 

@@ -10,6 +10,7 @@
 
 #![allow(non_camel_case_types, dead_code)]
 
+use kraken_errors::SandboxError;
 use std::path::Path;
 
 // Landlock syscall numbers (x86_64)
@@ -178,13 +179,13 @@ impl LandlockConfig {
     /// Apply the Landlock restrictions.
     /// This is irreversible: once called, the process cannot access paths
     /// outside the allowed set.
-    pub fn apply(&self) -> Result<(), String> {
+    pub fn apply(&self) -> Result<(), SandboxError> {
         if !self.enabled {
             return Ok(());
         }
 
         if !landlock_supported() {
-            return Err("Landlock not supported (kernel < 5.13 or LSM disabled)".to_string());
+            return Err(SandboxError::Landlock("Landlock not supported (kernel < 5.13 or LSM disabled)".to_string()));
         }
 
         let handled = ACCESS_FS_RW;
@@ -203,10 +204,10 @@ impl LandlockConfig {
         };
 
         if ruleset_fd < 0 {
-            return Err(format!(
+            return Err(SandboxError::Landlock(format!(
                 "landlock_create_ruleset: {}",
                 std::io::Error::last_os_error()
-            ));
+            )));
         }
 
         let ruleset_fd = ruleset_fd as i32;
@@ -215,16 +216,16 @@ impl LandlockConfig {
         for path in &self.read_only_paths {
             let path_str = path.to_string_lossy();
             let c_path = std::ffi::CString::new(path_str.as_ref())
-                .map_err(|e| format!("invalid path '{path_str}': {e}"))?;
+                .map_err(|e| SandboxError::Landlock(format!("invalid path '{path_str}': {e}")))?;
 
             let fd = unsafe { libc::open(c_path.as_ptr(), libc::O_PATH | libc::O_CLOEXEC) };
             if fd < 0 {
                 let _ = unsafe { libc::close(ruleset_fd) };
-                return Err(format!(
+                return Err(SandboxError::Landlock(format!(
                     "cannot open '{}': {}",
                     path_str,
                     std::io::Error::last_os_error()
-                ));
+                )));
             }
 
             let path_attr = LandlockPathBeneathAttr {
@@ -245,11 +246,11 @@ impl LandlockConfig {
 
             if ret != 0 {
                 let _ = unsafe { libc::close(ruleset_fd) };
-                return Err(format!(
+                return Err(SandboxError::Landlock(format!(
                     "landlock_add_rule (read) '{}': {}",
                     path_str,
                     std::io::Error::last_os_error()
-                ));
+                )));
             }
         }
 
@@ -257,16 +258,16 @@ impl LandlockConfig {
         for path in &self.read_write_paths {
             let path_str = path.to_string_lossy();
             let c_path = std::ffi::CString::new(path_str.as_ref())
-                .map_err(|e| format!("invalid path '{path_str}': {e}"))?;
+                .map_err(|e| SandboxError::Landlock(format!("invalid path '{path_str}': {e}")))?;
 
             let fd = unsafe { libc::open(c_path.as_ptr(), libc::O_PATH | libc::O_CLOEXEC) };
             if fd < 0 {
                 let _ = unsafe { libc::close(ruleset_fd) };
-                return Err(format!(
+                return Err(SandboxError::Landlock(format!(
                     "cannot open '{}': {}",
                     path_str,
                     std::io::Error::last_os_error()
-                ));
+                )));
             }
 
             let path_attr = LandlockPathBeneathAttr {
@@ -287,11 +288,11 @@ impl LandlockConfig {
 
             if ret != 0 {
                 let _ = unsafe { libc::close(ruleset_fd) };
-                return Err(format!(
+                return Err(SandboxError::Landlock(format!(
                     "landlock_add_rule (rw) '{}': {}",
                     path_str,
                     std::io::Error::last_os_error()
-                ));
+                )));
             }
         }
 
@@ -300,10 +301,10 @@ impl LandlockConfig {
         unsafe { libc::close(ruleset_fd) };
 
         if ret != 0 {
-            return Err(format!(
+            return Err(SandboxError::Landlock(format!(
                 "landlock_restrict_self: {}",
                 std::io::Error::last_os_error()
-            ));
+            )));
         }
 
         Ok(())

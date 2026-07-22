@@ -271,6 +271,155 @@ impl BluetoothScanner {
             .find(|d| d.name.to_lowercase() == name.to_lowercase())
             .map(|d| d.mac.clone())
     }
+
+    pub fn enumerate_ble_services(mac: &str) -> Result<Vec<BleService>, String> {
+        let output = Command::new("gatttool")
+            .args(["-t", "random", "-b", mac, "--characteristics"])
+            .output()
+            .map_err(|e| format!("gatttool failed: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut services = Vec::new();
+        let mut current_service = String::new();
+
+        for line in stdout.lines() {
+            if line.contains("handle") && line.contains("uuid") {
+                if let Some(uuid) = line.split("uuid = ").nth(1) {
+                    let uuid = uuid.trim().to_string();
+                    if uuid.len() == 4 || uuid.len() == 8 {
+                        current_service = uuid;
+                        services.push(BleService {
+                            uuid: current_service.clone(),
+                            name: Self::ble_service_name(&current_service),
+                            primary: true,
+                            characteristics: Vec::new(),
+                        });
+                    }
+                }
+            } else if line.contains("char") && !current_service.is_empty() {
+                if let Some(char_uuid) = line.split("uuid = ").nth(1) {
+                    let char_uuid = char_uuid.trim().to_string();
+                    if let Some(svc) = services.last_mut() {
+                        svc.characteristics.push(BleCharacteristic {
+                            uuid: char_uuid.clone(),
+                            name: Self::ble_char_name(&char_uuid),
+                            properties: Self::ble_char_properties(line),
+                            readable: line.contains("READ"),
+                            writable: line.contains("WRITE"),
+                            notify: line.contains("NOTIFY"),
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(services)
+    }
+
+    pub fn ble_service_name(uuid: &str) -> String {
+        match uuid {
+            "1800" => "Generic Access".to_string(),
+            "1801" => "Generic Attribute".to_string(),
+            "180a" => "Device Information".to_string(),
+            "180f" => "Battery Service".to_string(),
+            "180d" => "Heart Rate".to_string(),
+            "1810" => "Blood Pressure".to_string(),
+            "1816" => "Cycling Speed and Cadence".to_string(),
+            "181a" => "Environmental Sensing".to_string(),
+            "181c" => "User Data".to_string(),
+            "fee0" => "Nordic Semiconductor DFU".to_string(),
+            _ => "Unknown".to_string(),
+        }
+    }
+
+    pub fn ble_char_name(uuid: &str) -> String {
+        match uuid {
+            "2a00" => "Device Name".to_string(),
+            "2a01" => "Appearance".to_string(),
+            "2a02" => "Peripheral Privacy Flag".to_string(),
+            "2a04" => "Peripheral Preferred Connection Parameters".to_string(),
+            "2a05" => "Service Changed".to_string(),
+            "2a19" => "Battery Level".to_string(),
+            "2a29" => "Manufacturer Name".to_string(),
+            "2a24" => "Model Number".to_string(),
+            "2a25" => "Serial Number".to_string(),
+            "2a26" => "Firmware Revision".to_string(),
+            "2a27" => "Hardware Revision".to_string(),
+            "2a28" => "Software Revision".to_string(),
+            "2a37" => "Heart Rate Measurement".to_string(),
+            "2a38" => "Body Sensor Location".to_string(),
+            _ => "Unknown".to_string(),
+        }
+    }
+
+    pub fn ble_char_properties(line: &str) -> Vec<String> {
+        let mut props = Vec::new();
+
+        if let Some(hex_str) = line.split("properties = ").nth(1) {
+            let hex_val = hex_str.split(',').next().unwrap_or("").trim().trim_start_matches("0x");
+            if let Ok(val) = u32::from_str_radix(hex_val, 16) {
+                if val & 0x02 != 0 { props.push("Read".to_string()); }
+                if val & 0x04 != 0 { props.push("WriteNoResp".to_string()); }
+                if val & 0x08 != 0 { props.push("Write".to_string()); }
+                if val & 0x10 != 0 { props.push("Notify".to_string()); }
+                if val & 0x20 != 0 { props.push("Indicate".to_string()); }
+                if val & 0x40 != 0 { props.push("WriteSigned".to_string()); }
+                if val & 0x80 != 0 { props.push("Extended".to_string()); }
+                return props;
+            }
+        }
+
+        if line.contains("READ") { props.push("Read".to_string()); }
+        if line.contains("WRITE") { props.push("Write".to_string()); }
+        if line.contains("NOTIFY") { props.push("Notify".to_string()); }
+        if line.contains("INDICATE") { props.push("Indicate".to_string()); }
+        if line.contains("BROADCAST") { props.push("Broadcast".to_string()); }
+        props
+    }
+
+    pub fn read_ble_characteristic(mac: &str, handle: &str) -> Result<String, String> {
+        let output = Command::new("gatttool")
+            .args(["-t", "random", "-b", mac, "--char-read", "-a", handle])
+            .output()
+            .map_err(|e| format!("gatttool read failed: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("value:") {
+            if let Some(val) = stdout.split("value: ").nth(1) {
+                return Ok(val.trim().to_string());
+            }
+        }
+        Err("Failed to read characteristic".to_string())
+    }
+
+    pub fn get_ble_device_info(mac: &str) -> Result<BleDevice, String> {
+        let services = Self::enumerate_ble_services(mac)?;
+
+        let output = Command::new("hcitool")
+            .args(["name", mac])
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    Some(String::from_utf8_lossy(&o.stdout).to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        let name = output.trim().to_string();
+
+        Ok(BleDevice {
+            mac: mac.to_string(),
+            name,
+            rssi: None,
+            services,
+            manufacturer_data: String::new(),
+            tx_power: None,
+            connectable: true,
+        })
+    }
 }
 
 pub fn format_classic_devices(devices: &[BluetoothDevice]) -> String {
@@ -557,6 +706,38 @@ mod tests {
         };
         assert!(!dev.connectable);
         assert_eq!(dev.manufacturer_data, "0102");
+    }
+
+    #[test]
+    fn test_ble_service_name() {
+        assert_eq!(BluetoothScanner::ble_service_name("1800"), "Generic Access");
+        assert_eq!(BluetoothScanner::ble_service_name("180a"), "Device Information");
+        assert_eq!(BluetoothScanner::ble_service_name("180f"), "Battery Service");
+        assert_eq!(BluetoothScanner::ble_service_name("9999"), "Unknown");
+    }
+
+    #[test]
+    fn test_ble_char_name() {
+        assert_eq!(BluetoothScanner::ble_char_name("2a00"), "Device Name");
+        assert_eq!(BluetoothScanner::ble_char_name("2a19"), "Battery Level");
+        assert_eq!(BluetoothScanner::ble_char_name("9999"), "Unknown");
+    }
+
+    #[test]
+    fn test_ble_char_properties() {
+        let line = "handle = 0x0028, char properties = 0x12, char value handle = 0x0029, uuid = 2a00";
+        let props = BluetoothScanner::ble_char_properties(line);
+        assert!(props.contains(&"Read".to_string()));
+        assert!(props.contains(&"Notify".to_string()));
+        assert!(!props.contains(&"Write".to_string()));
+    }
+
+    #[test]
+    fn test_ble_char_properties_write() {
+        let line = "handle = 0x002c, char properties = 0x0a, char value handle = 0x002d, uuid = 2a00";
+        let props = BluetoothScanner::ble_char_properties(line);
+        assert!(props.contains(&"Write".to_string()));
+        assert!(props.contains(&"Read".to_string()));
     }
 
     #[test]

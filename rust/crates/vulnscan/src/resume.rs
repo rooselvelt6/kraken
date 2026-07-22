@@ -49,7 +49,12 @@ pub struct Checkpointer {
 impl Checkpointer {
     pub fn new(base_path: &Path) -> Self {
         let dir = base_path.join(".kraken").join("hunt-checkpoints");
-        let _ = fs::create_dir_all(&dir);
+        if let Err(e) = fs::create_dir_all(&dir) {
+            eprintln!(
+                "[resume] Failed to create checkpoint dir {}: {e}",
+                dir.display()
+            );
+        }
         Checkpointer {
             checkpoint_dir: dir,
         }
@@ -58,7 +63,9 @@ impl Checkpointer {
     pub fn save_checkpoint(&self, state: &ScanState) {
         let path = self.checkpoint_path(&state.checkpoint.id);
         if let Ok(content) = serde_json::to_string_pretty(state) {
-            let _ = fs::write(&path, &content);
+            if let Err(e) = fs::write(&path, &content) {
+                eprintln!("[resume] Failed to save checkpoint {}: {e}", path.display());
+            }
         }
     }
 
@@ -109,7 +116,12 @@ impl Checkpointer {
     pub fn delete_checkpoint(&self, hunt_id: &str) {
         let path = self.checkpoint_path(hunt_id);
         if path.exists() {
-            let _ = fs::remove_file(&path);
+            if let Err(e) = fs::remove_file(&path) {
+                eprintln!(
+                    "[resume] Failed to delete checkpoint {}: {e}",
+                    path.display()
+                );
+            }
         }
     }
 

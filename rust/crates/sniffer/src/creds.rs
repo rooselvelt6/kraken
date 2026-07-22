@@ -185,10 +185,10 @@ fn extract_mail_creds(data: &str, service: &str) -> Option<(String, String)> {
     }
 }
 
-fn base64_decode(input: &str) -> Result<String, String> {
+fn base64_decode(input: &str) -> Result<String, kraken_errors::NetworkError> {
     use base64::Engine;
     let engine = base64::engine::general_purpose::STANDARD;
-    let bytes = engine.decode(input.trim()).map_err(|e| format!("Base64 error: {}", e))?;
+    let bytes = engine.decode(input.trim()).map_err(|e| kraken_errors::NetworkError::Other(format!("Base64 error: {}", e)))?;
     Ok(String::from_utf8_lossy(&bytes).to_string())
 }
 

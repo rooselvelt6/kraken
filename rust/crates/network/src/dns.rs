@@ -7,6 +7,7 @@ use std::time::Duration;
 use hickory_resolver::config::ResolverOpts;
 use hickory_resolver::proto::rr::{Name as HickoryName, RData, RecordType};
 use hickory_resolver::TokioResolver;
+use kraken_errors::NetworkError;
 use serde::{Deserialize, Serialize};
 
 const DNS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -56,16 +57,16 @@ pub struct TakeoverInfo {
     pub evidence: String,
 }
 
-fn build_resolver(opts: ResolverOpts) -> Result<TokioResolver, String> {
+fn build_resolver(opts: ResolverOpts) -> Result<TokioResolver, NetworkError> {
     TokioResolver::builder_tokio()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| NetworkError::Dns(e.to_string()))?
         .with_options(opts)
         .build()
-        .map_err(|e| e.to_string())
+        .map_err(|e| NetworkError::Dns(e.to_string()))
 }
 
-pub fn enumerate(domain: &str) -> Result<DnsRecords, String> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+pub fn enumerate(domain: &str) -> Result<DnsRecords, NetworkError> {
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
     rt.block_on(async {
         let mut opts = ResolverOpts::default();
@@ -73,7 +74,7 @@ pub fn enumerate(domain: &str) -> Result<DnsRecords, String> {
         opts.attempts = 2;
 
         let resolver = build_resolver(opts)?;
-        let domain_name = HickoryName::from_utf8(domain).map_err(|e| e.to_string())?;
+        let domain_name = HickoryName::from_utf8(domain).map_err(|e| NetworkError::Dns(e.to_string()))?;
 
         let a_records = lookup_a(&resolver, domain_name.clone()).await;
         let aaaa_records = lookup_aaaa(&resolver, domain_name.clone()).await;
@@ -97,8 +98,8 @@ pub fn enumerate(domain: &str) -> Result<DnsRecords, String> {
     })
 }
 
-pub fn brute_force(domain: &str, wordlist: &[String]) -> Result<Vec<SubdomainResult>, String> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+pub fn brute_force(domain: &str, wordlist: &[String]) -> Result<Vec<SubdomainResult>, NetworkError> {
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
     rt.block_on(async {
         let mut opts = ResolverOpts::default();
@@ -157,8 +158,8 @@ pub fn brute_force(domain: &str, wordlist: &[String]) -> Result<Vec<SubdomainRes
     })
 }
 
-pub fn reverse_lookup(ip: IpAddr) -> Result<Vec<String>, String> {
-    let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+pub fn reverse_lookup(ip: IpAddr) -> Result<Vec<String>, NetworkError> {
+    let rt = tokio::runtime::Runtime::new().map_err(|e| NetworkError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
 
     rt.block_on(async {
         let opts = ResolverOpts::default();
@@ -175,7 +176,7 @@ pub fn reverse_lookup(ip: IpAddr) -> Result<Vec<String>, String> {
                 }).collect();
                 Ok(results)
             }
-            Err(e) => Err(format!("Reverse DNS lookup failed: {}", e)),
+            Err(e) => Err(NetworkError::Dns(format!("Reverse DNS lookup failed: {}", e))),
         }
     })
 }

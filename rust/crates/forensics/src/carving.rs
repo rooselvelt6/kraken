@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CarvedFile {
     pub file_type: String,
@@ -132,15 +134,15 @@ impl FileCarver {
             .map(|pos| search_start + pos)
     }
 
-    pub fn carve_file_from_path(&self, path: &str, output_dir: &str) -> Result<CarvingResult, String> {
-        let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+    pub fn carve_file_from_path(&self, path: &str, output_dir: &str) -> Result<CarvingResult, ForensicsError> {
+        let data = std::fs::read(path)?;
         Ok(self.carve_file(&data, output_dir))
     }
 
-    pub fn deep_scan(&self, path: &str, output_dir: &str) -> Result<CarvingResult, String> {
+    pub fn deep_scan(&self, path: &str, output_dir: &str) -> Result<CarvingResult, ForensicsError> {
         let path = Path::new(path);
         if !path.exists() {
-            return Err("Path does not exist".to_string());
+            return Err(ForensicsError::NotFound(path.to_string_lossy().to_string()));
         }
 
         let mut all_files = Vec::new();
@@ -158,7 +160,7 @@ impl FileCarver {
                 }
             }
         } else {
-            let data = std::fs::read(path).map_err(|e| format!("read failed: {}", e))?;
+            let data = std::fs::read(path)?;
             total_scanned = data.len() as u64;
             let result = self.carve_file(&data, output_dir);
             all_files = result.files;

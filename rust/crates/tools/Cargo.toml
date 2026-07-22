@@ -8,6 +8,7 @@ publish.workspace = true
 [dependencies]
 api = { path = "../api" }
 commands = { path = "../commands" }
+kraken-errors = { path = "../kraken-errors" }
 osint = { path = "../osint" }
 flate2 = "1"
 plugins = { path = "../plugins" }

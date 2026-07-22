@@ -1,5 +1,6 @@
 #![allow(clippy::unreadable_literal)]
 
+use kraken_errors::SandboxError;
 use std::arch::asm;
 
 /// Linux syscall numbers for x86_64.
@@ -362,7 +363,7 @@ impl SeccompProfile {
         }
     }
 
-    pub fn install(&self) -> Result<(), String> {
+    pub fn install(&self) -> Result<(), SandboxError> {
         let mut syscalls = self.mode.allowed_syscalls();
 
         if self.allow_network {
@@ -399,7 +400,7 @@ impl SeccompProfile {
     }
 }
 
-fn build_bpf_filter(allowed: &[u16]) -> Result<Vec<SockFilter>, String> {
+fn build_bpf_filter(allowed: &[u16]) -> Result<Vec<SockFilter>, SandboxError> {
     let max_nr = allowed.last().copied().unwrap_or(0) as usize;
     let mut jmp_table = vec![0u8; max_nr + 1];
     for &nr in allowed {
@@ -539,12 +540,12 @@ fn build_bpf_filter(allowed: &[u16]) -> Result<Vec<SockFilter>, String> {
 }
 
 #[cfg(target_os = "linux")]
-fn install_bpf_filter(filter: &[SockFilter]) -> Result<(), String> {
+fn install_bpf_filter(filter: &[SockFilter]) -> Result<(), SandboxError> {
     unsafe {
         // First set NO_NEW_PRIVS via prctl
         let ret = libc::prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
         if ret != 0 {
-            return Err(format!("prctl(PR_SET_NO_NEW_PRIVS): {}", std::io::Error::last_os_error()));
+            return Err(SandboxError::Seccomp(format!("prctl(PR_SET_NO_NEW_PRIVS): {}", std::io::Error::last_os_error())));
         }
 
         // Install the seccomp filter via syscall
@@ -555,15 +556,15 @@ fn install_bpf_filter(filter: &[SockFilter]) -> Result<(), String> {
 
         let ret = syscall_seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog as *const SockFprog as *const std::ffi::c_void);
         if ret != 0 {
-            return Err(format!("seccomp(SECCOMP_SET_MODE_FILTER): {}", std::io::Error::last_os_error()));
+            return Err(SandboxError::Seccomp(format!("seccomp(SECCOMP_SET_MODE_FILTER): {}", std::io::Error::last_os_error())));
         }
     }
     Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]
-fn install_bpf_filter(_filter: &[SockFilter]) -> Result<(), String> {
-    Err("seccomp is only supported on Linux".to_string())
+fn install_bpf_filter(_filter: &[SockFilter]) -> Result<(), SandboxError> {
+    Err(SandboxError::Seccomp("seccomp is only supported on Linux".to_string()))
 }
 
 #[cfg(target_os = "linux")]

@@ -1,4 +1,5 @@
 use base64::Engine;
+use kraken_errors::SecurityError;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -71,7 +72,7 @@ pub struct CredentialVault {
 }
 
 impl CredentialVault {
-    pub fn open_or_create(path: PathBuf, master_key: &MasterKey) -> Result<Self, String> {
+    pub fn open_or_create(path: PathBuf, master_key: &MasterKey) -> Result<Self, SecurityError> {
         if path.exists() {
             Self::open(path, master_key)
         } else {
@@ -86,16 +87,14 @@ impl CredentialVault {
         }
     }
 
-    pub fn open(path: PathBuf, master_key: &MasterKey) -> Result<Self, String> {
-        let content = fs::read_to_string(&path)
-            .map_err(|e| format!("read vault failed: {e}"))?;
+    pub fn open(path: PathBuf, master_key: &MasterKey) -> Result<Self, SecurityError> {
+        let content = fs::read_to_string(&path)?;
 
         if let Ok(vault_file) = serde_json::from_str::<VaultFile>(&content) {
             let salt_bytes = base64_decode_array(&vault_file.salt)?;
             let key = master_key.derive_key(&salt_bytes, vault_file.kdf_params);
             let decrypted = Encryptor::decrypt(&vault_file.encrypted, &key)?;
-            let data: serde_json::Value = serde_json::from_slice(&decrypted)
-                .map_err(|e| format!("vault JSON parse: {e}"))?;
+            let data: serde_json::Value = serde_json::from_slice(&decrypted)?;
             Ok(Self {
                 path,
                 data,
@@ -113,15 +112,14 @@ impl CredentialVault {
             vault.save(master_key)?;
             Ok(vault)
         } else {
-            Err("vault file is not valid encrypted nor plain JSON".into())
+            Err(SecurityError::Vault("vault file is not valid encrypted nor plain JSON".into()))
         }
     }
 
-    pub fn save(&self, master_key: &MasterKey) -> Result<(), String> {
+    pub fn save(&self, master_key: &MasterKey) -> Result<(), SecurityError> {
         let salt = random_salt();
         let key = master_key.derive_key(&salt, self.kdf_params);
-        let plaintext = serde_json::to_vec_pretty(&self.data)
-            .map_err(|e| format!("vault serialize: {e}"))?;
+        let plaintext = serde_json::to_vec_pretty(&self.data)?;
         let encrypted = Encryptor::encrypt_with_algorithm(&plaintext, &key, self.algorithm)?;
 
         let vault_file = VaultFile {
@@ -133,22 +131,18 @@ impl CredentialVault {
         };
 
         if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("create vault dir: {e}"))?;
+            fs::create_dir_all(parent)?;
         }
 
-        let rendered = serde_json::to_string_pretty(&vault_file)
-            .map_err(|e| format!("vault serialize: {e}"))?;
+        let rendered = serde_json::to_string_pretty(&vault_file)?;
 
         let temp_path = self.path.with_extension("vault.tmp");
-        fs::write(&temp_path, format!("{rendered}\n"))
-            .map_err(|e| format!("write vault: {e}"))?;
+        fs::write(&temp_path, format!("{rendered}\n"))?;
 
         #[cfg(unix)]
         set_600_permissions(&temp_path)?;
 
-        fs::rename(&temp_path, &self.path)
-            .map_err(|e| format!("rename vault: {e}"))?;
+        fs::rename(&temp_path, &self.path)?;
 
         #[cfg(unix)]
         set_600_permissions(&self.path)?;
@@ -206,12 +200,12 @@ fn base64_encode_array(arr: &[u8; SALT_SIZE]) -> String {
     base64::engine::general_purpose::STANDARD.encode(arr)
 }
 
-fn base64_decode_array(s: &str) -> Result<[u8; SALT_SIZE], String> {
+fn base64_decode_array(s: &str) -> Result<[u8; SALT_SIZE], SecurityError> {
     let decoded = base64::engine::general_purpose::STANDARD
         .decode(s)
-        .map_err(|e| format!("base64 decode: {e}"))?;
+        .map_err(|e| SecurityError::Decode(format!("base64 decode: {e}")))?;
     if decoded.len() != SALT_SIZE {
-        return Err(format!("salt length mismatch: got {}", decoded.len()));
+        return Err(SecurityError::Decode(format!("salt length mismatch: got {}", decoded.len())));
     }
     let mut arr = [0u8; SALT_SIZE];
     arr.copy_from_slice(&decoded);
@@ -219,14 +213,13 @@ fn base64_decode_array(s: &str) -> Result<[u8; SALT_SIZE], String> {
 }
 
 #[cfg(unix)]
-fn set_600_permissions(path: &PathBuf) -> Result<(), String> {
+fn set_600_permissions(path: &PathBuf) -> Result<(), SecurityError> {
     use std::os::unix::fs::PermissionsExt;
-    let metadata = fs::metadata(path)
-        .map_err(|e| format!("metadata: {e}"))?;
+    let metadata = fs::metadata(path)?;
     let mut perms = metadata.permissions();
     perms.set_mode(0o600);
-    fs::set_permissions(path, perms)
-        .map_err(|e| format!("set perms: {e}"))
+    fs::set_permissions(path, perms)?;
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -245,27 +238,27 @@ unsafe fn unlock_memory(data: &mut [u8]) {
     let _ = libc::munlock(data.as_ptr() as *const std::ffi::c_void, data.len());
 }
 
-pub fn vault_path() -> Result<PathBuf, String> {
+pub fn vault_path() -> Result<PathBuf, SecurityError> {
     if let Some(path) = std::env::var_os("KRAKEN_CONFIG_HOME") {
         return Ok(PathBuf::from(path).join("credentials.vault"));
     }
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
-        .ok_or_else(|| "HOME not set".to_string())?;
+        .ok_or_else(|| SecurityError::Vault("HOME not set".into()))?;
     Ok(PathBuf::from(home).join(".kraken").join("credentials.vault"))
 }
 
-pub fn legacy_json_path() -> Result<PathBuf, String> {
+pub fn legacy_json_path() -> Result<PathBuf, SecurityError> {
     if let Some(path) = std::env::var_os("KRAKEN_CONFIG_HOME") {
         return Ok(PathBuf::from(path).join("credentials.json"));
     }
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
-        .ok_or_else(|| "HOME not set".to_string())?;
+        .ok_or_else(|| SecurityError::Vault("HOME not set".into()))?;
     Ok(PathBuf::from(home).join(".kraken").join("credentials.json"))
 }
 
-pub fn open_credential_vault(master_key: &MasterKey) -> Result<CredentialVault, String> {
+pub fn open_credential_vault(master_key: &MasterKey) -> Result<CredentialVault, SecurityError> {
     let vault_p = vault_path()?;
     if vault_p.exists() {
         return CredentialVault::open(vault_p, master_key);
@@ -273,11 +266,9 @@ pub fn open_credential_vault(master_key: &MasterKey) -> Result<CredentialVault, 
     let legacy_p = legacy_json_path()?;
     if legacy_p.exists() {
         eprintln!("[kraken] migrating legacy credentials.json to encrypted vault...");
-        let content = fs::read_to_string(&legacy_p)
-            .map_err(|e| format!("read legacy credentials failed: {e}"))?;
+        let content = fs::read_to_string(&legacy_p)?;
         let root: serde_json::Map<String, serde_json::Value> =
-            serde_json::from_str(&content)
-                .map_err(|e| format!("parse legacy credentials: {e}"))?;
+            serde_json::from_str(&content)?;
         let data = serde_json::Value::Object(root);
         let vault = CredentialVault {
             path: vault_p.clone(),
@@ -286,8 +277,7 @@ pub fn open_credential_vault(master_key: &MasterKey) -> Result<CredentialVault, 
             kdf_params: KdfParams::sensitive(),
         };
         vault.save(master_key)?;
-        fs::rename(&legacy_p, legacy_p.with_extension("json.bak"))
-            .map_err(|e| format!("backup legacy credentials: {e}"))?;
+        fs::rename(&legacy_p, legacy_p.with_extension("json.bak"))?;
         eprintln!("[kraken] migrated to encrypted vault at {}", vault_p.display());
         return Ok(vault);
     }

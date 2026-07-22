@@ -17,3 +17,4 @@ walkdir = "2"
 nom = "7"
 base64 = "0.22"
 rusqlite = { version = "0.32", features = ["bundled"] }
+kraken-errors = { path = "../kraken-errors" }

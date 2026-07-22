@@ -13,23 +13,25 @@ use api::{
 };
 use plugins::PluginTool;
 use reqwest::blocking::Client;
+use kraken_errors::ToolError;
 use runtime::{
-    check_freshness, dedupe_superseded_commit_events, edit_file, execute_bash, glob_search,
+    dedupe_superseded_commit_events, edit_file, execute_bash, glob_search,
     grep_search, load_system_prompt,
     lsp_client::LspRegistry,
     mcp_tool_bridge::McpToolRegistry,
     permission_enforcer::{EnforcementResult, PermissionEnforcer},
     read_file,
+    stale_branch::{check_freshness, BranchFreshness},
     summary_compression::compress_summary_text,
     task_registry::TaskRegistry,
     team_cron_registry::{CronRegistry, TeamRegistry},
     worker_boot::{WorkerReadySnapshot, WorkerRegistry, WorkerTaskReceipt},
     write_file, ApiClient, ApiRequest, AssistantEvent, BashCommandInput, BashCommandOutput,
-    BranchFreshness, ConfigLoader, ContentBlock, ConversationMessage, ConversationRuntime,
+    ConfigLoader, ContentBlock, ConversationMessage, ConversationRuntime,
     GrepSearchInput, LaneCommitProvenance, LaneEvent, LaneEventBlocker, LaneEventName,
     LaneEventStatus, LaneFailureClass, McpDegradedReport, MessageRole, PermissionMode,
     PermissionPolicy, PromptCacheEvent, ProviderFallbackConfig, RuntimeError, Session, TaskPacket,
-    ToolError, ToolExecutor,
+    ToolError as RuntimeToolError, ToolExecutor,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -133,7 +135,7 @@ impl GlobalToolRegistry {
         }
     }
 
-    pub fn with_plugin_tools(plugin_tools: Vec<PluginTool>) -> Result<Self, String> {
+    pub fn with_plugin_tools(plugin_tools: Vec<PluginTool>) -> Result<Self, ToolError> {
         let builtin_names = mvp_tool_specs()
             .into_iter()
             .map(|spec| spec.name.to_string())
@@ -143,12 +145,12 @@ impl GlobalToolRegistry {
         for tool in &plugin_tools {
             let name = tool.definition().name.clone();
             if builtin_names.contains(&name) {
-                return Err(format!(
+                return Err(ToolError::Validation(format!(
                     "plugin tool `{name}` conflicts with a built-in tool name"
-                ));
+                )));
             }
             if !seen_plugin_names.insert(name.clone()) {
-                return Err(format!("duplicate plugin tool name `{name}`"));
+                return Err(ToolError::Validation(format!("duplicate plugin tool name `{name}`")));
             }
         }
 
@@ -162,7 +164,7 @@ impl GlobalToolRegistry {
     pub fn with_runtime_tools(
         mut self,
         runtime_tools: Vec<RuntimeToolDefinition>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, ToolError> {
         let mut seen_names = mvp_tool_specs()
             .into_iter()
             .map(|spec| spec.name.to_string())
@@ -175,10 +177,10 @@ impl GlobalToolRegistry {
 
         for tool in &runtime_tools {
             if !seen_names.insert(tool.name.clone()) {
-                return Err(format!(
+                return Err(ToolError::Validation(format!(
                     "runtime tool `{}` conflicts with an existing tool name",
                     tool.name
-                ));
+                )));
             }
         }
 
@@ -195,7 +197,7 @@ impl GlobalToolRegistry {
     pub fn normalize_allowed_tools(
         &self,
         values: &[String],
-    ) -> Result<Option<BTreeSet<String>>, String> {
+    ) -> Result<Option<BTreeSet<String>>, ToolError> {
         if values.is_empty() {
             return Ok(None);
         }
@@ -234,10 +236,10 @@ impl GlobalToolRegistry {
             {
                 let normalized = normalize_tool_name(token);
                 let canonical = name_map.get(&normalized).ok_or_else(|| {
-                    format!(
+                    ToolError::NotFound(format!(
                         "unsupported tool in --allowedTools: {token} (expected one of: {})",
                         canonical_names.join(", ")
-                    )
+                    ))
                 })?;
                 allowed.insert(canonical.clone());
             }
@@ -283,7 +285,7 @@ impl GlobalToolRegistry {
     pub fn permission_specs(
         &self,
         allowed_tools: Option<&BTreeSet<String>>,
-    ) -> Result<Vec<(String, PermissionMode)>, String> {
+    ) -> Result<Vec<(String, PermissionMode)>, ToolError> {
         let builtin = mvp_tool_specs()
             .into_iter()
             .filter(|spec| allowed_tools.is_none_or(|allowed| allowed.contains(spec.name)))
@@ -339,16 +341,16 @@ impl GlobalToolRegistry {
         self.enforcer = Some(enforcer);
     }
 
-    pub fn execute(&self, name: &str, input: &Value) -> Result<String, String> {
+    pub fn execute(&self, name: &str, input: &Value) -> Result<String, ToolError> {
         if mvp_tool_specs().iter().any(|spec| spec.name == name) {
             return execute_tool_with_enforcer(self.enforcer.as_ref(), name, input);
         }
         self.plugin_tools
             .iter()
             .find(|tool| tool.definition().name == name)
-            .ok_or_else(|| format!("unsupported tool: {name}"))?
+            .ok_or_else(|| ToolError::NotFound(format!("unsupported tool: {name}")))?
             .execute(input)
-            .map_err(|error| error.to_string())
+            .map_err(|error| ToolError::Plugin(error.to_string()))
     }
 
     fn searchable_tool_specs(&self) -> Vec<SearchableToolSpec> {
@@ -374,12 +376,12 @@ fn normalize_tool_name(value: &str) -> String {
     value.trim().replace('-', "_").to_ascii_lowercase()
 }
 
-fn permission_mode_from_plugin(value: &str) -> Result<PermissionMode, String> {
+fn permission_mode_from_plugin(value: &str) -> Result<PermissionMode, ToolError> {
     match value {
         "read-only" => Ok(PermissionMode::ReadOnly),
         "workspace-write" => Ok(PermissionMode::WorkspaceWrite),
         "danger-full-access" => Ok(PermissionMode::DangerFullAccess),
-        other => Err(format!("unsupported plugin permission: {other}")),
+        other => Err(ToolError::PermissionDenied(format!("unsupported plugin permission: {other}"))),
     }
 }
 
@@ -1338,17 +1340,17 @@ pub fn enforce_permission_check(
     enforcer: &PermissionEnforcer,
     tool_name: &str,
     input: &Value,
-) -> Result<(), String> {
+) -> Result<(), ToolError> {
     let input_str = serde_json::to_string(input).unwrap_or_default();
     let result = enforcer.check(tool_name, &input_str);
 
     match result {
         EnforcementResult::Allowed => Ok(()),
-        EnforcementResult::Denied { reason, .. } => Err(reason),
+        EnforcementResult::Denied { reason, .. } => Err(ToolError::PermissionDenied(reason)),
     }
 }
 
-pub fn execute_tool(name: &str, input: &Value) -> Result<String, String> {
+pub fn execute_tool(name: &str, input: &Value) -> Result<String, ToolError> {
     execute_tool_with_enforcer(None, name, input)
 }
 
@@ -1357,7 +1359,7 @@ fn execute_tool_with_enforcer(
     enforcer: Option<&PermissionEnforcer>,
     name: &str,
     input: &Value,
-) -> Result<String, String> {
+) -> Result<String, ToolError> {
     match name {
         "bash" => {
             // Parse input to get the command for permission classification
@@ -1466,7 +1468,7 @@ fn execute_tool_with_enforcer(
         "TestingPermission" => {
             from_value::<TestingPermissionInput>(input).and_then(run_testing_permission)
         }
-        _ => Err(format!("unsupported tool: {name}")),
+        _ => Err(format!("unsupported tool: {name}").into()),
     }
 }
 
@@ -1474,7 +1476,7 @@ fn maybe_enforce_permission_check(
     enforcer: Option<&PermissionEnforcer>,
     tool_name: &str,
     input: &Value,
-) -> Result<(), String> {
+) -> Result<(), ToolError> {
     if let Some(enforcer) = enforcer {
         enforce_permission_check(enforcer, tool_name, input)?;
     }
@@ -1489,14 +1491,14 @@ fn maybe_enforce_permission_check_with_mode(
     tool_name: &str,
     input: &Value,
     required_mode: PermissionMode,
-) -> Result<(), String> {
+) -> Result<(), ToolError> {
     if let Some(enforcer) = enforcer {
         let input_str = serde_json::to_string(input).unwrap_or_default();
         let result = enforcer.check_with_required_mode(tool_name, &input_str, required_mode);
 
         match result {
             EnforcementResult::Allowed => Ok(()),
-            EnforcementResult::Denied { reason, .. } => Err(reason),
+            EnforcementResult::Denied { reason, .. } => Err(ToolError::PermissionDenied(reason)),
         }
     } else {
         Ok(())
@@ -1504,7 +1506,7 @@ fn maybe_enforce_permission_check_with_mode(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_ask_user_question(input: AskUserQuestionInput) -> Result<String, String> {
+fn run_ask_user_question(input: AskUserQuestionInput) -> Result<String, ToolError> {
     use std::io::{self, BufRead, Write};
 
     // Display the question to the user via stdout
@@ -1512,24 +1514,24 @@ fn run_ask_user_question(input: AskUserQuestionInput) -> Result<String, String> 
     let stdin = io::stdin();
     let mut out = stdout.lock();
 
-    writeln!(out, "\n[Question] {}", input.question).map_err(|e| e.to_string())?;
+    writeln!(out, "\n[Question] {}", input.question).map_err(ToolError::Io)?;
 
     if let Some(ref options) = input.options {
         for (i, option) in options.iter().enumerate() {
-            writeln!(out, "  {}. {}", i + 1, option).map_err(|e| e.to_string())?;
+            writeln!(out, "  {}. {}", i + 1, option).map_err(ToolError::Io)?;
         }
-        write!(out, "Enter choice (1-{}): ", options.len()).map_err(|e| e.to_string())?;
+        write!(out, "Enter choice (1-{}): ", options.len()).map_err(ToolError::Io)?;
     } else {
-        write!(out, "Your answer: ").map_err(|e| e.to_string())?;
+        write!(out, "Your answer: ").map_err(ToolError::Io)?;
     }
-    out.flush().map_err(|e| e.to_string())?;
+    out.flush().map_err(ToolError::Io)?;
 
     // Read user response from stdin
     let mut response = String::new();
     stdin
         .lock()
         .read_line(&mut response)
-        .map_err(|e| e.to_string())?;
+        .map_err(ToolError::Io)?;
     let response = response.trim().to_string();
 
     // If options were provided, resolve the numeric choice
@@ -1555,7 +1557,7 @@ fn run_ask_user_question(input: AskUserQuestionInput) -> Result<String, String> 
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_create(input: TaskCreateInput) -> Result<String, String> {
+fn run_task_create(input: TaskCreateInput) -> Result<String, ToolError> {
     let registry = global_task_registry();
     let task = registry.create(&input.prompt, input.description.as_deref());
     to_pretty_json(json!({
@@ -1569,11 +1571,11 @@ fn run_task_create(input: TaskCreateInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_packet(input: TaskPacket) -> Result<String, String> {
+fn run_task_packet(input: TaskPacket) -> Result<String, ToolError> {
     let registry = global_task_registry();
     let task = registry
         .create_from_packet(input)
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| ToolError::Task(e.to_string()))?;
 
     to_pretty_json(json!({
         "task_id": task.task_id,
@@ -1586,7 +1588,7 @@ fn run_task_packet(input: TaskPacket) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_get(input: TaskIdInput) -> Result<String, String> {
+fn run_task_get(input: TaskIdInput) -> Result<String, ToolError> {
     let registry = global_task_registry();
     match registry.get(&input.task_id) {
         Some(task) => to_pretty_json(json!({
@@ -1600,11 +1602,11 @@ fn run_task_get(input: TaskIdInput) -> Result<String, String> {
             "messages": task.messages,
             "team_id": task.team_id
         })),
-        None => Err(format!("task not found: {}", input.task_id)),
+        None => Err(format!("task not found: {}", input.task_id).into()),
     }
 }
 
-fn run_task_list(_input: Value) -> Result<String, String> {
+fn run_task_list(_input: Value) -> Result<String, ToolError> {
     let registry = global_task_registry();
     let tasks: Vec<_> = registry
         .list(None)
@@ -1629,7 +1631,7 @@ fn run_task_list(_input: Value) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_stop(input: TaskIdInput) -> Result<String, String> {
+fn run_task_stop(input: TaskIdInput) -> Result<String, ToolError> {
     let registry = global_task_registry();
     match registry.stop(&input.task_id) {
         Ok(task) => to_pretty_json(json!({
@@ -1637,12 +1639,12 @@ fn run_task_stop(input: TaskIdInput) -> Result<String, String> {
             "status": task.status,
             "message": "Task stopped"
         })),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_update(input: TaskUpdateInput) -> Result<String, String> {
+fn run_task_update(input: TaskUpdateInput) -> Result<String, ToolError> {
     let registry = global_task_registry();
     match registry.update(&input.task_id, &input.message) {
         Ok(task) => to_pretty_json(json!({
@@ -1651,12 +1653,12 @@ fn run_task_update(input: TaskUpdateInput) -> Result<String, String> {
             "message_count": task.messages.len(),
             "last_message": input.message
         })),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_task_output(input: TaskIdInput) -> Result<String, String> {
+fn run_task_output(input: TaskIdInput) -> Result<String, ToolError> {
     let registry = global_task_registry();
     match registry.output(&input.task_id) {
         Ok(output) => to_pretty_json(json!({
@@ -1664,12 +1666,12 @@ fn run_task_output(input: TaskIdInput) -> Result<String, String> {
             "output": output,
             "has_output": !output.is_empty()
         })),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_create(input: WorkerCreateInput) -> Result<String, String> {
+fn run_worker_create(input: WorkerCreateInput) -> Result<String, ToolError> {
     // Merge config-level trusted_roots with per-call overrides.
     // Config provides the default allowlist; per-call roots add on top.
     let config_roots: Vec<String> = ConfigLoader::default_for(&input.cwd)
@@ -1690,33 +1692,33 @@ fn run_worker_create(input: WorkerCreateInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_get(input: WorkerIdInput) -> Result<String, String> {
+fn run_worker_get(input: WorkerIdInput) -> Result<String, ToolError> {
     global_worker_registry().get(&input.worker_id).map_or_else(
-        || Err(format!("worker not found: {}", input.worker_id)),
+        || Err(format!("worker not found: {}", input.worker_id).into()),
         to_pretty_json,
     )
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_observe(input: WorkerObserveInput) -> Result<String, String> {
+fn run_worker_observe(input: WorkerObserveInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().observe(&input.worker_id, &input.screen_text)?;
     to_pretty_json(worker)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_resolve_trust(input: WorkerIdInput) -> Result<String, String> {
+fn run_worker_resolve_trust(input: WorkerIdInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().resolve_trust(&input.worker_id)?;
     to_pretty_json(worker)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_await_ready(input: WorkerIdInput) -> Result<String, String> {
+fn run_worker_await_ready(input: WorkerIdInput) -> Result<String, ToolError> {
     let snapshot: WorkerReadySnapshot = global_worker_registry().await_ready(&input.worker_id)?;
     to_pretty_json(snapshot)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_send_prompt(input: WorkerSendPromptInput) -> Result<String, String> {
+fn run_worker_send_prompt(input: WorkerSendPromptInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().send_prompt(
         &input.worker_id,
         input.prompt.as_deref(),
@@ -1726,19 +1728,19 @@ fn run_worker_send_prompt(input: WorkerSendPromptInput) -> Result<String, String
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_restart(input: WorkerIdInput) -> Result<String, String> {
+fn run_worker_restart(input: WorkerIdInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().restart(&input.worker_id)?;
     to_pretty_json(worker)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_terminate(input: WorkerIdInput) -> Result<String, String> {
+fn run_worker_terminate(input: WorkerIdInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().terminate(&input.worker_id)?;
     to_pretty_json(worker)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_worker_observe_completion(input: WorkerObserveCompletionInput) -> Result<String, String> {
+fn run_worker_observe_completion(input: WorkerObserveCompletionInput) -> Result<String, ToolError> {
     let worker = global_worker_registry().observe_completion(
         &input.worker_id,
         &input.finish_reason,
@@ -1748,7 +1750,7 @@ fn run_worker_observe_completion(input: WorkerObserveCompletionInput) -> Result<
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_team_create(input: TeamCreateInput) -> Result<String, String> {
+fn run_team_create(input: TeamCreateInput) -> Result<String, ToolError> {
     let task_ids: Vec<String> = input
         .tasks
         .iter()
@@ -1770,7 +1772,7 @@ fn run_team_create(input: TeamCreateInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_team_delete(input: TeamDeleteInput) -> Result<String, String> {
+fn run_team_delete(input: TeamDeleteInput) -> Result<String, ToolError> {
     match global_team_registry().delete(&input.team_id) {
         Ok(team) => to_pretty_json(json!({
             "team_id": team.team_id,
@@ -1778,12 +1780,12 @@ fn run_team_delete(input: TeamDeleteInput) -> Result<String, String> {
             "status": team.status,
             "message": "Team deleted"
         })),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_cron_create(input: CronCreateInput) -> Result<String, String> {
+fn run_cron_create(input: CronCreateInput) -> Result<String, ToolError> {
     let entry =
         global_cron_registry().create(&input.schedule, &input.prompt, input.description.as_deref());
     to_pretty_json(json!({
@@ -1797,7 +1799,7 @@ fn run_cron_create(input: CronCreateInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_cron_delete(input: CronDeleteInput) -> Result<String, String> {
+fn run_cron_delete(input: CronDeleteInput) -> Result<String, ToolError> {
     match global_cron_registry().delete(&input.cron_id) {
         Ok(entry) => to_pretty_json(json!({
             "cron_id": entry.cron_id,
@@ -1805,11 +1807,11 @@ fn run_cron_delete(input: CronDeleteInput) -> Result<String, String> {
             "status": "deleted",
             "message": "Cron entry removed"
         })),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
     }
 }
 
-fn run_cron_list(_input: Value) -> Result<String, String> {
+fn run_cron_list(_input: Value) -> Result<String, ToolError> {
     let entries: Vec<_> = global_cron_registry()
         .list(false)
         .into_iter()
@@ -1833,7 +1835,7 @@ fn run_cron_list(_input: Value) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_lsp(input: LspInput) -> Result<String, String> {
+fn run_lsp(input: LspInput) -> Result<String, ToolError> {
     let registry = global_lsp_registry();
     let action = &input.action;
     let path = input.path.as_deref();
@@ -1852,7 +1854,7 @@ fn run_lsp(input: LspInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_list_mcp_resources(input: McpResourceInput) -> Result<String, String> {
+fn run_list_mcp_resources(input: McpResourceInput) -> Result<String, ToolError> {
     let registry = global_mcp_registry();
     let server = input.server.as_deref().unwrap_or("default");
     match registry.list_resources(server) {
@@ -1883,7 +1885,7 @@ fn run_list_mcp_resources(input: McpResourceInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_read_mcp_resource(input: McpResourceInput) -> Result<String, String> {
+fn run_read_mcp_resource(input: McpResourceInput) -> Result<String, ToolError> {
     let registry = global_mcp_registry();
     let uri = input.uri.as_deref().unwrap_or("");
     let server = input.server.as_deref().unwrap_or("default");
@@ -1904,7 +1906,7 @@ fn run_read_mcp_resource(input: McpResourceInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_mcp_auth(input: McpAuthInput) -> Result<String, String> {
+fn run_mcp_auth(input: McpAuthInput) -> Result<String, ToolError> {
     let registry = global_mcp_registry();
     match registry.get_server(&input.server) {
         Some(state) => to_pretty_json(json!({
@@ -1923,7 +1925,7 @@ fn run_mcp_auth(input: McpAuthInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_remote_trigger(input: RemoteTriggerInput) -> Result<String, String> {
+fn run_remote_trigger(input: RemoteTriggerInput) -> Result<String, ToolError> {
     let method = input.method.unwrap_or_else(|| "GET".to_string());
     let client = Client::new();
 
@@ -1934,7 +1936,7 @@ fn run_remote_trigger(input: RemoteTriggerInput) -> Result<String, String> {
         "DELETE" => client.delete(&input.url),
         "PATCH" => client.patch(&input.url),
         "HEAD" => client.head(&input.url),
-        other => return Err(format!("unsupported HTTP method: {other}")),
+        other => return Err(format!("unsupported HTTP method: {other}").into()),
     };
 
     // Apply custom headers
@@ -1987,7 +1989,7 @@ fn run_remote_trigger(input: RemoteTriggerInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_mcp_tool(input: McpToolInput) -> Result<String, String> {
+fn run_mcp_tool(input: McpToolInput) -> Result<String, ToolError> {
     let registry = global_mcp_registry();
     let args = input.arguments.unwrap_or(serde_json::json!({}));
     match registry.call_tool(&input.server, &input.tool, &args) {
@@ -2007,7 +2009,7 @@ fn run_mcp_tool(input: McpToolInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_testing_permission(input: TestingPermissionInput) -> Result<String, String> {
+fn run_testing_permission(input: TestingPermissionInput) -> Result<String, ToolError> {
     to_pretty_json(json!({
         "action": input.action,
         "permitted": true,
@@ -2015,12 +2017,12 @@ fn run_testing_permission(input: TestingPermissionInput) -> Result<String, Strin
     }))
 }
 
-fn run_plan_migration(input: &PlanMigrationInput) -> Result<String, String> {
+fn run_plan_migration(input: &PlanMigrationInput) -> Result<String, ToolError> {
     let mut files_info = Vec::new();
     for file in &input.files {
         let output = match read_file(file, None, None) {
             Ok(c) => c,
-            Err(e) => return Err(format!("Cannot read {file}: {e}")),
+            Err(e) => return Err(format!("Cannot read {file}: {e}").into()),
         };
         files_info.push(json!({
             "path": file,
@@ -2040,7 +2042,7 @@ fn run_plan_migration(input: &PlanMigrationInput) -> Result<String, String> {
     }))
 }
 
-fn run_batch_edit(input: &BatchEditInput) -> Result<String, String> {
+fn run_batch_edit(input: &BatchEditInput) -> Result<String, ToolError> {
     let mut results = Vec::new();
     let mut all_ok = true;
     for edit in &input.edits {
@@ -2068,7 +2070,7 @@ fn run_batch_edit(input: &BatchEditInput) -> Result<String, String> {
     }))
 }
 
-fn run_verify_migration(input: VerifyMigrationInput) -> Result<String, String> {
+fn run_verify_migration(input: VerifyMigrationInput) -> Result<String, ToolError> {
     let bash_input = BashCommandInput {
         command: input.command,
         timeout: None,
@@ -2090,8 +2092,8 @@ fn run_verify_migration(input: VerifyMigrationInput) -> Result<String, String> {
     }))
 }
 
-fn from_value<T: for<'de> Deserialize<'de>>(input: &Value) -> Result<T, String> {
-    serde_json::from_value(input.clone()).map_err(|error| error.to_string())
+fn from_value<T: for<'de> Deserialize<'de>>(input: &Value) -> Result<T, ToolError> {
+    serde_json::from_value(input.clone()).map_err(ToolError::Json)
 }
 
 /// Classify bash command permission based on command type and path.
@@ -2161,12 +2163,12 @@ fn has_dangerous_paths(command: &str) -> bool {
     false
 }
 
-fn run_bash(input: BashCommandInput) -> Result<String, String> {
+fn run_bash(input: BashCommandInput) -> Result<String, ToolError> {
     if let Some(output) = workspace_test_branch_preflight(&input.command) {
-        return serde_json::to_string_pretty(&output).map_err(|error| error.to_string());
+        return serde_json::to_string_pretty(&output).map_err(ToolError::Json);
     }
-    serde_json::to_string_pretty(&execute_bash(input).map_err(|error| error.to_string())?)
-        .map_err(|error| error.to_string())
+    serde_json::to_string_pretty(&execute_bash(input).map_err(ToolError::Io)?)
+        .map_err(ToolError::Json)
 }
 
 fn workspace_test_branch_preflight(command: &str) -> Option<BashCommandOutput> {
@@ -2316,17 +2318,17 @@ fn branch_divergence_output(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_read_file(input: ReadFileInput) -> Result<String, String> {
+fn run_read_file(input: ReadFileInput) -> Result<String, ToolError> {
     to_pretty_json(read_file(&input.path, input.offset, input.limit).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_write_file(input: WriteFileInput) -> Result<String, String> {
+fn run_write_file(input: WriteFileInput) -> Result<String, ToolError> {
     to_pretty_json(write_file(&input.path, &input.content).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_edit_file(input: EditFileInput) -> Result<String, String> {
+fn run_edit_file(input: EditFileInput) -> Result<String, ToolError> {
     to_pretty_json(
         edit_file(
             &input.path,
@@ -2339,29 +2341,29 @@ fn run_edit_file(input: EditFileInput) -> Result<String, String> {
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_glob_search(input: GlobSearchInputValue) -> Result<String, String> {
+fn run_glob_search(input: GlobSearchInputValue) -> Result<String, ToolError> {
     to_pretty_json(glob_search(&input.pattern, input.path.as_deref()).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_grep_search(input: GrepSearchInput) -> Result<String, String> {
+fn run_grep_search(input: GrepSearchInput) -> Result<String, ToolError> {
     to_pretty_json(grep_search(&input).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_web_fetch(input: WebFetchInput) -> Result<String, String> {
+fn run_web_fetch(input: WebFetchInput) -> Result<String, ToolError> {
     to_pretty_json(execute_web_fetch(&input)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
-fn run_web_search(input: WebSearchInput) -> Result<String, String> {
+fn run_web_search(input: WebSearchInput) -> Result<String, ToolError> {
     to_pretty_json(execute_web_search(&input)?)
 }
 
 #[allow(clippy::too_many_lines)]
-fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
+fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, ToolError> {
     let api_key = std::env::var("SHODAN_API_KEY")
-        .map_err(|_| "SHODAN_API_KEY environment variable is not set".to_string())?;
+        .map_err(|_| ToolError::Validation("SHODAN_API_KEY environment variable is not set".into()))?;
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -2378,9 +2380,9 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan search request failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan search request failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan search parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan search parse failed: {e}")))?;
             let matches = resp.get("matches").and_then(|m| m.as_array()).map(std::vec::Vec::len).unwrap_or(0);
             let total = resp.get("total").and_then(serde_json::Value::as_u64).unwrap_or(0);
             Ok(to_pretty_json(json!({
@@ -2391,38 +2393,38 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             }))?)
         }
         "host" => {
-            let ip = input.ip.as_deref().ok_or("ip is required for host action")?;
+            let ip = input.ip.as_deref().ok_or_else(|| ToolError::Validation("ip is required for host action".into()))?;
             let url = format!("https://api.shodan.io/shodan/host/{ip}?key={api_key}");
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan host request failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan host request failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan host parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan host parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
         "dns_resolve" => {
-            let hostnames = input.hostnames.as_deref().ok_or("hostnames is required for dns_resolve")?;
+            let hostnames = input.hostnames.as_deref().ok_or_else(|| ToolError::Validation("hostnames is required for dns_resolve".into()))?;
             let joined = hostnames.join(",");
             let url = format!("https://api.shodan.io/dns/resolve?key={}&hostnames={}", api_key, urlencode(&joined));
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan DNS resolve failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan DNS resolve failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan DNS resolve parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan DNS resolve parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
         "dns_reverse" => {
-            let ips = input.ips.as_deref().ok_or("ips is required for dns_reverse")?;
+            let ips = input.ips.as_deref().ok_or_else(|| ToolError::Validation("ips is required for dns_reverse".into()))?;
             let joined = ips.join(",");
             let url = format!("https://api.shodan.io/dns/reverse?key={}&ips={}", api_key, urlencode(&joined));
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan DNS reverse failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan DNS reverse failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan DNS reverse parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan DNS reverse parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
         "myip" => {
@@ -2430,9 +2432,9 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             let resp = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan myip failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan myip failed: {e}")))?
                 .text()
-                .map_err(|e| format!("Shodan myip parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan myip parse failed: {e}")))?;
             Ok(json!({ "ip": resp.trim() }).to_string())
         }
         "info" => {
@@ -2440,9 +2442,9 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan info request failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan info request failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan info parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan info parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
         "ports" => {
@@ -2450,9 +2452,9 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan ports request failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan ports request failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan ports parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan ports parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
         "protocols" => {
@@ -2460,12 +2462,12 @@ fn run_shodan_search(input: &ShodanSearchInput) -> Result<String, String> {
             let resp: serde_json::Value = client
                 .get(&url)
                 .send()
-                .map_err(|e| format!("Shodan protocols request failed: {e}"))?
+                .map_err(|e| ToolError::Network(format!("Shodan protocols request failed: {e}")))?
                 .json()
-                .map_err(|e| format!("Shodan protocols parse failed: {e}"))?;
+                .map_err(|e| ToolError::Network(format!("Shodan protocols parse failed: {e}")))?;
             Ok(to_pretty_json(resp)?)
         }
-        _ => Err(format!("unknown Shodan action: {}", input.action)),
+        _ => Err(format!("unknown Shodan action: {}", input.action).into()),
     }
 }
 
@@ -2481,7 +2483,7 @@ fn urlencode(s: &str) -> String {
     result
 }
 
-fn run_osint_collect(input: &OsintCollectInput) -> Result<String, String> {
+fn run_osint_collect(input: &OsintCollectInput) -> Result<String, ToolError> {
     use osint::collector::DataCollector;
 
     let kind = input.kind.as_deref().unwrap_or("domain");
@@ -2496,7 +2498,7 @@ fn run_osint_collect(input: &OsintCollectInput) -> Result<String, String> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .build()
-            .map_err(|e| format!("http client: {e}"))?;
+            .map_err(|e| ToolError::Network(format!("http client: {e}")))?;
         if let Ok(resp) = client.get(&url).send().and_then(reqwest::blocking::Response::text) {
             let findings = DataCollector::extract_from_html(&resp, Some(&url));
             all_findings.extend(findings);
@@ -2519,7 +2521,7 @@ fn run_osint_collect(input: &OsintCollectInput) -> Result<String, String> {
     to_pretty_json(report)
 }
 
-fn run_dns_lookup(input: &DnsLookupInput) -> Result<String, String> {
+fn run_dns_lookup(input: &DnsLookupInput) -> Result<String, ToolError> {
     use osint::dns::{DnsResolver, RecordType};
 
     let rt = input.record_type.as_deref().and_then(RecordType::parse_str).unwrap_or(RecordType::A);
@@ -2536,7 +2538,7 @@ fn run_dns_lookup(input: &DnsLookupInput) -> Result<String, String> {
     to_pretty_json(result)
 }
 
-fn run_whois_query(input: &WhoisQueryInput) -> Result<String, String> {
+fn run_whois_query(input: &WhoisQueryInput) -> Result<String, ToolError> {
     use osint::dns::DnsResolver;
 
     let whois_text = DnsResolver::whois_lookup(&input.domain)?;
@@ -2549,24 +2551,24 @@ fn run_whois_query(input: &WhoisQueryInput) -> Result<String, String> {
     to_pretty_json(result)
 }
 
-fn run_todo_write(input: TodoWriteInput) -> Result<String, String> {
+fn run_todo_write(input: TodoWriteInput) -> Result<String, ToolError> {
     to_pretty_json(execute_todo_write(input)?)
 }
 
-fn run_skill(input: SkillInput) -> Result<String, String> {
+fn run_skill(input: SkillInput) -> Result<String, ToolError> {
     to_pretty_json(execute_skill(input)?)
 }
 
-fn run_agent(input: AgentInput) -> Result<String, String> {
+fn run_agent(input: AgentInput) -> Result<String, ToolError> {
     to_pretty_json(execute_agent(input)?)
 }
 
-fn run_parallel(input: RunParallelInput) -> Result<String, String> {
+fn run_parallel(input: RunParallelInput) -> Result<String, ToolError> {
     if input.agents.is_empty() {
-        return Err("at least one agent is required".into());
+        return Err(ToolError::Validation(String::from("at least one agent is required")));
     }
     let n = input.agents.len();
-    let results: Vec<Result<AgentOutput, String>> = std::thread::scope(|s| {
+    let results: Vec<Result<AgentOutput, ToolError>> = std::thread::scope(|s| {
         input
             .agents
             .into_iter()
@@ -2575,7 +2577,7 @@ fn run_parallel(input: RunParallelInput) -> Result<String, String> {
             })
             .collect::<Vec<_>>()
             .into_iter()
-            .map(|handle| handle.join().unwrap_or_else(|_| Err("parallel agent panicked".into())))
+            .map(|handle| handle.join().unwrap_or_else(|_| Err(ToolError::Agent(String::from("parallel agent panicked")))))
             .collect()
     });
     let mut outputs: Vec<serde_json::Value> = Vec::with_capacity(n);
@@ -2601,39 +2603,39 @@ fn run_parallel(input: RunParallelInput) -> Result<String, String> {
     }))
 }
 
-fn run_tool_search(input: ToolSearchInput) -> Result<String, String> {
+fn run_tool_search(input: ToolSearchInput) -> Result<String, ToolError> {
     to_pretty_json(execute_tool_search(input))
 }
 
-fn run_notebook_edit(input: NotebookEditInput) -> Result<String, String> {
+fn run_notebook_edit(input: NotebookEditInput) -> Result<String, ToolError> {
     to_pretty_json(execute_notebook_edit(input)?)
 }
 
-fn run_sleep(input: SleepInput) -> Result<String, String> {
+fn run_sleep(input: SleepInput) -> Result<String, ToolError> {
     to_pretty_json(execute_sleep(input)?)
 }
 
-fn run_brief(input: BriefInput) -> Result<String, String> {
+fn run_brief(input: BriefInput) -> Result<String, ToolError> {
     to_pretty_json(execute_brief(input)?)
 }
 
-fn run_config(input: ConfigInput) -> Result<String, String> {
+fn run_config(input: ConfigInput) -> Result<String, ToolError> {
     to_pretty_json(execute_config(input)?)
 }
 
-fn run_enter_plan_mode(input: EnterPlanModeInput) -> Result<String, String> {
+fn run_enter_plan_mode(input: EnterPlanModeInput) -> Result<String, ToolError> {
     to_pretty_json(execute_enter_plan_mode(input)?)
 }
 
-fn run_exit_plan_mode(input: ExitPlanModeInput) -> Result<String, String> {
+fn run_exit_plan_mode(input: ExitPlanModeInput) -> Result<String, ToolError> {
     to_pretty_json(execute_exit_plan_mode(input)?)
 }
 
-fn run_structured_output(input: StructuredOutputInput) -> Result<String, String> {
+fn run_structured_output(input: StructuredOutputInput) -> Result<String, ToolError> {
     to_pretty_json(execute_structured_output(input)?)
 }
 
-fn run_repl(input: ReplInput) -> Result<String, String> {
+fn run_repl(input: ReplInput) -> Result<String, ToolError> {
     to_pretty_json(execute_repl(input)?)
 }
 
@@ -2709,12 +2711,12 @@ fn is_within_workspace(path: &str) -> bool {
     !path.starts_with("/") && !path.starts_with("\\") && !path.starts_with("..")
 }
 
-fn run_powershell(input: PowerShellInput) -> Result<String, String> {
-    to_pretty_json(execute_powershell(input).map_err(|error| error.to_string())?)
+fn run_powershell(input: PowerShellInput) -> Result<String, ToolError> {
+    to_pretty_json(execute_powershell(input).map_err(ToolError::Io)?)
 }
 
-fn to_pretty_json<T: serde::Serialize>(value: T) -> Result<String, String> {
-    serde_json::to_string_pretty(&value).map_err(|error| error.to_string())
+fn to_pretty_json<T: serde::Serialize>(value: T) -> Result<String, ToolError> {
+    serde_json::to_string_pretty(&value).map_err(ToolError::Json)
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -3291,14 +3293,14 @@ struct SearchHit {
     url: String,
 }
 
-fn execute_web_fetch(input: &WebFetchInput) -> Result<WebFetchOutput, String> {
+fn execute_web_fetch(input: &WebFetchInput) -> Result<WebFetchOutput, ToolError> {
     let started = Instant::now();
     let client = build_http_client()?;
     let request_url = normalize_fetch_url(&input.url)?;
     let response = client
         .get(request_url.clone())
         .send()
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| ToolError::Network(e.to_string()))?;
 
     let status = response.status();
     let final_url = response.url().to_string();
@@ -3310,7 +3312,7 @@ fn execute_web_fetch(input: &WebFetchInput) -> Result<WebFetchOutput, String> {
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default()
         .to_string();
-    let body = response.text().map_err(|error| error.to_string())?;
+    let body = response.text().map_err(|e| ToolError::Network(e.to_string()))?;
     let bytes = body.len();
     let normalized = normalize_fetched_content(&body, &content_type);
     let result = summarize_web_fetch(&final_url, &input.prompt, &normalized, &body, &content_type);
@@ -3325,17 +3327,17 @@ fn execute_web_fetch(input: &WebFetchInput) -> Result<WebFetchOutput, String> {
     })
 }
 
-fn execute_web_search(input: &WebSearchInput) -> Result<WebSearchOutput, String> {
+fn execute_web_search(input: &WebSearchInput) -> Result<WebSearchOutput, ToolError> {
     let started = Instant::now();
     let client = build_http_client()?;
     let search_url = build_search_url(&input.query)?;
     let response = client
         .get(search_url)
         .send()
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| ToolError::Network(e.to_string()))?;
 
     let final_url = response.url().clone();
-    let html = response.text().map_err(|error| error.to_string())?;
+    let html = response.text().map_err(|e| ToolError::Network(e.to_string()))?;
     let mut hits = extract_search_hits(&html);
 
     if hits.is_empty() && final_url.host_str().is_some() {
@@ -3379,39 +3381,39 @@ fn execute_web_search(input: &WebSearchInput) -> Result<WebSearchOutput, String>
     })
 }
 
-fn build_http_client() -> Result<Client, String> {
+fn build_http_client() -> Result<Client, ToolError> {
     Client::builder()
         .timeout(Duration::from_secs(20))
         .redirect(reqwest::redirect::Policy::limited(10))
         .user_agent("krakend-rust-tools/0.1")
         .build()
-        .map_err(|error| error.to_string())
+        .map_err(|e| ToolError::Network(e.to_string()))
 }
 
-fn normalize_fetch_url(url: &str) -> Result<String, String> {
-    let parsed = reqwest::Url::parse(url).map_err(|error| error.to_string())?;
+fn normalize_fetch_url(url: &str) -> Result<String, ToolError> {
+    let parsed = reqwest::Url::parse(url).map_err(|e| ToolError::Network(e.to_string()))?;
     if parsed.scheme() == "http" {
         let host = parsed.host_str().unwrap_or_default();
         if host != "localhost" && host != "127.0.0.1" && host != "::1" {
             let mut upgraded = parsed;
             upgraded
                 .set_scheme("https")
-                .map_err(|()| String::from("failed to upgrade URL to https"))?;
+                .map_err(|()| ToolError::Network("failed to upgrade URL to https".into()))?;
             return Ok(upgraded.to_string());
         }
     }
     Ok(parsed.to_string())
 }
 
-fn build_search_url(query: &str) -> Result<reqwest::Url, String> {
+fn build_search_url(query: &str) -> Result<reqwest::Url, ToolError> {
     if let Ok(base) = std::env::var("KRAKEND_WEB_SEARCH_BASE_URL") {
-        let mut url = reqwest::Url::parse(&base).map_err(|error| error.to_string())?;
+        let mut url = reqwest::Url::parse(&base).map_err(|e| ToolError::Network(e.to_string()))?;
         url.query_pairs_mut().append_pair("q", query);
         return Ok(url);
     }
 
     let mut url = reqwest::Url::parse("https://html.duckduckgo.com/html/")
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| ToolError::Network(e.to_string()))?;
     url.query_pairs_mut().append_pair("q", query);
     Ok(url)
 }
@@ -3674,14 +3676,14 @@ fn dedupe_hits(hits: &mut Vec<SearchHit>) {
     hits.retain(|hit| seen.insert(hit.url.clone()));
 }
 
-fn execute_todo_write(input: TodoWriteInput) -> Result<TodoWriteOutput, String> {
+fn execute_todo_write(input: TodoWriteInput) -> Result<TodoWriteOutput, ToolError> {
     validate_todos(&input.todos)?;
     let store_path = todo_store_path()?;
     let old_todos = if store_path.exists() {
         serde_json::from_str::<Vec<TodoItem>>(
-            &std::fs::read_to_string(&store_path).map_err(|error| error.to_string())?,
+            &std::fs::read_to_string(&store_path).map_err(ToolError::Io)?,
         )
-        .map_err(|error| error.to_string())?
+        .map_err(ToolError::Json)?
     } else {
         Vec::new()
     };
@@ -3697,13 +3699,13 @@ fn execute_todo_write(input: TodoWriteInput) -> Result<TodoWriteOutput, String> 
     };
 
     if let Some(parent) = store_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        std::fs::create_dir_all(parent).map_err(ToolError::Io)?;
     }
     std::fs::write(
         &store_path,
-        serde_json::to_string_pretty(&persisted).map_err(|error| error.to_string())?,
+        serde_json::to_string_pretty(&persisted).map_err(ToolError::Json)?,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(ToolError::Io)?;
 
     let verification_nudge_needed = (all_done
         && input.todos.len() >= 3
@@ -3720,9 +3722,9 @@ fn execute_todo_write(input: TodoWriteInput) -> Result<TodoWriteOutput, String> 
     })
 }
 
-fn execute_skill(input: SkillInput) -> Result<SkillOutput, String> {
+fn execute_skill(input: SkillInput) -> Result<SkillOutput, ToolError> {
     let skill_path = resolve_skill_path(&input.skill)?;
-    let prompt = std::fs::read_to_string(&skill_path).map_err(|error| error.to_string())?;
+    let prompt = std::fs::read_to_string(&skill_path).map_err(ToolError::Io)?;
     let description = parse_skill_description(&prompt);
 
     Ok(SkillOutput {
@@ -3734,40 +3736,40 @@ fn execute_skill(input: SkillInput) -> Result<SkillOutput, String> {
     })
 }
 
-fn validate_todos(todos: &[TodoItem]) -> Result<(), String> {
+fn validate_todos(todos: &[TodoItem]) -> Result<(), ToolError> {
     if todos.is_empty() {
-        return Err(String::from("todos must not be empty"));
+        return Err(ToolError::Validation(String::from("todos must not be empty")));
     }
     // Allow multiple in_progress items for parallel workflows
     if todos.iter().any(|todo| todo.content.trim().is_empty()) {
-        return Err(String::from("todo content must not be empty"));
+        return Err(ToolError::Validation(String::from("todo content must not be empty")));
     }
     if todos.iter().any(|todo| todo.active_form.trim().is_empty()) {
-        return Err(String::from("todo activeForm must not be empty"));
+        return Err(ToolError::Validation(String::from("todo activeForm must not be empty")));
     }
     Ok(())
 }
 
-fn todo_store_path() -> Result<std::path::PathBuf, String> {
+fn todo_store_path() -> Result<std::path::PathBuf, ToolError> {
     if let Ok(path) = std::env::var("KRAKEND_TODO_STORE") {
         return Ok(std::path::PathBuf::from(path));
     }
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+    let cwd = std::env::current_dir().map_err(ToolError::Io)?;
     Ok(cwd.join(".krakend-todos.json"))
 }
 
-fn resolve_skill_path(skill: &str) -> Result<std::path::PathBuf, String> {
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+fn resolve_skill_path(skill: &str) -> Result<std::path::PathBuf, ToolError> {
+    let cwd = std::env::current_dir().map_err(ToolError::Io)?;
     match commands::resolve_skill_path(&cwd, skill) {
         Ok(path) => Ok(path),
         Err(_) => resolve_skill_path_from_compat_roots(skill),
     }
 }
 
-fn resolve_skill_path_from_compat_roots(skill: &str) -> Result<std::path::PathBuf, String> {
+fn resolve_skill_path_from_compat_roots(skill: &str) -> Result<std::path::PathBuf, ToolError> {
     let requested = skill.trim().trim_start_matches('/').trim_start_matches('$');
     if requested.is_empty() {
-        return Err(String::from("skill must not be empty"));
+        return Err(String::from("skill must not be empty").into());
     }
 
     for root in skill_lookup_roots() {
@@ -3776,7 +3778,7 @@ fn resolve_skill_path_from_compat_roots(skill: &str) -> Result<std::path::PathBu
         }
     }
 
-    Err(format!("unknown skill: {requested}"))
+    Err(format!("unknown skill: {requested}").into())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4021,24 +4023,24 @@ const DEFAULT_AGENT_MODEL: &str = "claude-opus-4-6";
 const DEFAULT_AGENT_SYSTEM_DATE: &str = "2026-03-31";
 const DEFAULT_AGENT_MAX_ITERATIONS: usize = 32;
 
-fn execute_agent(input: AgentInput) -> Result<AgentOutput, String> {
+fn execute_agent(input: AgentInput) -> Result<AgentOutput, ToolError> {
     execute_agent_with_spawn(input, spawn_agent_job)
 }
 
-fn execute_agent_with_spawn<F>(input: AgentInput, spawn_fn: F) -> Result<AgentOutput, String>
+fn execute_agent_with_spawn<F>(input: AgentInput, spawn_fn: F) -> Result<AgentOutput, ToolError>
 where
-    F: FnOnce(AgentJob) -> Result<(), String>,
+    F: FnOnce(AgentJob) -> Result<(), ToolError>,
 {
     if input.description.trim().is_empty() {
-        return Err(String::from("description must not be empty"));
+        return Err(ToolError::Validation(String::from("description must not be empty")));
     }
     if input.prompt.trim().is_empty() {
-        return Err(String::from("prompt must not be empty"));
+        return Err(ToolError::Validation(String::from("prompt must not be empty")));
     }
 
     let agent_id = make_agent_id();
     let output_dir = agent_store_dir()?;
-    std::fs::create_dir_all(&output_dir).map_err(|error| error.to_string())?;
+    std::fs::create_dir_all(&output_dir)?;
     let output_file = output_dir.join(format!("{agent_id}.md"));
     let manifest_file = output_dir.join(format!("{agent_id}.json"));
     let normalized_subagent_type = normalize_subagent_type(input.subagent_type.as_deref());
@@ -4079,7 +4081,7 @@ where
 ",
         agent_id, agent_name, input.description, normalized_subagent_type, created_at, prompt
     );
-    std::fs::write(&output_file, output_contents).map_err(|error| error.to_string())?;
+    std::fs::write(&output_file, output_contents).map_err(ToolError::Io)?;
 
     let manifest = AgentOutput {
         agent_id,
@@ -4111,13 +4113,13 @@ where
     if let Err(error) = spawn_fn(job) {
         let error = format!("failed to spawn sub-agent: {error}");
         persist_agent_terminal_state(&manifest, "failed", None, Some(error.clone()))?;
-        return Err(error);
+        return Err(ToolError::Agent(error));
     }
 
     Ok(manifest)
 }
 
-fn spawn_agent_job(job: AgentJob) -> Result<(), String> {
+fn spawn_agent_job(job: AgentJob) -> Result<(), ToolError> {
     let thread_name = format!("krakend-agent-{}", job.manifest.agent_id);
     std::thread::Builder::new()
         .name(thread_name)
@@ -4128,7 +4130,7 @@ fn spawn_agent_job(job: AgentJob) -> Result<(), String> {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => {
                     let _ =
-                        persist_agent_terminal_state(&job.manifest, "failed", None, Some(error));
+                        persist_agent_terminal_state(&job.manifest, "failed", None, Some(error.to_string()));
                 }
                 Err(_) => {
                     let _ = persist_agent_terminal_state(
@@ -4141,21 +4143,21 @@ fn spawn_agent_job(job: AgentJob) -> Result<(), String> {
             }
         })
         .map(|_| ())
-        .map_err(|error| error.to_string())
+        .map_err(ToolError::Io)
 }
 
-fn run_agent_job(job: &AgentJob) -> Result<(), String> {
+fn run_agent_job(job: &AgentJob) -> Result<(), ToolError> {
     let mut runtime = build_agent_runtime(job)?.with_max_iterations(DEFAULT_AGENT_MAX_ITERATIONS);
     let summary = runtime
         .run_turn(job.prompt.clone(), None)
-        .map_err(|error| error.to_string())?;
+        .map_err(|e| ToolError::Other(e.to_string()))?;
     let final_text = final_assistant_text(&summary);
     persist_agent_terminal_state(&job.manifest, "completed", Some(final_text.as_str()), None)
 }
 
 fn build_agent_runtime(
     job: &AgentJob,
-) -> Result<ConversationRuntime<ProviderRuntimeClient, SubagentToolExecutor>, String> {
+) -> Result<ConversationRuntime<ProviderRuntimeClient, SubagentToolExecutor>, ToolError> {
     let model = job
         .manifest
         .model
@@ -4175,15 +4177,15 @@ fn build_agent_runtime(
     ))
 }
 
-fn build_agent_system_prompt(subagent_type: &str) -> Result<Vec<String>, String> {
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+fn build_agent_system_prompt(subagent_type: &str) -> Result<Vec<String>, ToolError> {
+    let cwd = std::env::current_dir().map_err(ToolError::Io)?;
     let mut prompt = load_system_prompt(
         cwd,
         DEFAULT_AGENT_SYSTEM_DATE.to_string(),
         std::env::consts::OS,
         "unknown",
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|e| ToolError::Other(e.to_string()))?;
     prompt.push(format!(
         "You are a background sub-agent of type `{subagent_type}`. Work only on the delegated task, use only the tools available to you, do not ask the user questions, and finish with a concise result."
     ));
@@ -4286,14 +4288,14 @@ fn agent_permission_policy() -> PermissionPolicy {
     )
 }
 
-fn write_agent_manifest(manifest: &AgentOutput) -> Result<(), String> {
+fn write_agent_manifest(manifest: &AgentOutput) -> Result<(), ToolError> {
     let mut normalized = manifest.clone();
     normalized.lane_events = dedupe_superseded_commit_events(&normalized.lane_events);
     std::fs::write(
         &normalized.manifest_file,
-        serde_json::to_string_pretty(&normalized).map_err(|error| error.to_string())?,
+        serde_json::to_string_pretty(&normalized).map_err(ToolError::Json)?,
     )
-    .map_err(|error| error.to_string())
+    .map_err(ToolError::Io)
 }
 
 fn persist_agent_terminal_state(
@@ -4301,7 +4303,7 @@ fn persist_agent_terminal_state(
     status: &str,
     result: Option<&str>,
     error: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), ToolError> {
     let blocker = error.as_deref().map(classify_lane_blocker);
     append_agent_output(
         &manifest.output_file,
@@ -4980,15 +4982,15 @@ fn current_git_branch() -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
-fn append_agent_output(path: &str, suffix: &str) -> Result<(), String> {
+fn append_agent_output(path: &str, suffix: &str) -> Result<(), ToolError> {
     use std::io::Write as _;
 
     let mut file = std::fs::OpenOptions::new()
         .append(true)
         .open(path)
-        .map_err(|error| error.to_string())?;
+        .map_err(ToolError::Io)?;
     file.write_all(suffix.as_bytes())
-        .map_err(|error| error.to_string())
+        .map_err(ToolError::Io)
 }
 
 fn format_agent_terminal_output(
@@ -5076,7 +5078,7 @@ struct ProviderRuntimeClient {
 
 impl ProviderRuntimeClient {
     #[allow(clippy::needless_pass_by_value)]
-    fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, String> {
+    fn new(model: String, allowed_tools: BTreeSet<String>) -> Result<Self, ToolError> {
         let fallback_config = load_provider_fallback_config();
         Self::new_with_fallback_config(model, allowed_tools, &fallback_config)
     }
@@ -5086,7 +5088,7 @@ impl ProviderRuntimeClient {
         model: String,
         allowed_tools: BTreeSet<String>,
         fallback_config: &ProviderFallbackConfig,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, ToolError> {
         let primary_model = fallback_config.primary().map_or(model, str::to_string);
         let primary = build_provider_entry(&primary_model)?;
         let mut chain = vec![primary];
@@ -5101,16 +5103,16 @@ impl ProviderRuntimeClient {
             }
         }
         Ok(Self {
-            runtime: tokio::runtime::Runtime::new().map_err(|error| error.to_string())?,
+            runtime: tokio::runtime::Runtime::new().map_err(ToolError::Io)?,
             chain,
             allowed_tools,
         })
     }
 }
 
-fn build_provider_entry(model: &str) -> Result<ProviderEntry, String> {
+fn build_provider_entry(model: &str) -> Result<ProviderEntry, ToolError> {
     let resolved = resolve_model_alias(model).clone();
-    let client = ProviderClient::from_model(&resolved).map_err(|error| error.to_string())?;
+    let client = ProviderClient::from_model(&resolved).map_err(|e| ToolError::Other(e.to_string()))?;
     Ok(ProviderEntry {
         model: resolved,
         client,
@@ -5281,16 +5283,16 @@ impl SubagentToolExecutor {
 }
 
 impl ToolExecutor for SubagentToolExecutor {
-    fn execute(&mut self, tool_name: &str, input: &str) -> Result<String, ToolError> {
+    fn execute(&mut self, tool_name: &str, input: &str) -> Result<String, RuntimeToolError> {
         if !self.allowed_tools.contains(tool_name) {
-            return Err(ToolError::new(format!(
+            return Err(RuntimeToolError::new(format!(
                 "tool `{tool_name}` is not enabled for this sub-agent"
             )));
         }
         let value = serde_json::from_str(input)
-            .map_err(|error| ToolError::new(format!("invalid tool input JSON: {error}")))?;
+            .map_err(|error| RuntimeToolError::new(format!("invalid tool input JSON: {error}")))?;
         execute_tool_with_enforcer(self.enforcer.as_ref(), tool_name, &value)
-            .map_err(ToolError::new)
+            .map_err(|e| RuntimeToolError::new(e.to_string()))
     }
 }
 
@@ -5561,11 +5563,11 @@ fn canonical_tool_token(value: &str) -> String {
     canonical
 }
 
-fn agent_store_dir() -> Result<std::path::PathBuf, String> {
+fn agent_store_dir() -> Result<std::path::PathBuf, ToolError> {
     if let Ok(path) = std::env::var("KRAKEND_AGENT_STORE") {
         return Ok(std::path::PathBuf::from(path));
     }
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+    let cwd = std::env::current_dir().map_err(ToolError::Io)?;
     if let Some(workspace_root) = cwd.ancestors().nth(2) {
         return Ok(workspace_root.join(".krakend-agents"));
     }
@@ -5625,17 +5627,17 @@ fn iso8601_now() -> String {
 }
 
 #[allow(clippy::too_many_lines)]
-fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput, String> {
+fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput, ToolError> {
     let path = std::path::PathBuf::from(&input.notebook_path);
     if path.extension().and_then(|ext| ext.to_str()) != Some("ipynb") {
         return Err(String::from(
             "File must be a Jupyter notebook (.ipynb file).",
-        ));
+        ).into());
     }
 
-    let original_file = std::fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    let original_file = std::fs::read_to_string(&path).map_err(ToolError::Io)?;
     let mut notebook: serde_json::Value =
-        serde_json::from_str(&original_file).map_err(|error| error.to_string())?;
+        serde_json::from_str(&original_file).map_err(ToolError::Json)?;
     let language = notebook
         .get("metadata")
         .and_then(|metadata| metadata.get("kernelspec"))
@@ -5731,8 +5733,8 @@ fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput,
     };
 
     let updated_file =
-        serde_json::to_string_pretty(&notebook).map_err(|error| error.to_string())?;
-    std::fs::write(&path, &updated_file).map_err(|error| error.to_string())?;
+        serde_json::to_string_pretty(&notebook).map_err(ToolError::Json)?;
+    std::fs::write(&path, &updated_file).map_err(ToolError::Io)?;
 
     Ok(NotebookEditOutput {
         new_source,
@@ -5750,11 +5752,11 @@ fn execute_notebook_edit(input: NotebookEditInput) -> Result<NotebookEditOutput,
 fn require_notebook_source(
     source: Option<String>,
     edit_mode: NotebookEditMode,
-) -> Result<String, String> {
+) -> Result<String, ToolError> {
     match edit_mode {
         NotebookEditMode::Delete => Ok(source.unwrap_or_default()),
         NotebookEditMode::Insert | NotebookEditMode::Replace => source
-            .ok_or_else(|| String::from("new_source is required for insert and replace edits")),
+            .ok_or_else(|| ToolError::Validation(String::from("new_source is required for insert and replace edits"))),
     }
 }
 
@@ -5795,12 +5797,12 @@ fn cell_kind(cell: &serde_json::Value) -> Option<NotebookCellType> {
 const MAX_SLEEP_DURATION_MS: u64 = 300_000;
 
 #[allow(clippy::needless_pass_by_value)]
-fn execute_sleep(input: SleepInput) -> Result<SleepOutput, String> {
+fn execute_sleep(input: SleepInput) -> Result<SleepOutput, ToolError> {
     if input.duration_ms > MAX_SLEEP_DURATION_MS {
         return Err(format!(
             "duration_ms {} exceeds maximum allowed sleep of {MAX_SLEEP_DURATION_MS}ms",
             input.duration_ms,
-        ));
+        ).into());
     }
     std::thread::sleep(Duration::from_millis(input.duration_ms));
     Ok(SleepOutput {
@@ -5809,9 +5811,9 @@ fn execute_sleep(input: SleepInput) -> Result<SleepOutput, String> {
     })
 }
 
-fn execute_brief(input: BriefInput) -> Result<BriefOutput, String> {
+fn execute_brief(input: BriefInput) -> Result<BriefOutput, ToolError> {
     if input.message.trim().is_empty() {
-        return Err(String::from("message must not be empty"));
+        return Err(String::from("message must not be empty").into());
     }
 
     let attachments = input
@@ -5821,7 +5823,7 @@ fn execute_brief(input: BriefInput) -> Result<BriefOutput, String> {
             paths
                 .iter()
                 .map(|path| resolve_attachment(path))
-                .collect::<Result<Vec<_>, String>>()
+                .collect::<Result<Vec<_>, ToolError>>()
         })
         .transpose()?;
 
@@ -5836,9 +5838,9 @@ fn execute_brief(input: BriefInput) -> Result<BriefOutput, String> {
     })
 }
 
-fn resolve_attachment(path: &str) -> Result<ResolvedAttachment, String> {
-    let resolved = std::fs::canonicalize(path).map_err(|error| error.to_string())?;
-    let metadata = std::fs::metadata(&resolved).map_err(|error| error.to_string())?;
+fn resolve_attachment(path: &str) -> Result<ResolvedAttachment, ToolError> {
+    let resolved = std::fs::canonicalize(path).map_err(ToolError::Io)?;
+    let metadata = std::fs::metadata(&resolved).map_err(ToolError::Io)?;
     Ok(ResolvedAttachment {
         path: resolved.display().to_string(),
         size: metadata.len(),
@@ -5856,10 +5858,10 @@ fn is_image_path(path: &Path) -> bool {
     )
 }
 
-fn execute_config(input: ConfigInput) -> Result<ConfigOutput, String> {
+fn execute_config(input: ConfigInput) -> Result<ConfigOutput, ToolError> {
     let setting = input.setting.trim();
     if setting.is_empty() {
-        return Err(String::from("setting must not be empty"));
+        return Err(String::from("setting must not be empty").into());
     }
     let Some(spec) = supported_config_setting(setting) else {
         return Ok(ConfigOutput {
@@ -5905,7 +5907,7 @@ fn execute_config(input: ConfigInput) -> Result<ConfigOutput, String> {
 
 const PERMISSION_DEFAULT_MODE_PATH: &[&str] = &["permissions", "defaultMode"];
 
-fn execute_enter_plan_mode(_input: EnterPlanModeInput) -> Result<PlanModeOutput, String> {
+fn execute_enter_plan_mode(_input: EnterPlanModeInput) -> Result<PlanModeOutput, ToolError> {
     let settings_path = config_file_for_scope(ConfigScope::Settings)?;
     let state_path = plan_mode_state_file()?;
     let mut document = read_json_object(&settings_path)?;
@@ -5974,7 +5976,7 @@ fn execute_enter_plan_mode(_input: EnterPlanModeInput) -> Result<PlanModeOutput,
     })
 }
 
-fn execute_exit_plan_mode(_input: ExitPlanModeInput) -> Result<PlanModeOutput, String> {
+fn execute_exit_plan_mode(_input: ExitPlanModeInput) -> Result<PlanModeOutput, ToolError> {
     let settings_path = config_file_for_scope(ConfigScope::Settings)?;
     let state_path = plan_mode_state_file()?;
     let mut document = read_json_object(&settings_path)?;
@@ -6047,9 +6049,9 @@ fn execute_exit_plan_mode(_input: ExitPlanModeInput) -> Result<PlanModeOutput, S
 
 fn execute_structured_output(
     input: StructuredOutputInput,
-) -> Result<StructuredOutputResult, String> {
+) -> Result<StructuredOutputResult, ToolError> {
     if input.0.is_empty() {
-        return Err(String::from("structured output payload must not be empty"));
+        return Err(String::from("structured output payload must not be empty").into());
     }
     Ok(StructuredOutputResult {
         data: String::from("Structured output provided successfully"),
@@ -6057,9 +6059,9 @@ fn execute_structured_output(
     })
 }
 
-fn execute_repl(input: ReplInput) -> Result<ReplOutput, String> {
+fn execute_repl(input: ReplInput) -> Result<ReplOutput, ToolError> {
     if input.code.trim().is_empty() {
-        return Err(String::from("code must not be empty"));
+        return Err(String::from("code must not be empty").into());
     }
     let runtime = resolve_repl_runtime(&input.language)?;
     let started = Instant::now();
@@ -6072,34 +6074,34 @@ fn execute_repl(input: ReplInput) -> Result<ReplOutput, String> {
         .stderr(std::process::Stdio::piped());
 
     let output = if let Some(timeout_ms) = input.timeout_ms {
-        let mut child = process.spawn().map_err(|error| error.to_string())?;
+        let mut child = process.spawn().map_err(ToolError::Io)?;
         loop {
             if child
                 .try_wait()
-                .map_err(|error| error.to_string())?
+                .map_err(ToolError::Io)?
                 .is_some()
             {
                 break child
                     .wait_with_output()
-                    .map_err(|error| error.to_string())?;
+                    .map_err(ToolError::Io)?;
             }
             if started.elapsed() >= Duration::from_millis(timeout_ms) {
-                child.kill().map_err(|error| error.to_string())?;
+                child.kill().map_err(ToolError::Io)?;
                 child
                     .wait_with_output()
-                    .map_err(|error| error.to_string())?;
+                    .map_err(ToolError::Io)?;
                 return Err(format!(
                     "REPL execution exceeded timeout of {timeout_ms} ms"
-                ));
+                ).into());
             }
             std::thread::sleep(Duration::from_millis(10));
         }
     } else {
         process
             .spawn()
-            .map_err(|error| error.to_string())?
+            .map_err(ToolError::Io)?
             .wait_with_output()
-            .map_err(|error| error.to_string())?
+            .map_err(ToolError::Io)?
     };
 
     Ok(ReplOutput {
@@ -6116,7 +6118,7 @@ struct ReplRuntime {
     args: &'static [&'static str],
 }
 
-fn resolve_repl_runtime(language: &str) -> Result<ReplRuntime, String> {
+fn resolve_repl_runtime(language: &str) -> Result<ReplRuntime, ToolError> {
     match language.trim().to_ascii_lowercase().as_str() {
         "python" | "py" => Ok(ReplRuntime {
             program: detect_first_command(&["python3", "python"])
@@ -6133,7 +6135,7 @@ fn resolve_repl_runtime(language: &str) -> Result<ReplRuntime, String> {
                 .ok_or_else(|| String::from("shell runtime not found"))?,
             args: &["-lc"],
         }),
-        other => Err(format!("unsupported REPL language: {other}")),
+        other => Err(format!("unsupported REPL language: {other}").into()),
     }
 }
 
@@ -6266,18 +6268,18 @@ fn supported_config_setting(setting: &str) -> Option<ConfigSettingSpec> {
     })
 }
 
-fn normalize_config_value(spec: ConfigSettingSpec, value: ConfigValue) -> Result<Value, String> {
+fn normalize_config_value(spec: ConfigSettingSpec, value: ConfigValue) -> Result<Value, ToolError> {
     let normalized = match (spec.kind, value) {
         (ConfigKind::Boolean, ConfigValue::Bool(value)) => Value::Bool(value),
         (ConfigKind::Boolean, ConfigValue::String(value)) => {
             match value.trim().to_ascii_lowercase().as_str() {
                 "true" => Value::Bool(true),
                 "false" => Value::Bool(false),
-                _ => return Err(String::from("setting requires true or false")),
+                _ => return Err(String::from("setting requires true or false").into()),
             }
         }
         (ConfigKind::Boolean, ConfigValue::Number(_)) => {
-            return Err(String::from("setting requires true or false"))
+            return Err(String::from("setting requires true or false").into())
         }
         (ConfigKind::String, ConfigValue::String(value)) => Value::String(value),
         (ConfigKind::String, ConfigValue::Bool(value)) => Value::String(value.to_string()),
@@ -6286,28 +6288,28 @@ fn normalize_config_value(spec: ConfigSettingSpec, value: ConfigValue) -> Result
 
     if let Some(options) = spec.options {
         let Some(as_str) = normalized.as_str() else {
-            return Err(String::from("setting requires a string value"));
+            return Err(String::from("setting requires a string value").into());
         };
         if !options.iter().any(|option| option == &as_str) {
             return Err(format!(
                 "Invalid value \"{as_str}\". Options: {}",
                 options.join(", ")
-            ));
+            ).into());
         }
     }
 
     Ok(normalized)
 }
 
-fn config_file_for_scope(scope: ConfigScope) -> Result<PathBuf, String> {
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+fn config_file_for_scope(scope: ConfigScope) -> Result<PathBuf, ToolError> {
+    let cwd = std::env::current_dir().map_err(ToolError::Io)?;
     Ok(match scope {
         ConfigScope::Global => config_home_dir()?.join("settings.json"),
         ConfigScope::Settings => cwd.join(".kraken").join("settings.local.json"),
     })
 }
 
-fn config_home_dir() -> Result<PathBuf, String> {
+fn config_home_dir() -> Result<PathBuf, ToolError> {
     if let Ok(path) = std::env::var("KRAKEN_CONFIG_HOME") {
         return Ok(PathBuf::from(path));
     }
@@ -6322,32 +6324,32 @@ fn config_home_dir() -> Result<PathBuf, String> {
     Ok(PathBuf::from(home).join(".kraken"))
 }
 
-fn read_json_object(path: &Path) -> Result<serde_json::Map<String, Value>, String> {
+fn read_json_object(path: &Path) -> Result<serde_json::Map<String, Value>, ToolError> {
     match std::fs::read_to_string(path) {
         Ok(contents) => {
             if contents.trim().is_empty() {
                 return Ok(serde_json::Map::new());
             }
             serde_json::from_str::<Value>(&contents)
-                .map_err(|error| error.to_string())?
+                .map_err(ToolError::Json)?
                 .as_object()
                 .cloned()
-                .ok_or_else(|| String::from("config file must contain a JSON object"))
+                .ok_or_else(|| ToolError::Validation("config file must contain a JSON object".into()))
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(serde_json::Map::new()),
-        Err(error) => Err(error.to_string()),
+        Err(error) => Err(ToolError::Io(error)),
     }
 }
 
-fn write_json_object(path: &Path, value: &serde_json::Map<String, Value>) -> Result<(), String> {
+fn write_json_object(path: &Path, value: &serde_json::Map<String, Value>) -> Result<(), ToolError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        std::fs::create_dir_all(parent).map_err(ToolError::Io)?;
     }
     std::fs::write(
         path,
-        serde_json::to_string_pretty(value).map_err(|error| error.to_string())?,
+        serde_json::to_string_pretty(value).map_err(ToolError::Json)?,
     )
-    .map_err(|error| error.to_string())
+    .map_err(ToolError::Io)
 }
 
 fn get_nested_value<'a>(
@@ -6403,7 +6405,7 @@ fn remove_nested_value(root: &mut serde_json::Map<String, Value>, path: &[&str])
     removed
 }
 
-fn plan_mode_state_file() -> Result<PathBuf, String> {
+fn plan_mode_state_file() -> Result<PathBuf, ToolError> {
     Ok(config_file_for_scope(ConfigScope::Settings)?
         .parent()
         .ok_or_else(|| String::from("settings.local.json has no parent directory"))?
@@ -6411,7 +6413,7 @@ fn plan_mode_state_file() -> Result<PathBuf, String> {
         .join("plan-mode.json"))
 }
 
-fn read_plan_mode_state(path: &Path) -> Result<Option<PlanModeState>, String> {
+fn read_plan_mode_state(path: &Path) -> Result<Option<PlanModeState>, ToolError> {
     match std::fs::read_to_string(path) {
         Ok(contents) => {
             if contents.trim().is_empty() {
@@ -6419,29 +6421,29 @@ fn read_plan_mode_state(path: &Path) -> Result<Option<PlanModeState>, String> {
             }
             serde_json::from_str(&contents)
                 .map(Some)
-                .map_err(|error| error.to_string())
+                .map_err(ToolError::Json)
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error.to_string()),
+        Err(error) => Err(ToolError::Io(error)),
     }
 }
 
-fn write_plan_mode_state(path: &Path, state: &PlanModeState) -> Result<(), String> {
+fn write_plan_mode_state(path: &Path, state: &PlanModeState) -> Result<(), ToolError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+        std::fs::create_dir_all(parent).map_err(ToolError::Io)?;
     }
     std::fs::write(
         path,
-        serde_json::to_string_pretty(state).map_err(|error| error.to_string())?,
+        serde_json::to_string_pretty(state).map_err(ToolError::Json)?,
     )
-    .map_err(|error| error.to_string())
+    .map_err(ToolError::Io)
 }
 
-fn clear_plan_mode_state(path: &Path) -> Result<(), String> {
+fn clear_plan_mode_state(path: &Path) -> Result<(), ToolError> {
     match std::fs::remove_file(path) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error.to_string()),
+        Err(error) => Err(ToolError::Io(error)),
     }
 }
 
@@ -6630,20 +6632,20 @@ fn resolve_cell_index(
     cells: &[serde_json::Value],
     cell_id: Option<&str>,
     edit_mode: NotebookEditMode,
-) -> Result<usize, String> {
+) -> Result<usize, ToolError> {
     if cells.is_empty()
         && matches!(
             edit_mode,
             NotebookEditMode::Replace | NotebookEditMode::Delete
         )
     {
-        return Err(String::from("Notebook has no cells to edit"));
+        return Err(String::from("Notebook has no cells to edit").into());
     }
     if let Some(cell_id) = cell_id {
         cells
             .iter()
             .position(|cell| cell.get("id").and_then(serde_json::Value::as_str) == Some(cell_id))
-            .ok_or_else(|| format!("Cell id not found: {cell_id}"))
+            .ok_or_else(|| ToolError::NotFound(format!("Cell id not found: {cell_id}")))
     } else {
         Ok(cells.len().saturating_sub(1))
     }

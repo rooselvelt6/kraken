@@ -11,6 +11,8 @@
 
 #![allow(non_upper_case_globals)]
 
+use kraken_errors::SandboxError;
+
 #[cfg(target_os = "macos")]
 use std::ffi::CString;
 
@@ -103,7 +105,7 @@ impl MacOsSandbox {
 
     /// Apply the macOS sandbox profile.
     /// This is irreversible — once applied, restrictions persist until process exit.
-    pub fn apply(&self) -> Result<(), String> {
+    pub fn apply(&self) -> Result<(), SandboxError> {
         if !self.enabled {
             return Ok(());
         }
@@ -112,7 +114,7 @@ impl MacOsSandbox {
         {
             let profile_str = self.profile.profile_string();
             let c_profile =
-                CString::new(profile_str).map_err(|e| format!("CString: {e}"))?;
+                CString::new(profile_str).map_err(|e| SandboxError::Other(format!("CString: {e}")))?;
 
             let mut errorbuf: *mut std::ffi::c_char = std::ptr::null_mut();
             let ret = unsafe {
@@ -133,7 +135,7 @@ impl MacOsSandbox {
                 } else {
                     "unknown sandbox_init error".to_string()
                 };
-                return Err(format!("sandbox_init: {err_msg}"));
+                return Err(SandboxError::Other(format!("sandbox_init: {err_msg}")));
             }
 
             Ok(())
@@ -142,7 +144,7 @@ impl MacOsSandbox {
         #[cfg(not(target_os = "macos"))]
         {
             let _ = self.profile;
-            Err("macOS sandbox is only available on macOS".to_string())
+            Err(SandboxError::PlatformUnsupported("macOS sandbox is only available on macOS".to_string()))
         }
     }
 }

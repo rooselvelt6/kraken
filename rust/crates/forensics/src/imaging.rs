@@ -2,6 +2,8 @@ use std::path::Path;
 use std::io::{Read, Write};
 use sha2::Digest;
 
+use kraken_errors::ForensicsError;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImageInfo {
     pub source: String,
@@ -33,20 +35,17 @@ impl DiskImager {
         DiskImager
     }
 
-    pub fn create_image(source: &str, output: &str, sector_size: u64) -> Result<ImageInfo, String> {
+    pub fn create_image(source: &str, output: &str, sector_size: u64) -> Result<ImageInfo, ForensicsError> {
         let source_path = Path::new(source);
         if !source_path.exists() {
-            return Err(format!("Source {} not found", source));
+            return Err(ForensicsError::NotFound(source.to_string()));
         }
 
-        let src_meta = std::fs::metadata(source_path)
-            .map_err(|e| format!("metadata failed: {}", e))?;
+        let src_meta = std::fs::metadata(source_path)?;
         let total_size = src_meta.len();
 
-        let mut src = std::fs::File::open(source_path)
-            .map_err(|e| format!("open source failed: {}", e))?;
-        let mut dst = std::fs::File::create(output)
-            .map_err(|e| format!("create output failed: {}", e))?;
+        let mut src = std::fs::File::open(source_path)?;
+        let mut dst = std::fs::File::create(output)?;
 
         let mut hasher = sha2::Sha256::new();
         let mut buffer = vec![0u8; sector_size as usize];
@@ -54,9 +53,9 @@ impl DiskImager {
 
         loop {
             use sha2::Digest;
-            let n = src.read(&mut buffer).map_err(|e| format!("read failed: {}", e))?;
+            let n = src.read(&mut buffer)?;
             if n == 0 { break; }
-            dst.write_all(&buffer[..n]).map_err(|e| format!("write failed: {}", e))?;
+            dst.write_all(&buffer[..n])?;
             hasher.update(&buffer[..n]);
             blocks += 1;
         }
@@ -74,15 +73,14 @@ impl DiskImager {
         })
     }
 
-    pub fn verify_image(image_path: &str, expected_hash: &str) -> Result<bool, String> {
-        let mut file = std::fs::File::open(image_path)
-            .map_err(|e| format!("open failed: {}", e))?;
+    pub fn verify_image(image_path: &str, expected_hash: &str) -> Result<bool, ForensicsError> {
+        let mut file = std::fs::File::open(image_path)?;
         let mut hasher = sha2::Sha256::new();
         let mut buffer = vec![0u8; 65536];
 
         loop {
             use sha2::Digest;
-            let n = file.read(&mut buffer).map_err(|e| format!("read failed: {}", e))?;
+            let n = file.read(&mut buffer)?;
             if n == 0 { break; }
             hasher.update(&buffer[..n]);
         }
@@ -108,9 +106,8 @@ impl DiskImager {
         disks
     }
 
-    pub fn estimate_size(source: &str) -> Result<u64, String> {
-        let meta = std::fs::metadata(source)
-            .map_err(|e| format!("metadata failed: {}", e))?;
+    pub fn estimate_size(source: &str) -> Result<u64, ForensicsError> {
+        let meta = std::fs::metadata(source)?;
         Ok(meta.len())
     }
 }
