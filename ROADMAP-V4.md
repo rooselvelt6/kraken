@@ -28,6 +28,8 @@
 ## Dependencias entre fases
 
 ```
+Fase 0 (build completo) ── prerequisito de todo
+
 Fase 1 (sandbox)     ─┐
 Fase 2 (c2crypto)    ─┤
 Fase 3 (reqwest)     ─┼── independientes, pueden hacerse en paralelo
@@ -39,11 +41,26 @@ Fase 5 (decompose main.rs) ──→ Fase 7 (clippy suppressions)
 
 Fase 10 (sandbox integration) ── depende de Fase 1
 Fase 11 (deprecate SHA-256)   ── depende de Fase 2
+Fase 12 (flaky test)          ── independiente
 
 Fase 9 (verificación) ── depende de todo lo anterior
 ```
 
 **Regla global:** Cada fase incluye `cargo test --workspace` como paso de verificación para catchar regresiones temprano.
+
+---
+
+## Fase 0: Verificar build completo con dependencias del sistema
+
+**Riesgo:** Ninguno — Solo verificación.
+
+**Contexto:** `libssl-dev`, `pkg-config` y `libpcap-dev` ya instalados. Verificar que los 14 crates afectados por OpenSSL y el crate sniffer ahora compilan.
+
+| Paso | Acción | Estado |
+|------|--------|--------|
+| 0.1 | `cargo check --workspace` — verificar que TODOS los crates compilan (incluyendo api, c2, password, etc.) | [ ] |
+| 0.2 | `cargo test --workspace` — ejecutar tests completos | [ ] |
+| 0.3 | Registrar conteo total de crates y tests en progress.txt | [ ] |
 
 ---
 
@@ -223,6 +240,20 @@ Fase 9 (verificación) ── depende de todo lo anterior
 
 ---
 
+## Fase 12: Corregir test flaky de aicampaign
+
+**Riesgo:** Bajo — Test probabilístico que falla intermitentemente.
+
+| Paso | Acción | Estado |
+|------|--------|--------|
+| 12.1 | Leer test flaky en `aicampaign` — entender por qué es probabilístico | [ ] |
+| 12.2 | Determinar: ¿es un bug real o un test mal diseñado? | [ ] |
+| 12.3 | Si es bug: corregir la lógica. Si es diseño: fijar seed o aumentar tolerancia | [ ] |
+| 12.4 | Verificar: `cargo test -p aicampaign` 5 veces sin fallos | [ ] |
+| 12.5 | Verificar: `cargo test --workspace` completo | [ ] |
+
+---
+
 ## Fase 9: Verificación final
 
 **Riesgo:** Ninguno — Solo lectura.
@@ -241,6 +272,7 @@ Fase 9 (verificación) ── depende de todo lo anterior
 
 | Fase | Tiempo estimado |
 |------|----------------|
+| 0. Build completo | 5 min |
 | 1. Sandbox huerfano | 10 min |
 | 2. c2crypto | 15 min |
 | 3. reqwest unification | 20 min |
@@ -252,4 +284,5 @@ Fase 9 (verificación) ── depende de todo lo anterior
 | 9. Verificación final | 15 min |
 | 10. Sandbox integration | 1-2 horas |
 | 11. Deprecate SHA-256 KDF | 10 min |
+| 12. Flaky test fix | 15 min |
 | **Total** | **~7-10 horas** |
