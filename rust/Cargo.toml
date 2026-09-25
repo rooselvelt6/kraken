@@ -1,18 +1,27 @@
 [workspace]
-members = [
-  "crates/*",
-  "crates/security",
-  "crates/enterprise",
-  "crates/localmodels",
-  "crates/offline",
-  "crates/cache",
-  "crates/osint",
-  "crates/cloudsec",
-  "crates/hardware",
-  "crates/mobile",
-]
+members = ["crates/*"]
 exclude = ["fuzz"]
 resolver = "2"
+default-members = [
+  "crates/api",
+  "crates/commands",
+  "crates/kraken-config",
+  "crates/kraken-conversation",
+  "crates/kraken-errors",
+  "crates/kraken-events",
+  "crates/kraken-git",
+  "crates/kraken-infra",
+  "crates/kraken-mcp",
+  "crates/kraken-policy",
+  "crates/kraken-session",
+  "crates/localmodels",
+  "crates/plugins",
+  "crates/rusty-claude-cli",
+  "crates/security",
+  "crates/telemetry",
+  "crates/tools",
+  "crates/vulnscan",
+]
 
 [workspace.package]
 version = "0.1.0"

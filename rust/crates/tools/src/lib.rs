@@ -14,6 +14,7 @@ use api::{
 use plugins::PluginTool;
 use reqwest::blocking::Client;
 use kraken_errors::ToolError;
+use kraken_infra::sanitizer::{Sanitizer, SanitizerConfig, SanitizerResult};
 use runtime::{
     dedupe_superseded_commit_events, edit_file, execute_bash, glob_search,
     grep_search, load_system_prompt,
@@ -71,6 +72,41 @@ fn global_worker_registry() -> &'static WorkerRegistry {
     use std::sync::OnceLock;
     static REGISTRY: OnceLock<WorkerRegistry> = OnceLock::new();
     REGISTRY.get_or_init(WorkerRegistry::new)
+}
+
+/// Returns a sanitizer configured with default limits and the workspace root.
+fn workspace_sanitizer() -> (Sanitizer, PathBuf) {
+    let workspace_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let mut config = SanitizerConfig::default();
+    config.allowed_prefixes = vec![
+        PathBuf::from("/tmp"),
+        PathBuf::from("/var/tmp"),
+    ];
+    let sanitizer = Sanitizer::new(config);
+    (sanitizer, workspace_root)
+}
+
+/// Validates a path using the workspace sanitizer.
+/// Returns an error if the path fails sanitization.
+fn validate_path(path: &str) -> Result<SanitizerResult, ToolError> {
+    let (sanitizer, workspace_root) = workspace_sanitizer();
+    let result = sanitizer.sanitize_for_read(path, Some(&workspace_root));
+    if !result.is_allowed() {
+        let reasons: Vec<String> = result.issues.iter().map(|i| i.description()).collect();
+        return Err(ToolError::PermissionDenied(reasons.join("; ")));
+    }
+    Ok(result)
+}
+
+/// Validates a path for write operations using the workspace sanitizer.
+fn validate_path_for_write(path: &str) -> Result<SanitizerResult, ToolError> {
+    let (sanitizer, workspace_root) = workspace_sanitizer();
+    let result = sanitizer.sanitize_for_write(path, Some(&workspace_root));
+    if !result.is_allowed() {
+        let reasons: Vec<String> = result.issues.iter().map(|i| i.description()).collect();
+        return Err(ToolError::PermissionDenied(reasons.join("; ")));
+    }
+    Ok(result)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1350,6 +1386,59 @@ pub fn enforce_permission_check(
     }
 }
 
+/// Valida un comando de shell antes de ejecutarlo.
+///
+/// Se aplica en el gate de permisos (no solo en el pipeline de
+/// `bash_validation`, que por si solo no gobierna la ejecucion) para que un
+/// comando no pueda desactivarse las propias barreras.
+fn validate_shell_command(command: &str, mode: PermissionMode) -> Result<(), ToolError> {
+    use runtime::bash_validation::{ValidationResult, validate_guardrails,
+        validate_privilege_escalation};
+
+    match validate_guardrails(command) {
+        ValidationResult::Allow => {}
+        ValidationResult::Block { reason } | ValidationResult::Warn { message: reason } => {
+            return Err(ToolError::PermissionDenied(reason));
+        }
+    }
+
+    match validate_privilege_escalation(command, mode) {
+        ValidationResult::Allow => Ok(()),
+        ValidationResult::Block { reason } | ValidationResult::Warn { message: reason } => {
+            Err(ToolError::PermissionDenied(reason))
+        }
+    }
+}
+
+/// Modo de permiso exigido por una herramienta concreta.
+///
+/// `bash` y `PowerShell` se clasifican segun el comando; el resto usa el modo
+/// declarado en su manifest. Un nombre desconocido exige el maximo, para que
+/// anadir una herramienta nueva no la ejecute sin permisos por omision.
+fn required_mode_for_tool(name: &str, input: &Value) -> PermissionMode {
+    let classified = |classify: fn(&str) -> PermissionMode| -> PermissionMode {
+        let command = input
+            .get("command")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if command.trim().is_empty() {
+            return PermissionMode::DangerFullAccess;
+        }
+        classify(command)
+    };
+
+    match name {
+        "bash" => classified(classify_bash_permission),
+        "PowerShell" => classified(classify_powershell_permission),
+        _ => mvp_tool_specs()
+            .into_iter()
+            .find(|spec| spec.name == name)
+            .map_or(PermissionMode::DangerFullAccess, |spec| {
+                spec.required_permission
+            }),
+    }
+}
+
 pub fn execute_tool(name: &str, input: &Value) -> Result<String, ToolError> {
     execute_tool_with_enforcer(None, name, input)
 }
@@ -1360,34 +1449,28 @@ fn execute_tool_with_enforcer(
     name: &str,
     input: &Value,
 ) -> Result<String, ToolError> {
+    // Gate unico de permisos: se evalua antes de despachar, asi ninguna
+    // herramienta puede saltarselo por no declarar la llamada en su brazo.
+    let required_mode = required_mode_for_tool(name, input);
+    maybe_enforce_permission_check_with_mode(enforcer, name, input, required_mode)?;
+    if matches!(name, "bash" | "PowerShell") {
+        let command = input
+            .get("command")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        validate_shell_command(command, required_mode)?;
+    }
+
     match name {
         "bash" => {
-            // Parse input to get the command for permission classification
             let bash_input: BashCommandInput = from_value(input)?;
-            let classified_mode = classify_bash_permission(&bash_input.command);
-            maybe_enforce_permission_check_with_mode(enforcer, name, input, classified_mode)?;
             run_bash(bash_input)
         }
-        "read_file" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<ReadFileInput>(input).and_then(run_read_file)
-        }
-        "write_file" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<WriteFileInput>(input).and_then(run_write_file)
-        }
-        "edit_file" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<EditFileInput>(input).and_then(run_edit_file)
-        }
-        "glob_search" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<GlobSearchInputValue>(input).and_then(run_glob_search)
-        }
-        "grep_search" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<GrepSearchInput>(input).and_then(run_grep_search)
-        }
+        "read_file" => from_value::<ReadFileInput>(input).and_then(run_read_file),
+        "write_file" => from_value::<WriteFileInput>(input).and_then(run_write_file),
+        "edit_file" => from_value::<EditFileInput>(input).and_then(run_edit_file),
+        "glob_search" => from_value::<GlobSearchInputValue>(input).and_then(run_glob_search),
+        "grep_search" => from_value::<GrepSearchInput>(input).and_then(run_grep_search),
         "WebFetch" => from_value::<WebFetchInput>(input).and_then(run_web_fetch),
         "WebSearch" => from_value::<WebSearchInput>(input).and_then(run_web_search),
         "ShodanSearch" => from_value::<ShodanSearchInput>(input).and_then(|i| run_shodan_search(&i)),
@@ -1409,10 +1492,7 @@ fn execute_tool_with_enforcer(
         }
         "REPL" => from_value::<ReplInput>(input).and_then(run_repl),
         "PowerShell" => {
-            // Parse input to get the command for permission classification
             let ps_input: PowerShellInput = from_value(input)?;
-            let classified_mode = classify_powershell_permission(&ps_input.command);
-            maybe_enforce_permission_check_with_mode(enforcer, name, input, classified_mode)?;
             run_powershell(ps_input)
         }
         "AskUserQuestion" => {
@@ -1454,15 +1534,10 @@ fn execute_tool_with_enforcer(
         "RemoteTrigger" => from_value::<RemoteTriggerInput>(input).and_then(run_remote_trigger),
         "MCP" => from_value::<McpToolInput>(input).and_then(run_mcp_tool),
         "PlanMigration" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
             from_value::<PlanMigrationInput>(input).and_then(|i| run_plan_migration(&i))
         }
-        "BatchEdit" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
-            from_value::<BatchEditInput>(input).and_then(|i| run_batch_edit(&i))
-        }
+        "BatchEdit" => from_value::<BatchEditInput>(input).and_then(|i| run_batch_edit(&i)),
         "VerifyMigration" => {
-            maybe_enforce_permission_check(enforcer, name, input)?;
             from_value::<VerifyMigrationInput>(input).and_then(run_verify_migration)
         }
         "TestingPermission" => {
@@ -1470,17 +1545,6 @@ fn execute_tool_with_enforcer(
         }
         _ => Err(format!("unsupported tool: {name}").into()),
     }
-}
-
-fn maybe_enforce_permission_check(
-    enforcer: Option<&PermissionEnforcer>,
-    tool_name: &str,
-    input: &Value,
-) -> Result<(), ToolError> {
-    if let Some(enforcer) = enforcer {
-        enforce_permission_check(enforcer, tool_name, input)?;
-    }
-    Ok(())
 }
 
 /// Enforce permission check with a dynamically classified permission mode.
@@ -2319,16 +2383,19 @@ fn branch_divergence_output(
 
 #[allow(clippy::needless_pass_by_value)]
 fn run_read_file(input: ReadFileInput) -> Result<String, ToolError> {
+    validate_path(&input.path)?;
     to_pretty_json(read_file(&input.path, input.offset, input.limit).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
 fn run_write_file(input: WriteFileInput) -> Result<String, ToolError> {
+    validate_path_for_write(&input.path)?;
     to_pretty_json(write_file(&input.path, &input.content).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
 fn run_edit_file(input: EditFileInput) -> Result<String, ToolError> {
+    validate_path_for_write(&input.path)?;
     to_pretty_json(
         edit_file(
             &input.path,
@@ -2342,11 +2409,17 @@ fn run_edit_file(input: EditFileInput) -> Result<String, ToolError> {
 
 #[allow(clippy::needless_pass_by_value)]
 fn run_glob_search(input: GlobSearchInputValue) -> Result<String, ToolError> {
+    if let Some(path) = input.path.as_deref() {
+        validate_path(path)?;
+    }
     to_pretty_json(glob_search(&input.pattern, input.path.as_deref()).map_err(io_to_string)?)
 }
 
 #[allow(clippy::needless_pass_by_value)]
 fn run_grep_search(input: GrepSearchInput) -> Result<String, ToolError> {
+    if let Some(path) = input.path.as_deref() {
+        validate_path(path)?;
+    }
     to_pretty_json(grep_search(&input).map_err(io_to_string)?)
 }
 
@@ -2552,6 +2625,7 @@ fn run_whois_query(input: &WhoisQueryInput) -> Result<String, ToolError> {
 }
 
 fn run_todo_write(input: TodoWriteInput) -> Result<String, ToolError> {
+    validate_path_for_write(".kraken/sessions/todo.json")?;
     to_pretty_json(execute_todo_write(input)?)
 }
 
@@ -2608,6 +2682,7 @@ fn run_tool_search(input: ToolSearchInput) -> Result<String, ToolError> {
 }
 
 fn run_notebook_edit(input: NotebookEditInput) -> Result<String, ToolError> {
+    validate_path_for_write(&input.notebook_path)?;
     to_pretty_json(execute_notebook_edit(input)?)
 }
 
@@ -6250,7 +6325,10 @@ fn supported_config_setting(setting: &str) -> Option<ConfigSettingSpec> {
             scope: ConfigScope::Settings,
             kind: ConfigKind::String,
             path: &["permissions", "defaultMode"],
-            options: Some(&["default", "plan", "acceptEdits", "dontAsk", "auto"]),
+            // Solo se exponen valores que restringen. Elevar el modo desde
+            // dentro de la sesion (dontAsk / danger-full-access / acceptEdits)
+            // permitiria al modelo auto-aprobar sus propias herramientas.
+            options: Some(&["default", "plan", "read-only"]),
         },
         "language" => ConfigSettingSpec {
             scope: ConfigScope::Settings,
@@ -7420,7 +7498,7 @@ mod tests {
             .expect_err("write tool should be denied before dispatch");
 
         // then
-        assert!(error.to_string().contains("requires workspace-write permission"));
+        assert!(error.to_string().contains("workspace-write"));
     }
 
     #[test]
@@ -7443,9 +7521,7 @@ mod tests {
             .expect_err("subagent write tool should be denied before dispatch");
 
         // then
-        assert!(error
-            .to_string()
-            .contains("requires workspace-write permission"));
+        assert!(error.to_string().contains("workspace-write"));
     }
 
     #[test]
@@ -9940,7 +10016,7 @@ printf 'pwsh:%s' "$1"
             )
             .expect_err("write_file should be denied in read-only mode");
         assert!(
-            err.to_string().contains("current mode is read-only"),
+            err.to_string().contains("current mode is 'read-only'"),
             "should cite active mode: {err}"
         );
     }
@@ -9955,7 +10031,7 @@ printf 'pwsh:%s' "$1"
             )
             .expect_err("edit_file should be denied in read-only mode");
         assert!(
-            err.to_string().contains("current mode is read-only"),
+            err.to_string().contains("current mode is 'read-only'"),
             "should cite active mode: {err}"
         );
     }

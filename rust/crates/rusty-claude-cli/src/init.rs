@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 const STARTER_KRAKEN_JSON: &str = concat!(
     "{\n",
     "  \"permissions\": {\n",
-    "    \"defaultMode\": \"dontAsk\"\n",
+    "    \"defaultMode\": \"workspace-write\"\n",
     "  }\n",
     "}\n",
 );
@@ -413,7 +413,7 @@ mod tests {
             concat!(
                 "{\n",
                 "  \"permissions\": {\n",
-                "    \"defaultMode\": \"dontAsk\"\n",
+                "    \"defaultMode\": \"workspace-write\"\n",
                 "  }\n",
                 "}\n",
             )

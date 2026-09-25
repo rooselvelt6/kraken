@@ -9,6 +9,7 @@ publish.workspace = true
 api = { path = "../api" }
 commands = { path = "../commands" }
 kraken-errors = { path = "../kraken-errors" }
+kraken-infra = { path = "../kraken-infra" }
 osint = { path = "../osint" }
 flate2 = "1"
 plugins = { path = "../plugins" }

@@ -302,6 +302,69 @@ pub fn check_destructive(command: &str) -> ValidationResult {
     ValidationResult::Allow
 }
 
+/// Tokens that let a command silence Kraken's own guardrails.
+///
+/// Se rechazan en todos los modos, incluido `danger-full-access`: el modo mas
+/// permisivo se concede por el usuario desde fuera, no puede auto-concederse
+/// desde dentro mediante un flag.
+pub const GUARDRAIL_BYPASS_TOKENS: &[&str] = &[
+    "KRAKEN_SKIP_VERIFY",
+    "KRAKEN_DISABLE_SANDBOX",
+    "KRAKEN_ALLOW_ALL",
+    "--dangerously-skip-permissions",
+    "--dangerously-bypass",
+    "--no-verify",
+    "--skip-verify",
+    "--no-sandbox",
+    "--disable-sandbox",
+    "--permission-mode",
+    "--allowed-tools",
+];
+
+/// Commands that escalate privileges beyond the current process.
+pub const PRIVILEGE_ESCALATION_COMMANDS: &[&str] = &["sudo", "pkexec", "doas", "su"];
+
+/// Block attempts to turn off the permission or verification layers.
+///
+/// A shell command must not be able to raise its own privileges, even when the
+/// active mode would otherwise allow it.
+#[must_use]
+pub fn validate_guardrails(command: &str) -> ValidationResult {
+    for token in GUARDRAIL_BYPASS_TOKENS {
+        if command.contains(token) {
+            return ValidationResult::Block {
+                reason: format!(
+                    "command contains '{token}', which disables Kraken's own permission or verification layer"
+                ),
+            };
+        }
+    }
+    ValidationResult::Allow
+}
+
+/// Block privilege escalation unless the mode is `danger-full-access`.
+#[must_use]
+pub fn validate_privilege_escalation(
+    command: &str,
+    mode: PermissionMode,
+) -> ValidationResult {
+    if mode == PermissionMode::DangerFullAccess {
+        return ValidationResult::Allow;
+    }
+
+    let first = extract_first_command(command);
+    if PRIVILEGE_ESCALATION_COMMANDS.contains(&first.as_str()) {
+        return ValidationResult::Block {
+            reason: format!(
+                "'{first}' escalates privileges and is not available in '{}' mode",
+                mode.as_str()
+            ),
+        };
+    }
+
+    ValidationResult::Allow
+}
+
 // ---------------------------------------------------------------------------
 // modeValidation
 // ---------------------------------------------------------------------------
@@ -801,6 +864,18 @@ pub fn validate_command_full(
     mode: PermissionMode,
     workspace: &Path,
 ) -> ValidationResult {
+    // 0. Intentos de desactivar las propias barreras de Kraken.
+    let result = validate_guardrails(command);
+    if result != ValidationResult::Allow {
+        return result;
+    }
+
+    // 0b. Escalada de privilegios.
+    let result = validate_privilege_escalation(command, mode);
+    if result != ValidationResult::Allow {
+        return result;
+    }
+
     // 1. Mode-level validation (includes read-only checks).
     let result = validate_mode(command, mode);
     if result != ValidationResult::Allow {

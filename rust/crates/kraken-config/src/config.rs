@@ -18,11 +18,42 @@ pub enum ConfigSource {
 }
 
 /// Effective permission mode after decoding config values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ResolvedPermissionMode {
     ReadOnly,
     WorkspaceWrite,
     DangerFullAccess,
+}
+
+impl ResolvedPermissionMode {
+    /// Modo efectivo mas permisivo permitido por una fuente no confiable.
+    ///
+    /// Un repositorio clonado nunca debe poder elevar por si solo el modo por
+    /// encima de lo que el usuario ya autorizo a nivel global.
+    const fn level(self) -> u8 {
+        match self {
+            Self::ReadOnly => 0,
+            Self::WorkspaceWrite => 1,
+            Self::DangerFullAccess => 2,
+        }
+    }
+
+    fn min_level(self, other: Self) -> Self {
+        if other.level() < self.level() {
+            other
+        } else {
+            self
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ReadOnly => "read-only",
+            Self::WorkspaceWrite => "workspace-write",
+            Self::DangerFullAccess => "danger-full-access",
+        }
+    }
 }
 
 /// A discovered config file and the scope it contributes to.
@@ -273,6 +304,8 @@ impl ConfigLoader {
         let mut loaded_entries = Vec::new();
         let mut mcp_servers = BTreeMap::new();
         let mut all_warnings = Vec::new();
+        let mut user_mode_ceiling: Option<ResolvedPermissionMode> = None;
+        let mut untrusted_mode: Option<(ResolvedPermissionMode, PathBuf)> = None;
 
         for entry in self.discover() {
             crate::config_validate::check_unsupported_format(&entry.path)?;
@@ -291,15 +324,51 @@ impl ConfigLoader {
             all_warnings.extend(validation.warnings);
             validate_optional_hooks_config(&parsed.object, &entry.path)?;
             merge_mcp_servers(&mut mcp_servers, entry.source, &parsed.object, &entry.path)?;
+
+            if let Some(mode) = parse_optional_permission_mode(&JsonValue::Object(
+                parsed.object.clone(),
+            ))
+            .map_err(|error| match error {
+                ConfigError::Parse(message) => {
+                    ConfigError::Parse(format!("{}: {message}", entry.path.display()))
+                }
+                other => other,
+            })?
+            {
+                match entry.source {
+                    ConfigSource::User => {
+                        user_mode_ceiling = Some(match user_mode_ceiling {
+                            Some(current) => current.min_level(mode),
+                            None => mode,
+                        });
+                    }
+                    ConfigSource::Project | ConfigSource::Local => {
+                        untrusted_mode = Some((mode, entry.path.clone()));
+                    }
+                }
+            }
+
             deep_merge_objects(&mut merged, &parsed.object);
             loaded_entries.push(entry);
+        }
+
+        let merged_value = JsonValue::Object(merged.clone());
+        let mut permission_mode = parse_optional_permission_mode(&merged_value)?;
+        if let (Some(ceiling), Some((requested, path))) = (user_mode_ceiling, untrusted_mode) {
+            if requested.level() > ceiling.level() {
+                eprintln!(
+                    "warning: {}: permissions.defaultMode '{}' ignored: project config cannot raise the mode above the user setting '{}'",
+                    path.display(),
+                    requested.as_str(),
+                    ceiling.as_str(),
+                );
+                permission_mode = Some(ceiling);
+            }
         }
 
         for warning in &all_warnings {
             eprintln!("warning: {warning}");
         }
-
-        let merged_value = JsonValue::Object(merged.clone());
 
         let feature_config = RuntimeFeatureConfig {
             hooks: parse_optional_hooks_config(&merged_value)?,
@@ -310,7 +379,7 @@ impl ConfigLoader {
             oauth: parse_optional_oauth_config(&merged_value, "merged settings.oauth")?,
             model: parse_optional_model(&merged_value),
             aliases: parse_optional_aliases(&merged_value)?,
-            permission_mode: parse_optional_permission_mode(&merged_value)?,
+            permission_mode,
             permission_rules: parse_optional_permission_rules(&merged_value)?,
             sandbox: parse_optional_sandbox_config(&merged_value)?,
             provider_fallbacks: parse_optional_provider_fallbacks(&merged_value)?,
@@ -855,7 +924,13 @@ fn parse_permission_mode_label(
     match mode {
         "default" | "plan" | "read-only" => Ok(ResolvedPermissionMode::ReadOnly),
         "acceptEdits" | "auto" | "workspace-write" => Ok(ResolvedPermissionMode::WorkspaceWrite),
-        "dontAsk" | "danger-full-access" => Ok(ResolvedPermissionMode::DangerFullAccess),
+        // "dontAsk" se retiro a proposito: auto-aprobar todo no puede ser el
+        // valor por defecto de un archivo de configuracion. Para acceso total
+        // se usa "danger-full-access" de forma explicita, o la flag del CLI.
+        "danger-full-access" => Ok(ResolvedPermissionMode::DangerFullAccess),
+        "dontAsk" => Err(ConfigError::Parse(format!(
+            "{context}: 'dontAsk' ya no es un modo de permiso valido; usa 'workspace-write' o 'danger-full-access' de forma explicita"
+        ))),
         other => Err(ConfigError::Parse(format!(
             "{context}: unsupported permission mode {other}"
         ))),
@@ -1251,6 +1326,7 @@ mod tests {
     use crate::json::JsonValue;
     use kraken_infra::sandbox::FilesystemIsolationMode;
     use std::fs;
+    use std::path::Path;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_dir() -> std::path::PathBuf {
@@ -1338,9 +1414,12 @@ mod tests {
             Some(&JsonValue::String("opus".to_string()))
         );
         assert_eq!(loaded.model(), Some("opus"));
+        // La precedencia de merge sigue aplicando, pero el modo efectivo ya no
+        // puede superar el techo del usuario: el archivo local pedia
+        // "acceptEdits" (workspace-write) sobre un "plan" (read-only) global.
         assert_eq!(
             loaded.permission_mode(),
-            Some(ResolvedPermissionMode::WorkspaceWrite)
+            Some(ResolvedPermissionMode::ReadOnly)
         );
         assert_eq!(
             loaded
@@ -1917,9 +1996,119 @@ mod tests {
             ResolvedPermissionMode::WorkspaceWrite
         );
         assert_eq!(
-            parse_permission_mode_label("dontAsk", "test").expect("dontAsk should resolve"),
+            parse_permission_mode_label(
+                "danger-full-access",
+                "test"
+            )
+            .expect("danger-full-access should resolve"),
             ResolvedPermissionMode::DangerFullAccess
         );
+    }
+
+    #[test]
+    fn dont_ask_is_rejected_instead_of_silently_escalating() {
+        // given / when / then
+        let error = parse_permission_mode_label("dontAsk", "test")
+            .expect_err("dontAsk must not resolve to danger-full-access");
+        let rendered = error.to_string();
+        assert!(rendered.contains("dontAsk"), "got: {rendered}");
+        assert!(rendered.contains("workspace-write"), "got: {rendered}");
+    }
+
+    fn unique_temp_root(label: &str) -> std::path::PathBuf {
+        temp_dir().join(label)
+    }
+
+    fn write_settings(dir: &Path, name: &str, body: &str) {
+        fs::create_dir_all(dir).expect("create settings dir");
+        fs::write(dir.join(name), body).expect("write settings");
+    }
+
+    #[test]
+    fn project_config_cannot_escalate_above_user_setting() {
+        // given
+        let root = unique_temp_root("project-escalation");
+        let cwd = root.join("repo");
+        let home = root.join("home").join(".kraken");
+        fs::create_dir_all(&cwd).expect("create cwd");
+        write_settings(
+            &home,
+            "settings.json",
+            r#"{"permissions":{"defaultMode":"read-only"}}"#,
+        );
+        write_settings(
+            &cwd,
+            ".kraken.json",
+            r#"{"permissions":{"defaultMode":"danger-full-access"}}"#,
+        );
+
+        // when
+        let config = ConfigLoader::new(&cwd, &home).load().expect("load config");
+
+        // then
+        assert_eq!(
+            config.permission_mode(),
+            Some(ResolvedPermissionMode::ReadOnly),
+            "project config must not raise the mode above the user setting"
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn project_config_can_lower_the_mode_but_not_raise_it() {
+        // given
+        let root = unique_temp_root("project-deescalation");
+        let cwd = root.join("repo");
+        let home = root.join("home").join(".kraken");
+        fs::create_dir_all(&cwd).expect("create cwd");
+        write_settings(
+            &home,
+            "settings.json",
+            r#"{"permissions":{"defaultMode":"danger-full-access"}}"#,
+        );
+        write_settings(
+            &cwd,
+            ".kraken.json",
+            r#"{"permissions":{"defaultMode":"read-only"}}"#,
+        );
+
+        // when
+        let config = ConfigLoader::new(&cwd, &home).load().expect("load config");
+
+        // then
+        assert_eq!(
+            config.permission_mode(),
+            Some(ResolvedPermissionMode::ReadOnly),
+            "project config may still restrict the mode"
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn project_config_may_escalate_when_user_set_nothing() {
+        // given — no user-level ceiling exists
+        let root = unique_temp_root("project-no-ceiling");
+        let cwd = root.join("repo");
+        let home = root.join("home").join(".kraken");
+        fs::create_dir_all(&cwd).expect("create cwd");
+        write_settings(
+            &cwd,
+            ".kraken.json",
+            r#"{"permissions":{"defaultMode":"workspace-write"}}"#,
+        );
+
+        // when
+        let config = ConfigLoader::new(&cwd, &home).load().expect("load config");
+
+        // then — still not above workspace-write, the caller's default ceiling
+        assert_eq!(
+            config.permission_mode(),
+            Some(ResolvedPermissionMode::WorkspaceWrite)
+        );
+
+        fs::remove_dir_all(root).expect("cleanup temp dir");
     }
 
     #[test]

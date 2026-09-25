@@ -14,9 +14,6 @@ serde_json = "1"
 [dependencies.runtime]
 path = "../crates/runtime"
 
-[dependencies.sandbox]
-path = "../crates/sandbox"
-
 [dependencies.localmodels]
 path = "../crates/localmodels"
 

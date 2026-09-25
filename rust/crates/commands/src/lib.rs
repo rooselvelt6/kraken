@@ -1072,6 +1072,7 @@ pub enum SlashCommand {
     Compact,
     Bughunter {
         scope: Option<String>,
+        allow_llm_upload: bool,
     },
     Commit,
     Pr {
@@ -1208,6 +1209,7 @@ pub enum SlashCommand {
     Hunt {
         scope: Option<String>,
         mode: Option<String>,
+        allow_llm_upload: bool,
     },
     AddDir {
         path: Option<String>,
@@ -1371,13 +1373,32 @@ pub fn validate_slash_command_input(
             validate_no_args(command, &args)?;
             SlashCommand::Compact
         }
-        "bughunter" => SlashCommand::Bughunter { scope: remainder },
+        "bughunter" => {
+            let remainder = remainder.unwrap_or_default();
+            let mut parts = remainder.split_whitespace();
+            let scope = parts.next().map(String::from);
+            let mut allow_llm_upload = false;
+            for part in parts {
+                if part == "--allow-llm-upload" {
+                    allow_llm_upload = true;
+                }
+            }
+            SlashCommand::Bughunter { scope, allow_llm_upload }
+        }
         "hunt" => {
             let remainder = remainder.unwrap_or_default();
             let mut parts = remainder.split_whitespace();
             let scope = parts.next().map(String::from);
-            let mode = parts.next().map(String::from);
-            SlashCommand::Hunt { scope, mode }
+            let mut mode = None;
+            let mut allow_llm_upload = false;
+            for part in parts {
+                if part == "--allow-llm-upload" {
+                    allow_llm_upload = true;
+                } else if mode.is_none() && (part == "--fast" || part == "-d" || part == "--deep" || part == "--overnight" || part == "-o") {
+                    mode = Some(part.to_string());
+                }
+            }
+            SlashCommand::Hunt { scope, mode, allow_llm_upload }
         }
         "commit" => {
             validate_no_args(command, &args)?;
@@ -4478,7 +4499,8 @@ mod tests {
         assert_eq!(
             SlashCommand::parse("/bughunter runtime"),
             Ok(Some(SlashCommand::Bughunter {
-                scope: Some("runtime".to_string())
+                scope: Some("runtime".to_string()),
+                allow_llm_upload: false
             }))
         );
         assert_eq!(
@@ -4516,7 +4538,8 @@ mod tests {
         assert_eq!(
             SlashCommand::parse("/bughunter runtime"),
             Ok(Some(SlashCommand::Bughunter {
-                scope: Some("runtime".to_string())
+                scope: Some("runtime".to_string()),
+                allow_llm_upload: false
             }))
         );
         assert_eq!(

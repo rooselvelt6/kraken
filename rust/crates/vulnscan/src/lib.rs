@@ -288,7 +288,7 @@ impl Default for ScanConfig {
             enable_crypto_analysis: false,
             enable_exploit_generation: false,
             enable_chaining: false,
-            enable_llm_validation: true,
+            enable_llm_validation: false,
             enable_bughunt_pipeline: false,
             enable_secrets_detection: true,
             enable_webapp_scan: false,

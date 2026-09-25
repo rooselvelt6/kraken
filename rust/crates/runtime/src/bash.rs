@@ -3,6 +3,9 @@ use std::io;
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
+#[cfg(target_os = "linux")]
+use std::os::unix::process::CommandExt;
+
 use serde::{Deserialize, Serialize};
 use tokio::process::Command as TokioCommand;
 use tokio::runtime::Builder;
@@ -11,7 +14,7 @@ use tokio::time::timeout;
 use crate::lane_events::{LaneEvent, ShipMergeMethod, ShipProvenance};
 use crate::sandbox::{
     build_linux_sandbox_command, resolve_sandbox_status_for_request, FilesystemIsolationMode,
-    SandboxConfig, SandboxStatus,
+    SandboxConfig, SandboxStatus, apply_process_sandbox,
 };
 use crate::ConfigLoader;
 
@@ -70,10 +73,10 @@ pub struct BashCommandOutput {
 /// Executes a shell command with the requested sandbox settings.
 pub fn execute_bash(input: BashCommandInput) -> io::Result<BashCommandOutput> {
     let cwd = env::current_dir()?;
-    let sandbox_status = sandbox_status_for_input(&input, &cwd);
+    let (sandbox_status, sandbox_config) = sandbox_status_for_input(&input, &cwd);
 
     if input.run_in_background.unwrap_or(false) {
-        let mut child = prepare_command(&input.command, &cwd, &sandbox_status, false);
+        let mut child = prepare_command(&input.command, &cwd, &sandbox_status, &sandbox_config, false);
         let child = child
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -100,7 +103,7 @@ pub fn execute_bash(input: BashCommandInput) -> io::Result<BashCommandOutput> {
     }
 
     let runtime = Builder::new_current_thread().enable_all().build()?;
-    runtime.block_on(execute_bash_async(input, sandbox_status, cwd))
+    runtime.block_on(execute_bash_async(input, sandbox_status, sandbox_config, cwd))
 }
 
 /// Detect git push to main and emit ship provenance event
@@ -168,12 +171,13 @@ fn get_git_actor() -> Option<String> {
 async fn execute_bash_async(
     input: BashCommandInput,
     sandbox_status: SandboxStatus,
+    sandbox_config: SandboxConfig,
     cwd: std::path::PathBuf,
 ) -> io::Result<BashCommandOutput> {
     // Detect and emit ship provenance for git push operations
     detect_and_emit_ship_prepared(&input.command);
 
-    let mut command = prepare_tokio_command(&input.command, &cwd, &sandbox_status, true);
+    let mut command = prepare_tokio_command(&input.command, &cwd, &sandbox_status, &sandbox_config, true);
 
     let output_result = if let Some(timeout_ms) = input.timeout {
         match timeout(Duration::from_millis(timeout_ms), command.output()).await {
@@ -232,8 +236,8 @@ async fn execute_bash_async(
         sandbox_status: Some(sandbox_status),
     })
 }
-
-fn sandbox_status_for_input(input: &BashCommandInput, cwd: &std::path::Path) -> SandboxStatus {
+ 
+fn sandbox_status_for_input(input: &BashCommandInput, cwd: &std::path::Path) -> (SandboxStatus, SandboxConfig) {
     let config = ConfigLoader::default_for(cwd).load().map_or_else(
         |_| SandboxConfig::default(),
         |runtime_config| runtime_config.sandbox().clone(),
@@ -245,19 +249,21 @@ fn sandbox_status_for_input(input: &BashCommandInput, cwd: &std::path::Path) -> 
         input.filesystem_mode,
         input.allowed_mounts.clone(),
     );
-    resolve_sandbox_status_for_request(&request, cwd)
+    let status = resolve_sandbox_status_for_request(&request, cwd);
+    (status, config)
 }
-
+ 
 fn prepare_command(
     command: &str,
     cwd: &std::path::Path,
     sandbox_status: &SandboxStatus,
+    sandbox_config: &SandboxConfig,
     create_dirs: bool,
 ) -> Command {
     if create_dirs {
         prepare_sandbox_dirs(cwd);
-    }
-
+}
+ 
     if let Some(launcher) = build_linux_sandbox_command(command, cwd, sandbox_status) {
         let mut prepared = Command::new(launcher.program);
         prepared.args(launcher.args);
@@ -265,9 +271,29 @@ fn prepare_command(
         prepared.envs(launcher.env);
         return prepared;
     }
-
+ 
     let mut prepared = Command::new("sh");
     prepared.arg("-lc").arg(command).current_dir(cwd);
+    
+    // Apply process-level sandbox (Landlock/Seccomp) when enabled and not using unshare
+    if sandbox_status.enabled && sandbox_status.filesystem_mode != FilesystemIsolationMode::Off {
+let config = sandbox_config.clone();
+        let cwd = cwd.to_path_buf();
+        #[cfg(target_os = "linux")]
+        {
+            // SAFETY: pre_exec runs the closure in the child process after fork.
+            // The closure only calls apply_process_sandbox which uses syscalls
+            // to apply Landlock/Seccomp, which is safe in the child context.
+            unsafe {
+                prepared.pre_exec(move || {
+                    apply_process_sandbox(&config, &cwd).map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, format!("sandbox apply failed: {e}"))
+                    })
+                });
+            }
+        }
+    }
+    
     if sandbox_status.filesystem_active {
         prepared.env("HOME", cwd.join(".sandbox-home"));
         prepared.env("TMPDIR", cwd.join(".sandbox-tmp"));
@@ -279,6 +305,7 @@ fn prepare_tokio_command(
     command: &str,
     cwd: &std::path::Path,
     sandbox_status: &SandboxStatus,
+    sandbox_config: &SandboxConfig,
     create_dirs: bool,
 ) -> TokioCommand {
     if create_dirs {
@@ -295,6 +322,26 @@ fn prepare_tokio_command(
 
     let mut prepared = TokioCommand::new("sh");
     prepared.arg("-lc").arg(command).current_dir(cwd);
+    
+    // Apply process-level sandbox (Landlock/Seccomp) when enabled and not using unshare
+    if sandbox_status.enabled && sandbox_status.filesystem_mode != FilesystemIsolationMode::Off {
+        let config = sandbox_config.clone();
+        let cwd = cwd.to_path_buf();
+        #[cfg(target_os = "linux")]
+        {
+            // SAFETY: pre_exec runs the closure in the child process after fork.
+            // The closure only calls apply_process_sandbox which uses syscalls
+            // to apply Landlock/Seccomp, which is safe in the child context.
+            unsafe {
+                prepared.pre_exec(move || {
+                    apply_process_sandbox(&config, &cwd).map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, format!("sandbox apply failed: {e}"))
+                    })
+                });
+            }
+        }
+    }
+    
     if sandbox_status.filesystem_active {
         prepared.env("HOME", cwd.join(".sandbox-home"));
         prepared.env("TMPDIR", cwd.join(".sandbox-tmp"));

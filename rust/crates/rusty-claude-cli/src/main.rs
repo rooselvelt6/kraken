@@ -722,11 +722,25 @@ fn run_mcp_serve() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect();
 
+    // El servidor MCP stdio expone las mismas herramientas que el loop local,
+    // asi que tambien tiene que pasar por la politica de permisos. Sin esto,
+    // cualquier cliente MCP conectado ejecutaria bash sin restriccion.
+    let plugin_state = build_runtime_plugin_state()?;
+    let policy = permission_policy(
+        default_permission_mode(),
+        &plugin_state.feature_config,
+        &plugin_state.tool_registry,
+    )?;
+    let registry = GlobalToolRegistry::builtin()
+        .with_enforcer(runtime::permission_enforcer::PermissionEnforcer::new(policy));
+
     let spec = McpServerSpec {
         server_name: "kraken".to_string(),
         server_version: VERSION.to_string(),
         tools,
-        tool_handler: Box::new(|name, args| execute_tool(name, args).map_err(|e| e.to_string())),
+        tool_handler: Box::new(move |name, args| {
+            registry.execute(name, &args).map_err(|e| e.to_string())
+        }),
     };
 
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -3053,12 +3067,12 @@ impl LiveCli {
                 self.print_status();
                 false
             }
-            SlashCommand::Bughunter { scope } => {
-                self.run_bughunter(scope.as_deref())?;
+            SlashCommand::Bughunter { scope, allow_llm_upload } => {
+                self.run_bughunter(scope.as_deref(), allow_llm_upload)?;
                 false
             }
-            SlashCommand::Hunt { scope, mode } => {
-                self.run_hunt(scope.as_deref(), mode.as_deref())?;
+            SlashCommand::Hunt { scope, mode, allow_llm_upload } => {
+                self.run_hunt(scope.as_deref(), mode.as_deref(), allow_llm_upload)?;
                 false
             }
             SlashCommand::Commit => {
@@ -3973,7 +3987,7 @@ impl LiveCli {
         self.run_internal_prompt_text_with_progress(prompt, enable_tools, None)
     }
 
-    fn run_bughunter(&self, scope: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    fn run_bughunter(&self, scope: Option<&str>, allow_llm_upload: bool) -> Result<(), Box<dyn std::error::Error>> {
         use std::path::PathBuf;
         use std::time::Instant;
         use vulnscan::{Language, ScanConfig, Severity, VulnerabilityScanner};
@@ -3987,6 +4001,10 @@ impl LiveCli {
         config.enable_secrets_detection = true;
         config.enable_supply_chain = true;
         config.enable_webapp_scan = true;
+        config.enable_llm_validation = allow_llm_upload;
+        if allow_llm_upload {
+            eprintln!("\x1b[1;33mWarning:\x1b[0m LLM validation enabled — code from the scanned project will be sent to the LLM for cross-validation. Use --allow-llm-upload explicitly to confirm.");
+        }
 
         match scope {
             Some(s) if !s.is_empty() && s != "repo" && s != "all" => {
@@ -4040,6 +4058,7 @@ impl LiveCli {
         &self,
         scope: Option<&str>,
         mode: Option<&str>,
+        allow_llm_upload: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use std::path::PathBuf;
         use std::time::Instant;
@@ -4053,6 +4072,10 @@ impl LiveCli {
         config.enable_secrets_detection = true;
         config.enable_supply_chain = true;
         config.enable_webapp_scan = true;
+        config.enable_llm_validation = allow_llm_upload;
+        if allow_llm_upload {
+            eprintln!("\x1b[1;33mWarning:\x1b[0m LLM validation enabled — code from the scanned project will be sent to the LLM for cross-validation. Use --allow-llm-upload explicitly to confirm.");
+        }
 
         match scope {
             Some(s) if !s.is_empty() && s != "repo" && s != "all" && !s.starts_with("--") => {

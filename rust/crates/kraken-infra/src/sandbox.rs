@@ -376,6 +376,64 @@ impl ToolSandbox {
     }
 }
 
+/// Apply Landlock and Seccomp sandboxing to the current process.
+/// This should be called in a child process before exec().
+#[cfg(target_os = "linux")]
+pub fn apply_process_sandbox(
+    config: &SandboxConfig,
+    cwd: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+
+    let request = config.resolve_request(None, None, None, None, None);
+    
+    // Apply Landlock if filesystem restrictions are requested
+    if request.enabled 
+        && request.filesystem_mode != FilesystemIsolationMode::Off 
+        && crate::sandbox_landlock::landlock_supported() 
+    {
+        let mut landlock = crate::sandbox_landlock::LandlockConfig::new();
+        landlock.enabled = true;
+        
+        let read_only = match request.filesystem_mode {
+            FilesystemIsolationMode::WorkspaceOnly => vec![cwd.to_path_buf()],
+            FilesystemIsolationMode::AllowList => {
+                let mounts = normalize_mounts(&request.allowed_mounts, cwd);
+                mounts.into_iter().map(PathBuf::from).collect()
+            }
+            FilesystemIsolationMode::Off => vec![],
+        };
+        
+        for path in read_only {
+            landlock = landlock.add_read_only(path);
+        }
+        
+        // Read-write paths could be added here if needed
+        
+        landlock.apply()?;
+    }
+    
+    // Apply Seccomp if namespace restrictions are requested
+    if request.enabled 
+        && request.namespace_restrictions 
+        && crate::sandbox_seccomp::SeccompProfile::default().mode != crate::sandbox_seccomp::SeccompMode::ReadWrite
+    {
+        // For now, apply read-write seccomp profile when namespace restrictions are on
+        // In the future, this could be configurable
+        let profile = crate::sandbox_seccomp::SeccompProfile::default();
+        profile.install()?;
+    }
+    
+    Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn apply_process_sandbox(
+    _config: &SandboxConfig,
+    _cwd: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

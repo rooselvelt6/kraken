@@ -590,10 +590,16 @@ fn enforcer_relative_path() {
 }
 
 #[test]
-fn enforcer_prompt_check_allows() {
+fn enforcer_prompt_check_denies_without_prompter() {
+    // El enforcer no tiene prompter: en modo Prompt falla cerrado.
+    // Quien pueda preguntar (la capa de conversación) debe hacerlo
+    // antes de llegar al enforcer.
     let e = runtime::permission_enforcer::PermissionEnforcer::new(
         runtime::PermissionPolicy::new(runtime::PermissionMode::Prompt));
-    assert!(matches!(e.check("write_file", "{}"), runtime::permission_enforcer::EnforcementResult::Allowed));
+    assert!(matches!(
+        e.check("write_file", "{}"),
+        runtime::permission_enforcer::EnforcementResult::Denied { .. }
+    ));
 }
 
 #[test]
@@ -2039,6 +2045,50 @@ fn bash_path_clean_allows() {
     use runtime::bash_validation::validate_paths;
     let r = validate_paths("cat src/main.rs", Path::new("/workspace"));
     assert_eq!(r, runtime::bash_validation::ValidationResult::Allow);
+}
+
+#[test]
+fn bash_guardrails_blocks_bypass_tokens() {
+    use runtime::bash_validation::{validate_guardrails, ValidationResult};
+    use runtime::PermissionMode;
+    let tokens = [
+        "KRAKEN_SKIP_VERIFY",
+        "KRAKEN_DISABLE_SANDBOX",
+        "--dangerously-skip-permissions",
+        "--no-verify",
+        "--no-sandbox",
+        "--permission-mode",
+        "--allowed-tools",
+    ];
+    for token in tokens {
+        let cmd = format!("bash -c \"export {token}=1 && echo hi\"");
+        let r = validate_guardrails(&cmd);
+        assert!(
+            matches!(r, ValidationResult::Block { .. }),
+            "token {token} should be blocked, got {r:?}"
+        );
+    }
+}
+
+#[test]
+fn bash_guardrails_blocks_privilege_escalation_below_dfa() {
+    use runtime::bash_validation::{validate_privilege_escalation, ValidationResult};
+    use runtime::PermissionMode;
+    for mode in [PermissionMode::ReadOnly, PermissionMode::WorkspaceWrite, PermissionMode::Prompt] {
+        let r = validate_privilege_escalation("sudo rm -rf /", mode);
+        assert!(
+            matches!(r, ValidationResult::Block { .. }),
+            "mode {mode:?} should block sudo, got {r:?}"
+        );
+    }
+}
+
+#[test]
+fn bash_guardrails_allows_privilege_escalation_in_dfa() {
+    use runtime::bash_validation::{validate_privilege_escalation, ValidationResult};
+    use runtime::PermissionMode;
+    let r = validate_privilege_escalation("sudo apt update", PermissionMode::DangerFullAccess);
+    assert_eq!(r, ValidationResult::Allow);
 }
 
 #[test]

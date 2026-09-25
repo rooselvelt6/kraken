@@ -13,7 +13,7 @@ serde_json = "1"
 thiserror = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
-reqwest = { version = "0.12", features = ["json"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
 
 [dev-dependencies]
 tempfile = "3.8"

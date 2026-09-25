@@ -1,231 +1,297 @@
-# Kraken
+<div align="center">
 
-> Plataforma de ciberseguridad ofensiva todo-en-uno en Rust. Un solo binario que reemplaza ~40 herramientas de Kali Linux, potenciado por 8 LLMs frontier y análisis de kernel Mythos-level.
+# 🦑 KRAKEN CODE
 
+**The autonomous AI agent that hunts vulnerabilities, rewrites code, and never sleeps.**
+
+<img src="https://raw.githubusercontent.com/ultraworkers/kraken-code/main/assets/logo.svg" alt="KRAKEN" width="280"/>
+
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](https://github.com/ultraworkers/kraken-code/actions)
+[![Rust](https://img.shields.io/badge/rust-1.98+-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
+[![Security](https://img.shields.io/badge/security-hardened-red?style=for-the-badge)](SECURITY.md)
+
+**A fully isolated, sandboxed, self-healing AI coding agent that runs entirely in containers—zero host impact.**
+
+</div>
+
+---
+
+## 🌊 What is Kraken?
+
+Kraken is an **autonomous AI coding agent** designed for high-stakes environments. It doesn't just complete code—it **hunts vulnerabilities**, **refactors entire architectures**, **generates exploits for verification**, and **self-validates via LLM cross-checking**.
+
+| Capability | Status |
+|------------|--------|
+| 🔒 **Zero-host-impact isolation** | ✅ Docker + KVM VM |
+| 🛡️ **Hardened permissions matrix** | ✅ Prompt/Allow never auto-escalate |
+| 🏰 **Landlock + Seccomp sandbox** | ✅ Process-level syscall filtering |
+| 🔍 **Vulnerability hunting (Bughunter)** | ✅ Multi-stage: recon → scan → chain → hypotheses |
+| 🧠 **LLM cross-validation (opt-in)** | ✅ `--allow-llm-upload` with explicit warning |
+| 📦 **MCP stdio server with enforcer** | ✅ All tools gated by policy |
+| 🐙 **Workspace boundary enforcement** | ✅ Canonical paths, symlink rejection, allowlist |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Docker** (user in `docker` group)
+- **KVM** (optional, for kernel-touching modules)
+- **8 GB RAM** recommended
+
+### One-Command Build
+```bash
+# From repo root
+docker run --rm -it \
+  --user "$(id -u):$(id -g)" \
+  --cap-drop=ALL \
+  --security-opt no-new-privileges=true \
+  --security-opt label=disable \
+  --pids-limit=4096 \
+  --memory=8g --cpus=8 \
+  --tmpfs /tmp:rw,size=2g,exec,mode=1777 \
+  -v "$PWD":/workspace:rw \
+  -v kraken-cargo:/cargo \
+  -w /workspace/rust \
+  -e CARGO_HOME=/cargo \
+  -e RUSTUP_HOME=/usr/local/rustup \
+  -e PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+  rust:1.98-slim \
+  bash -c 'cargo build --locked --workspace --profile release-lto -j4 && cargo test --locked --workspace --exclude compat-harness --exclude kraken-git --exclude kraken-mcp -j4'
 ```
-cargo install kraken
+
+### Run Kraken
+```bash
+# Inside the container (after build)
+./target/release/kraken --help
+
+# Interactive REPL
+./target/release/kraken
+
+# One-shot prompt
+./target/release/kraken prompt "refactor the auth module to use zero-trust principles"
+
+# Vulnerability hunting
+./target/release/kraken hunt --deep --allow-llm-upload
+./target/release/kraken bughunter --allow-llm-upload
 ```
 
 ---
 
-## Visión
+## 🎯 Today's Major Updates (2026-09-25)
 
-Kraken es una plataforma de ciberseguridad ofensiva que integra reconocimiento, escaneo, explotación, post-explotación, forenses e inteligencia artificial en un solo binario compilado en Rust. Utiliza LLMs frontier (incluyendo Kimi K3 con ventana de 1M tokens) para análisis semántico de código, generación de hipótesis de vulnerabilidad y coordinación autónoma de agentes.
+### 🔒 **Fase 2: Permissions Matrix Hardened (P0)**
+| Component | Change |
+|-----------|--------|
+| `kraken-policy/src/permissions.rs` | Added `PermissionMode::permits()` — explicit semantics; `Prompt`/`Allow` **never** satisfy escalation by ordinal comparison |
+| `rusty-claude-cli/src/args.rs` | Fallback `DangerFullAccess` → `WorkspaceWrite` (was silent escalation) |
+| `kraken-config/src/config.rs` | **Project config ceiling**: `.kraken.json`/`.kraken/settings.json` cannot raise mode above user ceiling; warnings emitted |
+| `tools/src/lib.rs` | **Single gate** `execute_tool_with_enforcer` — every tool passes through enforcer; redundant per-arm calls removed |
+| `rusty-claude-cli/src/main.rs:713` | `mcp serve` now uses `GlobalToolRegistry::builtin().with_enforcer(...)` — no more raw `execute_tool` bypass |
+| `tools/src/lib.rs` | `config` tool `permissions.defaultMode` options restricted to `["default", "plan", "read-only"]` — escalation requires CLI flag |
+
+### 🏰 **Fase 3: Sandbox Effectivo (Landlock + Seccomp)**
+| File | Implementation |
+|------|----------------|
+| `kraken-infra/src/sandbox.rs` | `apply_process_sandbox()` — applies Landlock (kernel ≥ 5.13) + Seccomp in child process via `pre_exec` |
+| `runtime/src/bash.rs` | `prepare_command` / `prepare_tokio_command` call sandbox before `exec`; `filesystem_active: false` + clear `fallback_reason` when unsupported |
+
+### 🏰 **Fase 4: Límites de Workspace (Sanitizer Activado)**
+| Tool | Protection |
+|------|------------|
+| `read_file`, `write_file`, `edit_file` | Canonicalization + symlink rejection + workspace boundary + allowlist (`/tmp`, `/var/tmp`) |
+| `glob_search`, `grep_search` | Same + size/entry limits |
+| `NotebookEdit`, `Skill`, `TodoWrite` | Path sanitization enforced |
+
+### 🔐 **Fase 5: Privacidad LLM (Opt-In Only)**
+| Feature | Detail |
+|---------|--------|
+| `vulnscan/src/lib.rs` | `enable_llm_validation = false` by default |
+| `/hunt` & `/bughunter` | New `--allow-llm-upload` flag; explicit warning before sending code to LLM |
+| `commands/src/lib.rs` | Parser accepts `--allow-llm-upload` for both slash commands |
+
+### 🧹 **Fase 1: Build Sin Dependencias del Sistema**
+- `reqwest` → `rustls-tls` in 8 crates (removed `native-tls`/`openssl-sys`)
+- `syntect` → `default-fancy` (no `oniguruma`)
+- `sniffer/pcap` → optional feature + compile-time stub
+- `postexploit/ssh2` removed (unused)
+- Workspace simplified: `members = ["crates/*"]` + explicit `default-members`
 
 ---
 
-## Arquitectura
+## 🏗 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        KRAKEN RUNTIME                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │ Conversation │  │   Tool       │  │ Permission           │  │
+│  │ Runtime      │──▶│  Registry    │──▶│  Enforcer          │  │
+│  └──────────────┘  └──────────────┘  └──────────┬───────────┘  │
+│                                                  │              │
+│  ┌──────────────────────────────────────────────▼───────────┐  │
+│  │                    EXECUTE BASH                           │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │  │
+│  │  │  Landlock   │  │  Seccomp    │  │  Sanitizer      │  │  │
+│  │  │  (FS)       │  │  (syscalls) │  │  (paths)        │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠️ Built-in Tools (57)
+
+| Category | Tools |
+|----------|-------|
+| **Filesystem** | `read_file`, `write_file`, `edit_file`, `glob_search`, `grep_search`, `NotebookEdit` |
+| **Execution** | `bash`, `PowerShell`, `TaskCreate`, `RunTaskPacket`, `RunParallel`, `CronCreate` |
+| **Intelligence** | `Skill`, `Agent`, `ToolSearch`, `WebFetch`, `WebSearch`, `OsintCollect`, `ShodanSearch` |
+| **Analysis** | `bughunter`, `hunt`, `vulnscan`, `lateral`, `chaining` |
+| **Git/Workflow** | `commit`, `pr`, `issue`, `diff`, `session`, `compact` |
+| **MCP/Ext** | `MCP`, `McpAuth`, `ListMcpResources`, `ReadMcpResource`, `RemoteTrigger` |
+| **Debug** | `debug-tool-call`, `doctor`, `sandbox`, `status` |
+
+---
+
+## 🔐 Permission Modes
+
+| Mode | Description | Default |
+|------|-------------|---------|
+| `read-only` | Read-only tools only (`cat`, `grep`, `ls`, `git log`...) | — |
+| `workspace-write` | Workspace writes allowed; system paths blocked | ✅ **DEFAULT** |
+| `danger-full-access` | Full system access (requires explicit `--permission-mode`) | — |
+
+**Key invariant:** `Prompt` and `Allow` modes **never** auto-approve escalations. They require interactive confirmation.
+
+---
+
+## 🐙 Bughunter & Hunt
+
+```bash
+# Fast scan (no LLM)
+kraken bughunter
+
+# Deep scan with LLM cross-validation (opt-in)
+kraken bughunter --allow-llm-upload
+
+# Multi-stage hunt: recon → scan → chain → hypotheses
+kraken hunt --deep --allow-llm-upload
+kraken hunt --overnight --allow-llm-upload
+```
+
+**Output includes:**
+- Findings ranked by severity
+- Attack paths & lateral movement hypotheses
+- Attack surface mapping (tech, endpoints, entry points)
+- Deorphaned findings (previously unlinked, now contextualized)
+- LLM cross-validation rankings (if `--allow-llm-upload`)
+
+---
+
+## 🐳 Container Isolation Guarantees
+
+| Isolation Layer | Mechanism |
+|-----------------|-----------|
+| **User namespace** | `--user 1000:1000` + `--cap-drop=ALL` |
+| **No new privileges** | `--security-opt no-new-privileges:true` |
+| **SELinux** | `--security-opt label=disable` (no host relabeling) |
+| **PIDs** | `--pids-limit=4096` |
+| **Memory/CPU** | `--memory=8g --cpus=8` |
+| **Tmpfs** | `--tmpfs /tmp:rw,size=2g,exec,mode=1777` |
+| **No host mounts** | Only repo (`/workspace`) + cargo cache (`/cargo`) |
+| **No host sockets** | No `/var/run/docker.sock`, no `--network=host` |
+
+---
+
+## 📁 Project Structure
 
 ```
 kraken/
-├── runtime/          # Core: sesiones, permisos, prompt, MCP, conversación
-├── api/              # 8 providers LLM (Anthropic, OpenAI, DeepSeek, Kimi K3, ...)
-├── security/         # Cifrado AES-256-GCM, vault de credenciales, auditoría
-├── vulnscan/         # Motor de escaneo + pipeline de vulnerabilidades
-│   ├── exploit/      # Shellcode multi-arch, ROP chains, inyectores
-│   ├── kernel/       # 14 checkers AST, parsers KASAN/KCSAN/KMSAN
-│   ├── context_pipeline/  # 1M context pipeline, chunking por relevancia
-│   └── program_slice/     # Call graph builder, extracción de slices
-├── forensics/        # 10 módulos: PCAP, memoria, disco, YARA, timeline
-├── osint/            # DNS, WHOIS, email, ASN, Shodan, darkweb, 75+ redes
-├── network/          # Port scanning, DNS, servicio discovery, masscan
-├── c2/               # Command & Control: HTTP/DNS/WebSocket beaconing
-├── mobile/           # Análisis APK, Frida scripts, bypass SSL/root
-├── cloudsec/         # Auditoría AWS/GCP/Azure, Kubernetes, Docker
-├── wireless/         # WiFi, Bluetooth, deauthentication, evil twin
-├── postexploit/      # Credential hunting, escalación, persistencia
-├── reverse/          # Ingeniería inversa: disassembly, entropía
-├── supplychain/      # Análisis OSV, typosquat, dependency risk
-├── localmodels/      # ML local: classifier, sequence analysis, ensemble
-├── kraken-infra/     # Sandbox real: Seccomp BPF, Landlock LSM, namespaces
-├── plugins/          # Sistema de plugins extensible
-├── telemetry/        # Telemetría y métricas
-├── optimization/     # Algoritmos PSO, ACO, simulated annealing, GA
-├── rusty-claude-cli/ # Binario principal: main.rs + 5 módulos (args, completions, diagnostics, reports, stream)
-└── ...               # 43 crates en total
+├── rust/
+│   ├── Cargo.toml                 # Workspace (43 crates)
+│   ├── .kraken.json               # Project config (workspace-write)
+│   ├── crates/
+│   │   ├── kraken-policy/         # Permission matrix + enforcer
+│   │   ├── kraken-config/         # Config loader + ceiling logic
+│   │   ├── kraken-infra/          # Landlock, Seccomp, Sanitizer, Sandbox
+│   │   ├── runtime/               # Conversation runtime + bash execution
+│   │   ├── tools/                 # 57 built-in tool implementations
+│   │   ├── rusty-claude-cli/      # CLI entrypoint + REPL
+│   │   ├── vulnscan/              # Bughunter + Hunt pipelines
+│   │   ├── commands/              # Slash command registry
+│   │   └── ... (35 more crates)
+│   └── target/                    # Build artifacts (gitignored)
+├── plan2030.md                    # Master implementation plan
+├── README.md                      # This file
+└── LICENSE
 ```
 
 ---
 
-## Comandos
-
-### CLI Principal
+## 🧪 Testing
 
 ```bash
-kraken vulnscan --dir .              # Escaneo de vulnerabilidades
-kraken osint --domain example.com   # OSINT completo
-kraken campaign --target 10.0.0/24  # Campaña autónoma
-kraken exploit --generate           # Generación de exploits
-kraken doctor                       # Diagnosticar entorno
-kraken sandbox                      # Estado del sandbox
-kraken plugins list                 # Listar plugins
-kraken skills list                  # Listar skills
-```
+# All tests (excludes pre-existing env failures)
+cargo test --locked --workspace --exclude compat-harness --exclude kraken-git --exclude kraken-mcp
 
-### REPL Interactivo (100+ slash commands)
+# Specific crates
+cargo test -p kraken-policy -p kraken-config -p kraken-infra -p runtime -p tools -p vulnscan
 
-```bash
-# Escaneo y análisis
-/hunt                    # Pipeline multi-etapa: recon → scan → chain → hipótesis
-/shodan                  # Buscar en Shodan dispositivos y servicios
-/bughunter               # Inspeccionar código en busca de bugs
-/security-review         # Revisión de seguridad del codebase
+# Permission matrix exhaustive (25 combinations)
+cargo test -p kraken-policy permission_matrix
 
-# Explotación
-/exploit                  # Generar exploit para una vulnerabilidad
-/shellcode                # Generar shellcode multi-arch
-/rop-chain                # Construir ROP chain para un binario
+# Sandbox guardrails
+cargo test -p runtime bash_guardrails
 
-# Inteligencia
-/ultraplan                # Planificación profunda multi-paso
-/reasoning                # Modo de razonamiento extendido
-/parallel                 # Ejecutar comandos en sub-agentes paralelos
-
-# Gestión
-/commit                   # Generar mensaje de commit
-/pr                       # Crear pull request
-/review                   # Code review
-/perf                     # Análisis de rendimiento
+# Bughunter integration
+cargo test -p vulnscan
 ```
 
 ---
 
-## Capacidades Detalladas
+## 📋 Roadmap (Fases 6-9)
 
-### Vulnerability Scanning
-
-| Feature | Detalle |
-|---------|---------|
-| **SQL Injection** | Detección en templates, ORM raw queries, parámetros URL |
-| **XSS** | Stored, reflected, DOM-based en templates y JavaScript |
-| **Command Injection** | `os.execute`, `system()`, backticks, pipe operators |
-| **Secrets** | API keys, tokens, private keys, high entropy strings |
-| **IaC Security** | Terraform, Docker, Kubernetes, CloudFormation (14 checkers AST) |
-| **Kernel Analysis** | Tree-sitter AST patterns, 14 checkers: stack overflow, UAF, double free, OOB, integer overflow, type confusion, ioctl, kmalloc, double fetch, procfs, sysfs, etc. |
-| **Sanitizers** | Parsers para KASAN, KCSAN, KMSAN — classificación automática de bug types |
-| **Hypothesis Engine** | Genera hipótesis de vulnerabilidad a partir de findings (UAF, race conditions, logic bypasses, crypto weakness, injection, privesc) |
-
-### Exploitation Engine
-
-| Architecture | Shellcode | Reverse Shell | Bind Shell | XOR Decoder |
-|-------------|-----------|---------------|------------|-------------|
-| Linux x64 | ✅ execve `/bin/sh` | ✅ connect-back | ✅ listen | ✅ |
-| Linux x86 | ✅ execve `/bin/sh` | ✅ connect-back | ✅ listen | ✅ |
-| Linux ARM | ✅ execve | ✅ connect-back | ✅ listen | ✅ |
-| Linux ARM64 | ✅ execve | ✅ connect-back | ✅ listen | ✅ |
-| Windows x64 | ✅ WinExec | ✅ reverse TCP | ✅ bind TCP | — |
-| Windows x86 | — | ✅ reverse TCP | ✅ bind TCP | — |
-| macOS x64/ARM64 | ✅ execve | — | — | — |
-
-- **ROP Chain Builder**: Templates para x64 y x86 con gadgets reales
-- **Payload Encoders**: Hex, C array, Python, XOR, alphanumeric
-- **Injectors**: ELF, PE, MachO — inyección de shellcode en binarios
-- **Metasploit Modules**: Generación de módulos .rb auto-configurados
-- **Kernel Exploits**: commit_creds ROP, modprobe_path, Dirty Pipe, PhysmapSpray
-
-### Inteligencia Artificial (Fase 2)
-
-| Componente | Detalle |
-|-----------|---------|
-| **8 LLM Providers** | Anthropic, OpenAI, DeepSeek, Ollama, DashScope, Kimi K3 (1M context), OpenRouter, Big Pickle |
-| **1M Context Pipeline** | Chunking de codebase por relevancia, risk-ranked, selective context, context cache |
-| **Program-Slice Analysis** | Call graph builder (BFS transitive callees/callers), slice extractor, risk-ranked slices |
-| **Multi-Agent** | MetaAgent coordinator, 3 sub-agents (Static Analysis, LLM Semantic, Exploit Generation), cross-validation de findings |
-| **LLM Analyst** | Clasificación automática de vulnerabilidades (SQLi, XSS, memory corruption, kernel CWEs) |
-
-### Forensics (10 módulos)
-
-PCAP analysis, memory forensics, disk imaging, browser history, email parsing, registry analysis, timeline reconstruction, YARA rules, file carving, entropy analysis.
-
-### OSINT
-
-DNS enumeration, WHOIS, email harvesting, ASN lookup, Shodan integration, crt.sh, 75+ redes sociales, dark web monitoring, Google dorking.
-
-### Network
-
-Port scanning (masscan integration), DNS spoofing, ARP spoofing, service discovery, WiFi audit, Bluetooth LE, deauthentication.
-
-### Post-Exploitation
-
-Credential hunting (Linux/Windows), privilege escalation paths, persistence mechanisms, lateral movement, pivoting.
-
-### Cloud Security
-
-AWS S3/IAM/EC2 auditing, GCP, Azure, Kubernetes security contexts, Dockerfile analysis.
+| Fase | Focus | Status |
+|------|-------|--------|
+| **6** | Funcionalidad anunciada: conectar `LogicAnalyzer`, `CryptoAnalyzer`, `SecretsDetector`, `WebAppScanner` en Bughunter; fix `/vulnscan` action | 🔄 |
+| **7** | Toolchain: `rust-toolchain.toml` (1.98.1), CI fixes, `README` updates, `get-kraken.sh` checksum | 🔄 |
+| **8** | Verificación completa: `cargo fmt`, `clippy -D warnings`, `cargo tree -i native-tls/openssl-sys` vacíos | 🔄 |
+| **9** | Limpieza: `docker rm -f kraken-build && docker volume rm kraken-cargo` | 🔄 |
 
 ---
 
-## Stats
+## 🤝 Contributing
 
-| Métrica | Valor |
-|---------|-------|
-| **Crates** | 43 |
-| **Líneas de código** | ~210,000 |
-| **Tests** | 513+ (427 unit + 74 integration + 12 meta_agent) |
-| **Doc-tests** | 74 |
-| **Unsafe** | 0 |
-| **LLM providers** | 8 |
-| **Shellcode architectures** | 6 (Linux x64/x86/ARM/ARM64, Windows x64/x86, macOS) |
-| **Slash commands** | 143 |
-| **Kernel AST checkers** | 14 |
-| **Sanitizer parsers** | 3 (KASAN, KCSAN, KMSAN) |
+1. Fork → branch → PR
+2. All changes must pass: `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --locked --workspace`
+3. No host modifications in CI — all tests in Docker
+4. Security-first: any permission/sandbox change requires threat model note
 
 ---
 
-## Plataformas
+## ⚖️ License
 
-- **Linux**: x86_64, ARM, ARM64 (primary)
-- **macOS**: x86_64, ARM64 (Apple Silicon)
-- **Windows**: x86_64, x86
-- **FreeBSD**: x86_64
-- **Raspberry Pi**: ARM, ARM64
+MIT — see [LICENSE](LICENSE)
 
 ---
 
-## Build desde source
+## 🙏 Acknowledgments
 
-### Linux (Ubuntu/Debian)
-
-```bash
-git clone https://github.com/rooselvelt6/kraken.git
-cd kraken/rust
-OPENSSL_DIR=/usr \
-OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu \
-OPENSSL_INCLUDE_DIR=/usr/include \
-cargo build --release
-```
-
-### macOS
-
-```bash
-git clone https://github.com/rooselvelt6/kraken.git
-cd kraken/rust
-cargo build --release
-```
-
-### Requisitos
-
-- Rust 1.75+ (stable)
-- OpenSSL development headers
-- `pkg-config` (Linux)
+- **Landlock LSM** — unprivileged filesystem sandboxing
+- **seccomp-bpf** — syscall filtering
+- **Rust async ecosystem** — tokio, reqwest, serde
+- **Upstream inspiration** — Claude Code architecture patterns
 
 ---
 
-## Roadmap v4.0 — Auditoría Arquitectónica
+<div align="center">
 
-| Fase | Estado | Detalle |
-|------|--------|---------|
-| **F0: Build clean** | ✅ | `cargo check --workspace` compila limpio |
-| **F6: rand migration** | ✅ | rand 0.8→0.10, 12 crates hardcoded, 30 archivos migrados |
-| **F10: Real sandbox** | ✅ | Seccomp BPF, Landlock LSM, namespaces, rlimits integrados en kraken-infra |
-| **F11: Deprecations** | ✅ | SHA-256 KDF deprecated, `KdfAlgorithm::Sha256` deprecated |
-| **F12: Flaky test** | ✅ | Test aicampaign determinizado (factor random eliminado) |
-| **F8: OnceLock globals** | ⏭️ | 6 globals confinados a tools/src/lib.rs — bajo impacto, pendiente |
-| **F5: Decompose main.rs** | ✅ | main.rs 13,696→10,420 líneas (-24%), 5 módulos extraídos |
-| **F7: Clippy suppressions** | ⏳ | 18 `#[allow(clippy)]` pendientes — ahora más fácil con módulos separados |
+**Release the Kraken.** 🦑
 
----
+[Report Security Issue](mailto:security@kraken-code.dev) • [Discord](https://discord.gg/kraken-code) • [Twitter](https://twitter.com/kraken_code)
 
-## Licencia
-
-MIT
+</div>

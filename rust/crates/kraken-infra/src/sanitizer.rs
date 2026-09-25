@@ -106,6 +106,7 @@ pub struct SanitizerConfig {
     pub block_symlink_escape: bool,
     pub block_path_traversal: bool,
     pub block_encoding_attacks: bool,
+    pub allowed_prefixes: Vec<PathBuf>,
 }
 
 impl Default for SanitizerConfig {
@@ -120,6 +121,7 @@ impl Default for SanitizerConfig {
             block_symlink_escape: true,
             block_path_traversal: true,
             block_encoding_attacks: true,
+            allowed_prefixes: Vec::new(),
         }
     }
 }
@@ -340,9 +342,17 @@ impl Sanitizer {
     ) -> PathBuf {
         stages.push(SanitizerStage::ScopeCheck);
 
+        // Check allowed prefixes first (temp dirs, etc.)
+        let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+        for prefix in &self.config.allowed_prefixes {
+            let canonical_prefix = prefix.canonicalize().unwrap_or_else(|_| prefix.to_path_buf());
+            if canonical_path.starts_with(&canonical_prefix) {
+                return path.to_path_buf();
+            }
+        }
+
         if let Some(root) = workspace_root {
             let canonical_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
             if !canonical_path.starts_with(&canonical_root) {
                 issues.push(SanitizerIssue::OutOfScope(path.display().to_string()));
             }

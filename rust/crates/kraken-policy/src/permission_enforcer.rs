@@ -58,10 +58,18 @@ impl PermissionEnforcer {
     /// assert!(matches!(enforcer.check("write_file", "data.txt"), EnforcementResult::Denied { .. }));
     /// ```
     pub fn check(&self, tool_name: &str, input: &str) -> EnforcementResult {
-        // When the active mode is Prompt, defer to the caller's interactive
-        // prompt flow rather than hard-denying (the enforcer has no prompter).
+        // El enforcer no tiene prompter. En modo Prompt no puede aprobar por
+        // si solo, asi que falla cerrado: quien pueda preguntar debe hacerlo
+        // antes de llegar aqui.
         if self.policy.active_mode() == PermissionMode::Prompt {
-            return EnforcementResult::Allowed;
+            return EnforcementResult::Denied {
+                tool: tool_name.to_owned(),
+                active_mode: PermissionMode::Prompt.as_str().to_owned(),
+                required_mode: self.policy.required_mode_for(tool_name).as_str().to_owned(),
+                reason: format!(
+                    "'{tool_name}' requires confirmation in prompt mode; the enforcer cannot prompt"
+                ),
+            };
         }
 
         let outcome = self.policy.authorize(tool_name, input, None);
@@ -94,16 +102,22 @@ impl PermissionEnforcer {
         input: &str,
         required_mode: PermissionMode,
     ) -> EnforcementResult {
-        // When the active mode is Prompt, defer to the caller's interactive
-        // prompt flow rather than hard-denying.
+        // When the active mode is Prompt, the enforcer cannot prompt: fail closed.
         if self.policy.active_mode() == PermissionMode::Prompt {
-            return EnforcementResult::Allowed;
+            return EnforcementResult::Denied {
+                tool: tool_name.to_owned(),
+                active_mode: PermissionMode::Prompt.as_str().to_owned(),
+                required_mode: required_mode.as_str().to_owned(),
+                reason: format!(
+                    "'{tool_name}' with input '{input}' requires confirmation in prompt mode; the enforcer cannot prompt"
+                ),
+            };
         }
 
         let active_mode = self.policy.active_mode();
 
         // Check if active mode meets the dynamically determined required mode
-        if active_mode >= required_mode {
+        if active_mode.permits(required_mode) {
             return EnforcementResult::Allowed;
         }
 

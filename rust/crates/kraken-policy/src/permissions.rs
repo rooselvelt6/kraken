@@ -36,6 +36,36 @@ impl PermissionMode {
             Self::Allow => "allow",
         }
     }
+
+    /// Nivel de permisos efectivos.
+    ///
+    /// `Prompt` y `Allow` no son niveles: `Prompt` exige confirmacion humana y
+    /// `Allow` se evalua por separado. Por eso devolver `None` y evitar que la
+    /// comparacion ordinal los tratee como "mas permisivos" que todo lo demas.
+    const fn level(self) -> Option<u8> {
+        match self {
+            Self::ReadOnly => Some(0),
+            Self::WorkspaceWrite => Some(1),
+            Self::DangerFullAccess => Some(2),
+            Self::Prompt | Self::Allow => None,
+        }
+    }
+
+    /// `true` si el modo actual concede por si solo lo que la herramienta exige.
+    ///
+    /// No sustituye a las reglas `allow`/`deny`/`ask` ni al prompter: solo
+    /// responde si el modo activo basta por si mismo.
+    #[must_use]
+    pub fn permits(self, required: PermissionMode) -> bool {
+        match required {
+            Self::Allow => self == Self::Allow,
+            Self::Prompt => false,
+            _ => matches!(
+                (self.level(), required.level()),
+                (Some(current), Some(needed)) if current >= needed
+            ),
+        }
+    }
 }
 
 /// Hook-provided override applied before standard permission evaluation.
@@ -257,7 +287,7 @@ impl PermissionPolicy {
                 }
                 if allow_rule.is_some()
                     || current_mode == PermissionMode::Allow
-                    || current_mode >= required_mode
+                    || current_mode.permits(required_mode)
                 {
                     return PermissionOutcome::Allow;
                 }
@@ -282,7 +312,7 @@ impl PermissionPolicy {
 
         if allow_rule.is_some()
             || current_mode == PermissionMode::Allow
-            || current_mode >= required_mode
+            || current_mode.permits(required_mode)
         {
             return PermissionOutcome::Allow;
         }
@@ -703,5 +733,129 @@ mod tests {
             prompter.seen[0].reason.as_deref(),
             Some("hook requested confirmation")
         );
+    }
+
+    const ALL_MODES: [PermissionMode; 5] = [
+        PermissionMode::ReadOnly,
+        PermissionMode::WorkspaceWrite,
+        PermissionMode::DangerFullAccess,
+        PermissionMode::Prompt,
+        PermissionMode::Allow,
+    ];
+
+    #[test]
+    fn prompt_mode_never_authorizes_without_prompter() {
+        for required in ALL_MODES {
+            let policy = PermissionPolicy::new(PermissionMode::Prompt)
+                .with_tool_requirement("tool", required);
+
+            assert!(
+                matches!(
+                    policy.authorize("tool", "{}", None),
+                    PermissionOutcome::Deny { .. }
+                ),
+                "Prompt sin prompter no debe autorizar, required={required:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn prompt_mode_always_asks_the_prompter() {
+        for required in ALL_MODES {
+            let policy = PermissionPolicy::new(PermissionMode::Prompt)
+                .with_tool_requirement("tool", required);
+            let mut prompter = RecordingPrompter {
+                seen: Vec::new(),
+                allow: false,
+            };
+
+            let outcome = policy.authorize("tool", "{}", Some(&mut prompter));
+
+            assert_eq!(prompter.seen.len(), 1, "required={required:?}");
+            assert!(
+                matches!(outcome, PermissionOutcome::Deny { .. }),
+                "un prompter que rechaza debe denegar, required={required:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn permission_matrix_matches_expected_levels() {
+        // (modo activo, requerido) -> se concede sin prompter
+        let expected = [
+            (PermissionMode::ReadOnly, PermissionMode::ReadOnly, true),
+            (PermissionMode::ReadOnly, PermissionMode::WorkspaceWrite, false),
+            (PermissionMode::ReadOnly, PermissionMode::DangerFullAccess, false),
+            (PermissionMode::WorkspaceWrite, PermissionMode::ReadOnly, true),
+            (PermissionMode::WorkspaceWrite, PermissionMode::WorkspaceWrite, true),
+            (
+                PermissionMode::WorkspaceWrite,
+                PermissionMode::DangerFullAccess,
+                false,
+            ),
+            (PermissionMode::DangerFullAccess, PermissionMode::ReadOnly, true),
+            (
+                PermissionMode::DangerFullAccess,
+                PermissionMode::WorkspaceWrite,
+                true,
+            ),
+            (
+                PermissionMode::DangerFullAccess,
+                PermissionMode::DangerFullAccess,
+                true,
+            ),
+            // Prompt nunca concede por si mismo: cae en el prompt_or_deny.
+            (PermissionMode::Prompt, PermissionMode::ReadOnly, false),
+            (
+                PermissionMode::Prompt,
+                PermissionMode::WorkspaceWrite,
+                false,
+            ),
+            (
+                PermissionMode::Prompt,
+                PermissionMode::DangerFullAccess,
+                false,
+            ),
+            // Allow concede cualquier nivel de herramienta.
+            (PermissionMode::Allow, PermissionMode::ReadOnly, true),
+            (PermissionMode::Allow, PermissionMode::WorkspaceWrite, true),
+            (PermissionMode::Allow, PermissionMode::DangerFullAccess, true),
+        ];
+
+        for (active, required, should_allow) in expected {
+            let policy = PermissionPolicy::new(active).with_tool_requirement("tool", required);
+            let outcome = policy.authorize("tool", "{}", None);
+            let allowed = matches!(outcome, PermissionOutcome::Allow);
+
+            assert_eq!(
+                allowed, should_allow,
+                "active={active:?} required={required:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn allow_mode_never_needs_a_prompter() {
+        for required in ALL_MODES {
+            let policy = PermissionPolicy::new(PermissionMode::Allow)
+                .with_tool_requirement("tool", required);
+
+            assert_eq!(policy.authorize("tool", "{}", None), PermissionOutcome::Allow);
+        }
+    }
+
+    #[test]
+    fn hook_allow_does_not_bypass_prompt_mode() {
+        let policy = PermissionPolicy::new(PermissionMode::Prompt)
+            .with_tool_requirement("bash", PermissionMode::ReadOnly);
+        let context = PermissionContext::new(
+            Some(PermissionOverride::Allow),
+            Some("hook approved".to_string()),
+        );
+
+        assert!(matches!(
+            policy.authorize_with_context("bash", "{}", &context, None),
+            PermissionOutcome::Deny { .. }
+        ));
     }
 }
