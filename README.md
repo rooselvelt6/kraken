@@ -1,17 +1,62 @@
 <div align="center">
 
-# 🦑 KRAKEN CODE
+<pre style="font-family: 'Monospace', monospace; line-height: 1.05; font-size: 13px;">
+<code>
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                    ║
+║      ███████╗██╗   ██╗███████╗██████╗ ██████╗ ███████╗███╗   ██╗████████╗██████╗  ║
+║      ██╔════╝██║   ██║██╔════╝██╔══██╗██╔══██╗██╔════╝████╗  ██║╚══██╔══╝██╔══██╗ ║
+║      ███████╗██║   ██║█████╗  ██████╔╝██████╔╝█████╗  ██╔██╗ ██║   ██║   ██████╔╝ ║
+║      ╚════██║██║   ██║██╔══╝  ██╔══██╗██╔══██╗██╔══╝  ██║╚██╗██║   ██║   ██╔══██╗ ║
+║      ███████║╚██████╔╝███████╗██║  ██║██║  ██║███████╗██║ ╚████║   ██║   ██║  ██║ ║
+║      ╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ║
+║                                                                                    ║
+║          ███████╗████████╗██████╗ ███████╗ █████╗ ████████╗██╗ ██████╗ ███╗   ██╗ ║
+║          ██╔════╝╚══██╔══╝██╔══██╗██╔════╝██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║ ║
+║          ███████╗   ██║   ██████╔╝█████╗  ███████║   ██║   ██║██║   ██║██╔██╗ ██║ ║
+║          ╚════██║   ██║   ██╔══██╗██╔══╝  ██╔══██║   ██║   ██║██║   ██║██║╚██╗██║ ║
+║          ███████║   ██║   ██║  ██║███████╗██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║ ║
+║          ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ║
+║                                                                                    ║
+║    ╭──────────────────────────────────────────────────────────────────────────╮   ║
+║    │  🦑  K R A K E N   C O D E  🦑                                         │   ║
+║    │  ──────────────────────────────────────────────────────────────────     │   ║
+║    │  The autonomous AI agent that hunts vulnerabilities, rewrites code,   │   ║
+║    │  and never sleeps.                                                    │   ║
+║    ╰──────────────────────────────────────────────────────────────────────────╯   ║
+║                                                                                    ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
 
-**The autonomous AI agent that hunts vulnerabilities, rewrites code, and never sleeps.**
+                    ╭─────────────────────────────────────╮
+                    │         🦑  KRAKEN  🦑               │
+                    │    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄    │
+                    │   █████████████████████████████████   │
+                    │  ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██  │
+                    │ ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██ │
+                    │██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██│
+                    │██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██│
+                    │██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██│
+                    │██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██│
+                    │ ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██ │
+                    │  ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░██  │
+                    │   █████████████████████████████████   │
+                    │     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀     │
+                    │                                       │
+                    │    🐙  𝓗𝓾𝓷𝓽𝓼  •  𝓡𝓮𝔀𝓻𝓲𝓽𝓮𝓼  •  𝓝𝓮𝓿𝓮𝓻 𝓼𝓵𝓮𝓮𝓹𝓼  🐙    │
+                    ╰─────────────────────────────────────╯
+</code>
+</pre>
 
-<img src="https://raw.githubusercontent.com/ultraworkers/kraken-code/main/assets/logo.svg" alt="KRAKEN" width="280"/>
+<p align="center">
+  <img src="https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge&logo=github-actions" alt="Build Status"/>
+  <img src="https://img.shields.io/badge/rust-1.98+-orange?style=for-the-badge&logo=rust" alt="Rust Version"/>
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="License"/>
+  <img src="https://img.shields.io/badge/security-hardened-red?style=for-the-badge&logo=lock" alt="Security Hardened"/>
+  <img src="https://img.shields.io/badge/container-docker-blue?style=for-the-badge&logo=docker" alt="Docker"/>
+  <img src="https://img.shields.io/badge/sandbox-landlock%20%7C%20seccomp-purple?style=for-the-badge&logo=linux" alt="Sandbox"/>
+</p>
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](https://github.com/ultraworkers/kraken-code/actions)
-[![Rust](https://img.shields.io/badge/rust-1.98+-orange?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
-[![Security](https://img.shields.io/badge/security-hardened-red?style=for-the-badge)](SECURITY.md)
-
-**A fully isolated, sandboxed, self-healing AI coding agent that runs entirely in containers—zero host impact.**
+<p align="center"><strong>A fully isolated, sandboxed, self-healing AI coding agent that runs entirely in containers—zero host impact.</strong></p>
 
 </div>
 
